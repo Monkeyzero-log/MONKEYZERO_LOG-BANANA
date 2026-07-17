@@ -3,189 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>文字劇場 · 作品櫃</title>
+<title>文字劇場 · 節目單</title>
 <!--
-  作品櫃 index v1.0 —— 資料表驅動:
-  加新作品 = 在下方 DEMOS 陣列加一行,不用改任何其他程式。
+  作品櫃 index v2 —— 劇場節目單 × 線裝書目錄
+  ・標題直排、由上而下漸大漸重（字越大越重）,載入時依重量落定
+  ・每一幕左側一條直書書脊,條目用目錄引線而非卡片
+  ・加新作品 = 在 DEMOS 陣列加一行
 -->
 <style>
-  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
-         --warm:#ffb347; --cold:#9fd8ff; --line:rgba(147,160,191,.16); }
+  :root{
+    --bg:#0d0b11; --paper:#ece6d8; --muted:#8f97ad; --faint:#565e74;
+    --warm:#e8a35c; --cold:#9fc4dc;
+    --hair:rgba(236,230,216,.13);
+  }
   *{box-sizing:border-box}
-  body{ margin:0; background:radial-gradient(120% 90% at 50% -10%, #141220, #0b0a10 70%);
-    color:var(--paper); font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
-    min-height:100vh; }
-  #wrap{ max-width:920px; margin:0 auto; padding:64px 20px 80px; }
+  html{scroll-behavior:smooth}
+  body{ margin:0; background:var(--bg); color:var(--paper);
+    font-family:'Noto Serif TC',Georgia,'PMingLiU',serif;
+    -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; text-decoration:none; }
+  a:focus-visible{ outline:1px solid var(--warm); outline-offset:4px; }
 
-  header h1{ font-size:38px; letter-spacing:18px; margin:0; font-weight:normal; }
-  header .sub{ font:11px 'Courier New',monospace; letter-spacing:.3em;
-    color:var(--faint); margin-top:10px; animation:breathe 5s ease-in-out infinite; }
-  @keyframes breathe{ 50%{ opacity:.45; } }
-  header .intro{ color:var(--muted); font-size:14.5px; line-height:2;
-    margin-top:22px; max-width:640px; letter-spacing:.03em; }
+  #wrap{ max-width:780px; margin:0 auto; padding:72px 26px 88px; }
 
-  .group{ margin-top:52px; }
-  .group h2{ font-size:15px; letter-spacing:.35em; color:var(--cold);
-    font-weight:normal; border-bottom:1px solid var(--line);
-    padding-bottom:10px; }
-  .group h2 small{ color:var(--faint); letter-spacing:.15em;
-    font:10px 'Courier New',monospace; margin-left:12px; }
+  /* ── 楔子:標題示範物理 ── */
+  #hero{ display:grid; grid-template-columns:auto 1fr; gap:52px;
+    align-items:end; margin-bottom:26px; }
+  #title{ display:flex; flex-direction:column; align-items:center;
+    line-height:1; gap:6px; }
+  #title span{ display:block;
+    animation:land .8s cubic-bezier(.25,1.35,.45,1) both; }
+  #title span:nth-child(1){ font-size:38px; font-weight:300; animation-delay:.05s; }
+  #title span:nth-child(2){ font-size:47px; font-weight:500; animation-delay:.18s; }
+  #title span:nth-child(3){ font-size:58px; font-weight:700; animation-delay:.34s; }
+  #title span:nth-child(4){ font-size:72px; font-weight:900; animation-delay:.54s; }
+  @keyframes land{ from{ opacity:0; transform:translateY(-34px);} }
 
-  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-    gap:14px; margin-top:18px; }
-  a.card{ display:block; text-decoration:none; color:inherit;
-    background:rgba(16,13,28,.6); border:1px solid var(--line);
-    border-radius:12px; padding:16px 18px 14px;
-    transition:transform .25s, border-color .25s, background .25s; }
-  a.card:hover{ transform:translateY(-3px);
-    border-color:rgba(255,179,71,.45); background:rgba(24,19,38,.7); }
-  .card .t{ font-size:16.5px; letter-spacing:.06em; }
-  .card .d{ color:var(--muted); font-size:12.5px; line-height:1.8;
-    margin-top:8px; min-height:2.6em; }
-  .card .meta{ display:flex; justify-content:space-between; margin-top:10px;
-    font:9.5px 'Courier New',monospace; letter-spacing:.12em; color:var(--faint); }
-  .card .op{ color:#7a8ba8; }
+  #manifesto{ padding-bottom:8px; }
+  #manifesto .verse{ font-size:17px; line-height:2.3; letter-spacing:.08em;
+    color:var(--paper); }
+  #manifesto .meta{ margin-top:20px;
+    font:10.5px 'Courier New',monospace; letter-spacing:.28em; color:var(--faint); }
 
-  .cards.mini{ grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
-  .cards.mini a.card{ padding:12px 14px 10px; }
-  .cards.mini .t{ font-size:13.5px; }
-  .cards.mini .d{ display:none; }
+  #rule{ border:none; border-top:1px solid var(--hair); margin:0 0 8px; }
 
-  footer{ margin-top:64px; padding-top:20px; border-top:1px solid var(--line);
-    color:var(--faint); font-size:12px; line-height:2; letter-spacing:.05em; }
-  footer a{ color:var(--muted); }
-  footer a:hover{ color:var(--warm); }
+  /* ── 幕:直書書脊 + 目錄引線 ── */
+  .act{ display:grid; grid-template-columns:44px 1fr; gap:30px;
+    padding:34px 0 30px; border-bottom:1px solid var(--hair); }
+  .spine{ writing-mode:vertical-rl; font-size:13px; letter-spacing:.5em;
+    color:var(--cold); border-left:1px solid var(--hair); padding-left:14px;
+    height:fit-content; }
+  .spine small{ display:block; writing-mode:vertical-rl;
+    font:9px 'Courier New',monospace; letter-spacing:.3em;
+    color:var(--faint); margin-top:14px; }
 
-  .dust{ position:fixed; pointer-events:none; color:rgba(233,228,214,.18);
-    font-size:9px; z-index:0; }
-  #wrap{ position:relative; z-index:1; }
+  .entry{ display:block; padding:11px 2px; }
+  .entry .row{ display:flex; align-items:baseline; gap:12px; }
+  .entry .t{ font-size:17px; letter-spacing:.05em; white-space:nowrap;
+    transition:letter-spacing .35s; }
+  .entry .leader{ flex:1; border-bottom:1px dotted rgba(143,151,173,.4);
+    transform:translateY(-4px); transition:border-color .35s; }
+  .entry .op{ font:10px 'Courier New',monospace; letter-spacing:.18em;
+    color:var(--faint); white-space:nowrap; }
+  .entry .open{ font-size:12px; color:var(--warm); opacity:0;
+    transform:translateX(-6px); transition:opacity .3s, transform .3s; }
+  .entry .d{ margin-top:6px; font-size:12.5px; line-height:1.9;
+    color:var(--muted); letter-spacing:.03em; max-width:56ch; }
+  .entry:hover .t, .entry:focus-visible .t{ letter-spacing:.14em; }
+  .entry:hover .leader{ border-color:rgba(232,163,92,.55); }
+  .entry:hover .open, .entry:focus-visible .open{ opacity:1; transform:none; }
+
+  /* ── 附錄:引擎驗收 ── */
+  .appendix .entries{ columns:2; column-gap:44px; }
+  .appendix .entry{ break-inside:avoid; padding:7px 2px; }
+  .appendix .t{ font-size:13.5px; }
+  .appendix .num{ font:10px 'Courier New',monospace; color:var(--faint);
+    letter-spacing:.15em; margin-right:10px; }
+
+  footer{ margin-top:44px; color:var(--faint); font-size:12px;
+    line-height:2.1; letter-spacing:.05em; }
+  footer a{ color:var(--muted); border-bottom:1px dotted rgba(143,151,173,.4); }
+  footer a:hover{ color:var(--warm); border-color:var(--warm); }
+
+  @media (max-width:620px){
+    #wrap{ padding:48px 20px 64px; }
+    #hero{ grid-template-columns:1fr; gap:26px; align-items:start; }
+    #title{ flex-direction:row; align-items:baseline; gap:10px; }
+    .act{ grid-template-columns:1fr; gap:14px; }
+    .spine{ writing-mode:horizontal-tb; border-left:none;
+      border-bottom:1px solid var(--hair); padding:0 0 8px; letter-spacing:.4em; }
+    .spine small{ display:inline; writing-mode:horizontal-tb; margin:0 0 0 12px; }
+    .appendix .entries{ columns:1; }
+    .entry .d{ max-width:none; }
+  }
   @media (prefers-reduced-motion:reduce){
-    header .sub{ animation:none; } .dust{ display:none; }
+    #title span{ animation:none; }
+    .entry .t,.entry .leader,.entry .open{ transition:none; }
   }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <header>
-    <h1>文字劇場</h1>
-    <div class="sub">TEXTUAL THEATRE · 文字物理學作品櫃</div>
-    <div class="intro">
-      字越大越重、換行是重力、標點有質量。<br>
-      這裡的一切——山、水、骷髏、棋局、走不完的走廊——都是文字砌的。
+  <header id="hero">
+    <div id="title" aria-label="文字劇場">
+      <span>文</span><span>字</span><span>劇</span><span>場</span>
+    </div>
+    <div id="manifesto">
+      <div class="verse">字越大越重。<br>換行是重力。<br>標點有質量。</div>
+      <div class="meta">TEXTUAL THEATRE · 二十七件作品 · 基底 CODEX v12.1</div>
     </div>
   </header>
-  <div id="groups"></div>
+  <hr id="rule">
+  <main id="acts"></main>
   <footer>
-    設計文件：<a href="docs/mechanisms-catalog-v1.0.md">機制總目錄 v1.0</a> ·
-    <a href="docs/design-notes-v0.1.md">設計筆記 v0.1</a>
-    （在 GitHub 倉庫頁閱讀排版較佳）<br>
-    基底：Textual Physics Codex v12.1 · 除引擎驗收外均為佔位文本，正式文本替換資料表即可。
+    設計文件——<a href="docs/mechanisms-catalog-v1.0.md">機制總目錄 v1.0</a>、
+    <a href="docs/design-notes-v0.1.md">設計筆記 v0.1</a>（於 GitHub 倉庫頁閱讀排版較佳）。<br>
+    除引擎驗收外,各作品文本均為佔位示意;正式文本替換資料表即可。
   </footer>
 </div>
 
 <script>
 'use strict';
-/* ══ 作品資料表:加作品 = 加一行 ══ */
+/* ══ 節目單資料表:加作品 = 加一行 ══ */
 const DEMOS = [
-  { g:'演出層 · 對話與台詞', en:'PERFORMANCE LAYER', items:[
+  { act:'第一幕', name:'演出', en:'PERFORMANCE', items:[
     { t:'對話情緒物理', f:'demos/fx-emotions.html',
-      d:'六種情緒的逐字演出:顫抖、呼吸、心電圖、寒冷、哽咽、怒吼。', op:'按鈕切換' },
+      d:'六種情緒的逐字演出——顫抖、呼吸、心電圖、寒冷、哽咽、怒吼。', op:'按鈕切換' },
     { t:'符號黑洞・台詞的六種死法', f:'demos/fx-blackhole-vanish.html',
       d:'字符構成的旋轉黑洞;台詞碎落、蒸發、燃燒、溶解、句點化、被吞噬。', op:'按鈕切換' },
     { t:'輸入中⋯', f:'demos/typing-unsent.html',
-      d:'看見對方刪掉的話——然後頁面看見你刪掉的。打字測謊。', op:'自動播放＋輸入' },
+      d:'看見對方刪掉的話——然後頁面看見你刪掉的。', op:'輸入' },
   ]},
-  { g:'排版戲劇學', en:'LAYOUT DRAMATURGY', items:[
+  { act:'第二幕', name:'排版', en:'LAYOUT', items:[
     { t:'三框・框的生老病死', f:'demos/zones-dramaturgy.html',
       d:'框會誕生、死亡、遺缺、失語、分裂、合併、易位。布局即劇情。', op:'點擊推進' },
     { t:'爭論分屏・版面即戰況', f:'demos/split-argument.html',
-      d:'吵贏的一方變大,吵輸的被壓成細條直書;第三者楔形亂入。', op:'點擊推進' },
+      d:'吵贏的一方變大;吵輸的被壓成細條直書;第三者楔形亂入。', op:'點擊推進' },
     { t:'測謊排版・消失的鑰匙', f:'demos/polygraph.html',
-      d:'說謊的句子有藏不住的微顫。害怕整段抖,說謊只有一句抖。', op:'點擊指認' },
+      d:'害怕的人整段都在抖。說謊的人,只有那一句在抖。', op:'點擊指認' },
   ]},
-  { g:'地圖・舞台・鏡頭', en:'STAGE & CAMERA', items:[
+  { act:'第三幕', name:'舞台', en:'STAGE', items:[
     { t:'地圖行走轉場', f:'demos/fx-map-walk.html',
       d:'路是字鋪的、腳步聲用字演、迷霧是亂碼、離場時世界崩塌。', op:'← → 行走' },
     { t:'象形字地圖', f:'demos/fx-map-pictograph.html',
-      d:'漢字砌成的 2D 地圖:山不可過、～可涉水,穿過「門」字進入室內。', op:'方向鍵/WASD' },
+      d:'漢字砌成的地圖:山不可過、～可涉水;穿過「門」字進入室內。', op:'方向鍵' },
     { t:'符號舞台・鏡頭與演技', f:'demos/symbol-stage.html',
-      d:'全景/跟拍/超近鏡/寶可夢對峙位;倒地時符號碎成自己的筆畫。', op:'點擊推進' },
+      d:'跟拍、超近鏡、寶可夢對峙位;倒地時符號碎成自己的筆畫。', op:'點擊推進' },
   ]},
-  { g:'詩與文的演出', en:'POEM & FIC', items:[
-    { t:'圓美 v2 · 詩就是那個圈', f:'demos/poem-yuanmei-v2.html',
-      d:'詩句逐字走上圓周;「距離完美還差一筆」被彈射成缺口,屍體躺在地上。', op:'點擊推進' },
-    { t:'圓美 v1 · 捲動版', f:'demos/poem-yuanmei-v1.html',
-      d:'捲動逐行顯影、聲音字體學、自我示範的字、永遠差一寸的圓。', op:'向下捲動' },
-    { t:'黑白棋（HP同人）', f:'demos/fic-othello.html',
-      d:'擬聲詞是節拍器:啪＝翻中盤、喀噠＝佈死角、砰＝掀桌、終局連鎖翻轉。', op:'點擊推進' },
+  { act:'第四幕', name:'詩文', en:'POEM & FIC', items:[
+    { t:'圓美 v2・詩就是那個圈', f:'demos/poem-yuanmei-v2.html',
+      d:'詩句逐字走上圓周;「距離完美還差一筆」被彈射成缺口。', op:'點擊推進' },
+    { t:'圓美 v1・捲動版', f:'demos/poem-yuanmei-v1.html',
+      d:'捲動逐行顯影、聲音字體學、永遠差一寸的圓。', op:'向下捲動' },
+    { t:'黑白棋', f:'demos/fic-othello.html',
+      d:'擬聲詞是節拍器:啪＝翻中盤、喀噠＝佈死角、砰＝掀桌。', op:'點擊推進' },
   ]},
-  { g:'四題材樣本', en:'GENRE SAMPLES', items:[
+  { act:'第五幕', name:'四題材', en:'GENRE SAMPLES', items:[
     { t:'荒島・第七天', f:'demos/island-day7.html',
-      d:'不做血條:飢餓的字變細、發燒的字失焦;信任是引力,營地自己裂成兩團。', op:'點擊推進' },
+      d:'飢餓的字變細、發燒的字失焦;信任是引力,營地自己裂成兩團。', op:'點擊推進' },
     { t:'輪迴・第 N 夜', f:'demos/loop-night.html',
-      d:'死亡後時間倒帶;主角失憶,頁面記得——關掉再回來,殘骸還在。', op:'點擊推進' },
+      d:'死亡後時間倒帶。主角失憶,頁面記得。', op:'點擊推進' },
     { t:'OC・小房間', f:'demos/oc-room.html',
-      d:'可探索的字符房間+桌寵 OC:會閒晃、看你、被點會蹦跳說話。', op:'點擊探索' },
+      d:'可探索的字符房間;桌寵 OC 會閒晃、看你、被點會說話。', op:'點擊探索' },
   ]},
-  { g:'偽3D與風景', en:'PSEUDO-3D & SCENERY', items:[
+  { act:'第六幕', name:'幻境', en:'PSEUDO-3D', items:[
     { t:'偽3D 四景', f:'demos/pseudo3d-4scenes.html',
       d:'星穹穿越、筆畫密度甜甜圈、深度舞台、走不完的迴廊。', op:'按鈕切換' },
     { t:'注視・骷髏與面具', f:'demos/gaze-skull.html',
       d:'亮的地方都是「死」字;眼窩裡的紅光跟著你的游標。', op:'移動滑鼠' },
     { t:'字符山水', f:'demos/char-landscape.html',
-      d:'山用山字堆、雁陣排成人字;拖時辰滑桿看一天的顏色流過。', op:'滑桿/視差' },
+      d:'山用山字堆、雁陣排成人字;拖時辰滑桿看一天的顏色流過。', op:'滑桿' },
   ]},
-  { g:'引擎驗收 Demo', en:'ENGINE ACCEPTANCE · Codex v12.1', mini:true, items:[
-    { t:'01 石頭下落反彈', f:'demos/engine-01-stone-bounce.html' },
-    { t:'02 冰的相變循環', f:'demos/engine-02-phase-cycle.html' },
-    { t:'03 FIRE+WATER', f:'demos/engine-03-fire-water.html' },
-    { t:'04 BOMB 爆炸', f:'demos/engine-04-bomb-blast.html' },
-    { t:'05 量子坍縮', f:'demos/engine-05-quantum-hover.html' },
-    { t:'06 光源投影', f:'demos/engine-06-light-shadow.html' },
-    { t:'07 聲源震動', f:'demos/engine-07-sound-vibration.html' },
-    { t:'08 浮力對照', f:'demos/engine-08-buoyancy.html' },
-    { t:'09 進化開關', f:'demos/engine-09-evolution-toggle.html' },
+  { act:'附錄', name:'引擎驗收', en:'ENGINE ACCEPTANCE', appendix:true, items:[
+    { n:'〇一', t:'石頭下落反彈', f:'demos/engine-01-stone-bounce.html' },
+    { n:'〇二', t:'冰的相變循環', f:'demos/engine-02-phase-cycle.html' },
+    { n:'〇三', t:'FIRE＋WATER', f:'demos/engine-03-fire-water.html' },
+    { n:'〇四', t:'BOMB 爆炸', f:'demos/engine-04-bomb-blast.html' },
+    { n:'〇五', t:'量子坍縮', f:'demos/engine-05-quantum-hover.html' },
+    { n:'〇六', t:'光源投影', f:'demos/engine-06-light-shadow.html' },
+    { n:'〇七', t:'聲源震動', f:'demos/engine-07-sound-vibration.html' },
+    { n:'〇八', t:'浮力對照', f:'demos/engine-08-buoyancy.html' },
+    { n:'〇九', t:'進化開關', f:'demos/engine-09-evolution-toggle.html' },
   ]},
 ];
 
-const root = document.getElementById('groups');
-DEMOS.forEach(G => {
-  const g = document.createElement('section');
-  g.className = 'group';
-  g.innerHTML = `<h2>${G.g}<small>${G.en}</small></h2>`;
-  const cards = document.createElement('div');
-  cards.className = 'cards' + (G.mini ? ' mini' : '');
-  G.items.forEach(it => {
+const acts = document.getElementById('acts');
+DEMOS.forEach(A => {
+  const sec = document.createElement('section');
+  sec.className = 'act' + (A.appendix ? ' appendix' : '');
+  const spine = document.createElement('div');
+  spine.className = 'spine';
+  spine.innerHTML = `${A.act}・${A.name}<small>${A.en}</small>`;
+  const box = document.createElement('div');
+  box.className = 'entries';
+  A.items.forEach(it => {
     const a = document.createElement('a');
-    a.className = 'card'; a.href = it.f;
-    a.innerHTML = `<div class="t">${it.t}</div>`
-      + (it.d ? `<div class="d">${it.d}</div>` : '')
-      + `<div class="meta"><span>${it.f.replace('demos/','')}</span>`
-      + (it.op ? `<span class="op">${it.op}</span>` : '') + `</div>`;
-    cards.appendChild(a);
+    a.className = 'entry'; a.href = it.f;
+    a.innerHTML =
+      `<div class="row">`
+      + (it.n ? `<span class="num">${it.n}</span>` : '')
+      + `<span class="t">${it.t}</span><span class="leader"></span>`
+      + (it.op ? `<span class="op">${it.op}</span>` : '')
+      + `<span class="open">開</span></div>`
+      + (it.d ? `<div class="d">${it.d}</div>` : '');
+    box.appendChild(a);
   });
-  g.appendChild(cards);
-  root.appendChild(g);
+  sec.appendChild(spine);
+  sec.appendChild(box);
+  acts.appendChild(sec);
 });
-
-/* 一點點漂浮的塵埃 */
-if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-  for (let i = 0; i < 14; i++) {
-    const s = document.createElement('span');
-    s.className = 'dust'; s.textContent = '·';
-    s.style.left = Math.random() * 100 + 'vw';
-    s.style.top = Math.random() * 100 + 'vh';
-    document.body.appendChild(s);
-    const ph = Math.random() * 6, sp = 12 + Math.random() * 20;
-    (function drift(t0) {
-      requestAnimationFrame(now => {
-        s.style.transform =
-          `translate(${Math.sin(now/4000+ph)*sp}px, ${Math.cos(now/5200+ph)*sp}px)`;
-        drift(now);
-      });
-    })(0);
-  }
-}
 </script>
 </body>
 </html>
