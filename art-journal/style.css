@@ -1,0 +1,181 @@
+/* ================================================================
+   習作輯 · 共用樣式
+   所有頁面共用這一份，改這裡等於改整本冊子
+   ================================================================ */
+
+:root{
+  --paper:      #F5F4F0;   /* 素描紙的灰白 */
+  --paper-lift: #FBFAF7;   /* 圖版襯底 */
+  --ink:        #2B2B2E;   /* 石墨 */
+  --gray:       #86878B;   /* 圖說灰 */
+  --blue:       #7FA3C4;   /* 打稿鉛筆的淺藍 */
+  --blue-faint: #CBDCE9;   /* 更淡的輔助線 */
+  --line:       #DEDCD4;   /* 髮絲線 */
+  --corner:     #2E2E31;   /* 相角 */
+  --serif: "Noto Serif TC", "Songti TC", serif;
+  --mono:  "IBM Plex Mono", monospace;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+html{ scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:16px;
+  line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+
+a{ color:inherit; text-decoration:none; }
+a:focus-visible{ outline:2px solid var(--blue); outline-offset:4px; }
+
+/* ---------------- 視平線 ---------------- */
+.hl{ position:relative; height:1px; background:var(--blue-faint); }
+.hl::after{
+  content:"";
+  position:absolute; left:var(--vp,50%); top:50%;
+  width:7px; height:7px;
+  background:var(--paper);
+  border:1.5px solid var(--blue);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+}
+.hl .tag{
+  position:absolute; right:0; top:10px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em;
+  color:var(--blue);
+}
+
+/* ---------------- 封面（僅首頁） ---------------- */
+.cover{
+  position:relative;
+  min-height:100svh;
+  padding:clamp(24px,6vw,72px);
+}
+.cover-title{
+  position:absolute;
+  top:50%; right:clamp(24px,14vw,180px);
+  transform:translateY(-50%);
+  writing-mode:vertical-rl;
+  font-size:clamp(58px,9vw,104px);
+  font-weight:600;
+  letter-spacing:.42em;
+  line-height:1;
+}
+.cover .hl{ position:absolute; left:0; right:0; top:58%; }
+@media (prefers-reduced-motion: no-preference){
+  .cover .hl{ transform:scaleX(0); transform-origin:left center; animation:draw 1.4s .3s ease forwards; }
+  @keyframes draw{ to{ transform:scaleX(1); } }
+}
+.cover-meta{
+  position:absolute;
+  left:clamp(24px,6vw,72px); bottom:clamp(28px,6vw,64px);
+  font-family:var(--mono); font-size:12px;
+  letter-spacing:.14em; color:var(--gray);
+  line-height:2.2;
+}
+.cover-meta b{ color:var(--ink); font-weight:500; }
+
+/* ---------------- 內文欄 ---------------- */
+.page{ max-width:720px; margin:0 auto; padding:0 24px; }
+
+/* ---------------- 目次（首頁） ---------------- */
+.toc{ padding:110px 0 30px; }
+.sec-label{
+  font-family:var(--mono); font-size:11px; letter-spacing:.3em;
+  color:var(--blue);
+}
+.toc h2{ font-size:26px; font-weight:600; letter-spacing:.3em; margin:6px 0 36px; }
+.toc-row{
+  display:flex; align-items:baseline;
+  padding:14px 2px;
+}
+.toc-row:hover .toc-name{ color:var(--blue); }
+.toc-no{ font-family:var(--mono); font-size:12px; color:var(--gray); letter-spacing:.12em; margin-right:18px; white-space:nowrap; }
+.toc-name{ font-size:17px; font-weight:500; letter-spacing:.1em; transition:color .25s; white-space:nowrap; }
+.toc-lead{ flex:1; border-bottom:1px dotted var(--line); margin:0 14px; transform:translateY(-5px); min-width:24px; }
+.toc-meta{ font-family:var(--mono); font-size:11px; color:var(--gray); letter-spacing:.1em; white-space:nowrap; }
+
+/* ---------------- 子頁：回目次 ---------------- */
+.crumbs{ padding-top:44px; }
+.crumbs a{
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em;
+  color:var(--blue); transition:color .25s;
+}
+.crumbs a:hover{ color:var(--ink); }
+
+/* ---------------- 章節扉頁 ---------------- */
+.chapter-head{ padding:130px 0 10px; }
+.subpage .chapter-head{ padding:64px 0 10px; }   /* 子頁上方留白較小 */
+.chapter-head h2{
+  font-size:clamp(30px,5vw,40px);
+  font-weight:600; letter-spacing:.24em;
+  margin:8px 0 4px;
+}
+.chapter-desc{ font-size:14px; color:var(--gray); letter-spacing:.06em; margin-bottom:34px; }
+.chapter-head .hl{ margin-top:6px; }
+
+/* ---------------- 圖版 ---------------- */
+.plate{ margin:84px auto; }
+.mount{
+  position:relative;
+  background:var(--paper-lift);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(43,43,46,.05);
+}
+.mount svg, .mount img{ display:block; width:100%; height:auto; }
+.corner{ position:absolute; width:0; height:0; z-index:2; }
+.corner.tl{ top:-2px;    left:-2px;  border-top:18px solid var(--corner);    border-right:18px solid transparent; }
+.corner.tr{ top:-2px;    right:-2px; border-top:18px solid var(--corner);    border-left:18px solid transparent; }
+.corner.bl{ bottom:-2px; left:-2px;  border-bottom:18px solid var(--corner); border-right:18px solid transparent; }
+.corner.br{ bottom:-2px; right:-2px; border-bottom:18px solid var(--corner); border-left:18px solid transparent; }
+
+figcaption{ padding-top:18px; }
+.plate-no{
+  font-family:var(--mono); font-size:11px;
+  letter-spacing:.22em; color:var(--gray);
+}
+.plate-title{ font-size:18px; font-weight:500; letter-spacing:.1em; margin-top:4px; }
+.plate-media{ font-size:13px; color:var(--gray); letter-spacing:.06em; }
+.plate-note{
+  font-size:14px; color:var(--gray);
+  margin-top:12px; padding-left:14px;
+  border-left:2px solid var(--blue-faint);
+  line-height:1.9;
+}
+
+/* 兩欄小研究 */
+.plate-grid{ display:grid; grid-template-columns:1fr 1fr; gap:44px; margin:84px 0; }
+.plate-grid .plate{ margin:0; }
+@media (max-width:560px){ .plate-grid{ grid-template-columns:1fr; gap:64px; } }
+
+/* ---------------- 子頁翻頁 ---------------- */
+.pager{
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  margin:120px 0 90px;
+}
+.pager a{
+  font-family:var(--mono); font-size:11px; letter-spacing:.18em;
+  color:var(--blue); transition:color .25s;
+}
+.pager a:hover{ color:var(--ink); }
+.pager .hl-end{ margin-bottom:44px; }
+
+/* ---------------- 卷末（僅首頁） ---------------- */
+.colophon{ text-align:center; padding:150px 0 90px; }
+.fin{ font-size:34px; font-weight:600; letter-spacing:.3em; }
+.colophon-meta{
+  font-family:var(--mono); font-size:11px;
+  color:var(--gray); letter-spacing:.16em;
+  line-height:2.4; margin-top:28px;
+}
+
+/* ---------------- 進場 ---------------- */
+@media (prefers-reduced-motion: no-preference){
+  .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+}
