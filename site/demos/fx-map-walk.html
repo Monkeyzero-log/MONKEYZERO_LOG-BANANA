@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<!--
+  演出層 POC 2：地圖・行走・轉場
+  定位：延續「對話情緒物理」的演出層思路——不含 TextualPhysicsEngine，
+       純 CSS/JS 逐字演出，但崩塌轉場示範了「引擎級大場面」的簡化版。
+
+  世界觀對應：
+  ・「距離 = 字數」——地面由字符鋪成，走路就是逐字穿越文件（公理三）
+  ・「存在 = 可被解析」——沒去過的地名是跳動的亂碼，走近才解碼（公理一）
+  ・「足跡 = 遺忘之點」——走過的地方留下淡出的頓號（記憶系統的世界觀）
+  ・「場景死亡 = 崩塌」——轉場時每個字符各自受重力墜落（Level 2 消失）
+
+  操作：← → 方向鍵（或 A / D，或按住畫面下方的 ◀ ▶）左右行走。
+
+  打開後預期看到：
+  1. 上方迷你地圖：村莊─老橋─霧林─？？？，◉ 標記你的位置即時移動。
+  2. 地面是字符鋪的：草原「＿」、淺灘「～」、雪地「‥」三段地形。
+  3. 行走時「你」有輕微起伏；每走幾步，腳邊冒出腳步聲字並淡去：
+     草地「沙」、水面「啪嚓」、雪地「吱」；身後留下「、」足跡漸淡。
+  4. 走進淺灘：速度明顯變慢、身體下沉浮動（水的阻力）。
+  5. 最右邊的地名一開始是不斷跳動的亂碼；走近約 250px 內，
+     逐字解碼定形為「遺跡」，下方旁白同步更新。
+  6. 走到「遺跡」正下方 → 崩塌轉場：畫面上所有字符（地面、地名、
+     你、足跡）各自受重力墜落旋轉散開，約 1.5 秒後浮現新場景文字
+     「門的另一邊」與重新開始按鈕。
+  7. 系統開啟「減少動態」時，行走起伏與崩塌動畫簡化為淡出切換。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<title>演出層 POC 2：地圖・行走・轉場</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #101318; color: #d6dbe6;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  }
+
+  /* ── 迷你地圖 ── */
+  #minimap {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    width: min(560px, 86vw); height: 34px; z-index: 20;
+  }
+  #minimap .track {
+    position: absolute; left: 0; right: 0; top: 22px;
+    border-top: 1px solid #333a4a;
+  }
+  #minimap .mm-loc {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-size: 12px; color: #7a8296; white-space: nowrap;
+  }
+  #minimap #mm-marker {
+    position: absolute; top: 15px; transform: translateX(-50%);
+    color: #ffd479; font-size: 13px; transition: left 0.1s linear;
+  }
+
+  /* ── 世界 ── */
+  #viewport { position: fixed; inset: 0; overflow: hidden; }
+  #world { position: absolute; top: 0; left: 0; height: 100%;
+           will-change: transform; }
+  #world span { position: absolute; display: inline-block;
+                will-change: transform; }
+
+  .ground-ch { color: #4a5468; font-family: monospace; font-size: 20px; }
+  .ground-ch.water { color: #3d6a8f; }
+  .ground-ch.snow  { color: #8fa3b8; }
+
+  .loc { font-size: 24px; color: #c8cede; letter-spacing: 2px; }
+  .loc .lch { position: relative; display: inline-block; }
+  .loc.fogged .lch { color: #5a4a6a; }
+
+  #player { font-size: 26px; color: #ffd479; z-index: 5; }
+
+  .footprint { color: #59617a; font-size: 14px;
+               transition: opacity 2.2s; }
+  .stepword  { color: #8fa1c9; font-size: 13px;
+               transition: opacity 0.9s, transform 0.9s; }
+
+  /* ── 旁白與操作 ── */
+  #narration {
+    position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+    max-width: 86vw; text-align: center; color: #9aa3ba; font-size: 15px;
+    letter-spacing: 1px; z-index: 20; transition: opacity 0.6s;
+  }
+  #controls {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; z-index: 20;
+  }
+  #controls button {
+    background: #1c212c; color: #c8cede; border: 1px solid #333a4a;
+    border-radius: 8px; padding: 8px 26px; font-size: 18px;
+    font-family: inherit; cursor: pointer; user-select: none;
+    touch-action: none;
+  }
+  #controls button:active { background: #2a3040; }
+  #keys-hint {
+    position: fixed; bottom: 58px; left: 50%; transform: translateX(-50%);
+    color: #444c60; font-size: 12px; z-index: 20;
+  }
+
+  /* ── 轉場後的新場景 ── */
+  #next-scene {
+    position: fixed; inset: 0; display: none; z-index: 30;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px;
+  }
+  #next-scene .title {
+    font-size: 34px; letter-spacing: 12px; color: #e8ecf5; opacity: 0;
+    transition: opacity 2.2s, letter-spacing 2.2s;
+  }
+  #next-scene .sub { color: #7a8296; font-size: 14px; opacity: 0;
+                     transition: opacity 2.2s 0.8s; }
+  #next-scene button {
+    background: #1c212c; color: #c8cede; border: 1px solid #333a4a;
+    border-radius: 6px; padding: 8px 20px; font-family: inherit;
+    font-size: 14px; cursor: pointer; opacity: 0; transition: opacity 1.5s 1.6s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #world span, #next-scene .title, #next-scene .sub { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="minimap"><div class="track"></div><div id="mm-marker">◉</div></div>
+<div id="viewport"><div id="world"></div></div>
+<div id="narration"></div>
+<div id="keys-hint">← → 或 A / D 行走</div>
+<div id="controls">
+  <button id="btn-left">◀</button>
+  <button id="btn-right">▶</button>
+</div>
+
+<div id="next-scene">
+  <div class="title">門的另一邊</div>
+  <div class="sub">——所有的字都落下去了，只有你還站著。</div>
+  <button onclick="location.reload()">重新開始</button>
+</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 世界資料：地形（距離 = 字數）與地點
+// ═══════════════════════════════════════════════
+const WORLD_W = 2800;
+const CHAR_W  = 20;                        // 每個地面字符的寬度
+
+const TERRAIN = [
+  { from:    0, to: 1000, ch: '＿', cls: '',      step: '沙',   speed: 1.0, bob: 0 },
+  { from: 1000, to: 1700, ch: '～', cls: 'water', step: '啪嚓', speed: 0.5, bob: 5 },
+  { from: 1700, to: 2800, ch: '‥', cls: 'snow',  step: '吱',   speed: 0.85, bob: 0 },
+];
+
+const LOCATIONS = [
+  { name: '村莊', x:  120 },
+  { name: '老橋', x:  980 },
+  { name: '霧林', x: 1620 },
+  { name: '遺跡', x: 2560, fogged: true },   // 亂碼迷霧，走近才解碼
+];
+
+const NARRATIONS = [
+  { at:    0, text: '草葉擦過腳踝。往東走吧。' },
+  { at: 1000, text: '水漫過鞋面，每一步都變重了。' },
+  { at: 1700, text: '腳下的雪咯吱作響。前面那個名字……讀不出來。' },
+  { at: 2320, text: '霧散了。那裡寫著——遺跡。' },
+];
+
+// ═══════════════════════════════════════════════
+// 建構世界
+// ═══════════════════════════════════════════════
+const world    = document.getElementById('world');
+const viewport = document.getElementById('viewport');
+world.style.width = WORLD_W + 'px';
+
+let groundY = Math.round(window.innerHeight * 0.62);
+const allSpans = [];                 // 崩塌轉場要讓「每一個字」墜落
+
+function addSpan(text, x, y, cls) {
+  const s = document.createElement('span');
+  s.textContent = text;
+  if (cls) s.className = cls;
+  s.style.transform = `translate(${x}px, ${y}px)`;
+  s._x = x; s._y = y;
+  world.appendChild(s);
+  allSpans.push(s);
+  return s;
+}
+
+// 地面：逐字鋪路
+TERRAIN.forEach(seg => {
+  for (let x = seg.from; x < seg.to; x += CHAR_W) {
+    addSpan(seg.ch, x, groundY, 'ground-ch ' + seg.cls);
+  }
+});
+
+// 地點：站在地面上的詞
+const NOISE = '骸霧咒祀骨異蝕禁';
+const locEls = LOCATIONS.map(loc => {
+  const el = addSpan('', loc.x, groundY - 40, 'loc' + (loc.fogged ? ' fogged' : ''));
+  [...loc.name].forEach(ch => {
+    const c = document.createElement('span');
+    c.className = 'lch';
+    c.textContent = loc.fogged ? NOISE[Math.floor(Math.random() * NOISE.length)] : ch;
+    c._true = ch;
+    el.appendChild(c);
+  });
+  return { ...loc, el, revealed: !loc.fogged };
+});
+
+// 玩家
+const player = addSpan('你', 60, groundY - 34, '');
+player.id = 'player';
+
+// ═══════════════════════════════════════════════
+// 迷你地圖
+// ═══════════════════════════════════════════════
+const minimap  = document.getElementById('minimap');
+const mmMarker = document.getElementById('mm-marker');
+LOCATIONS.forEach(loc => {
+  const d = document.createElement('div');
+  d.className = 'mm-loc';
+  d.style.left = (loc.x / WORLD_W * 100) + '%';
+  d.textContent = loc.fogged ? '？？' : loc.name;
+  d._loc = loc;
+  minimap.appendChild(d);
+});
+
+// ═══════════════════════════════════════════════
+// 行走主循環
+// ═══════════════════════════════════════════════
+let px = 60, walking = 0, walkPhase = 0;
+let lastStepX = 60, lastPrintX = 60;
+let ended = false;
+const BASE_SPEED = 3.2;
+
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.L = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.R = true;
+});
+addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.L = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.R = false;
+});
+function bindHold(id, key) {
+  const b = document.getElementById(id);
+  b.addEventListener('pointerdown', e => { keys[key] = true; b.setPointerCapture(e.pointerId); });
+  b.addEventListener('pointerup',     () => keys[key] = false);
+  b.addEventListener('pointercancel', () => keys[key] = false);
+}
+bindHold('btn-left', 'L');
+bindHold('btn-right', 'R');
+
+function terrainAt(x) {
+  return TERRAIN.find(s => x >= s.from && x < s.to) ?? TERRAIN[0];
+}
+
+// 腳步聲字：冒出、上飄、淡去
+function spawnStepWord(word, x) {
+  const s = addSpan(word, x + 10, groundY + 4, 'stepword');
+  requestAnimationFrame(() => {
+    s.style.opacity = '0';
+    s.style.transform = `translate(${x + 10}px, ${groundY - 14}px)`;
+  });
+  setTimeout(() => { s.remove(); allSpans.splice(allSpans.indexOf(s), 1); }, 950);
+}
+
+// 足跡：頓號留在原地，慢慢淡掉（遺忘之點的世界觀）
+function spawnFootprint(x) {
+  const s = addSpan('、', x, groundY + 2, 'footprint');
+  requestAnimationFrame(() => { s.style.opacity = '0'; });
+  setTimeout(() => { s.remove(); allSpans.splice(allSpans.indexOf(s), 1); }, 2300);
+}
+
+// 亂碼迷霧：未解碼的地名每 120ms 換一批亂碼
+setInterval(() => {
+  if (ended) return;
+  locEls.forEach(loc => {
+    if (loc.revealed) return;
+    loc.el.querySelectorAll('.lch').forEach(c => {
+      c.textContent = NOISE[Math.floor(Math.random() * NOISE.length)];
+    });
+  });
+}, 120);
+
+// 解碼：逐字定形
+function reveal(loc) {
+  loc.revealed = true;
+  loc.el.classList.remove('fogged');
+  const chs = [...loc.el.querySelectorAll('.lch')];
+  chs.forEach((c, i) => {
+    let flips = 4 + i * 3;
+    const t = setInterval(() => {
+      c.textContent = flips-- > 0
+        ? NOISE[Math.floor(Math.random() * NOISE.length)]
+        : c._true;
+      if (flips < 0) clearInterval(t);
+    }, 70);
+  });
+  // 迷你地圖同步解碼
+  [...minimap.querySelectorAll('.mm-loc')].forEach(d => {
+    if (d._loc.name === loc.name) d.textContent = loc.name;
+  });
+}
+
+// 旁白
+const narrEl = document.getElementById('narration');
+let narrIdx = -1;
+function updateNarration() {
+  let idx = -1;
+  NARRATIONS.forEach((n, i) => { if (px >= n.at) idx = i; });
+  if (idx !== narrIdx) {
+    narrIdx = idx;
+    narrEl.style.opacity = '0';
+    setTimeout(() => {
+      narrEl.textContent = NARRATIONS[idx]?.text ?? '';
+      narrEl.style.opacity = '1';
+    }, 300);
+  }
+}
+
+function loop() {
+  if (ended) return;
+
+  const seg = terrainAt(px);
+  const dir = (keys.R ? 1 : 0) - (keys.L ? 1 : 0);
+
+  if (dir !== 0) {
+    px = Math.max(20, Math.min(WORLD_W - 40, px + dir * BASE_SPEED * seg.speed));
+    walkPhase += 0.25;
+
+    // 腳步聲字（每 ~90px 一次）
+    if (Math.abs(px - lastStepX) > 90) {
+      spawnStepWord(seg.step, px);
+      lastStepX = px;
+    }
+    // 足跡（每 ~55px 一次）
+    if (Math.abs(px - lastPrintX) > 55) {
+      spawnFootprint(px - dir * 24);
+      lastPrintX = px;
+    }
+  }
+
+  // 走路起伏 + 水中浮沉
+  const bobWalk  = (dir !== 0 && !reduced) ? Math.abs(Math.sin(walkPhase)) * -4 : 0;
+  const bobWater = seg.bob && !reduced
+    ? Math.sin(performance.now() / 300) * seg.bob + seg.bob : 0;
+  player._x = px; player._y = groundY - 34 + bobWalk + bobWater;
+  player.style.transform = `translate(${player._x}px, ${player._y}px)`;
+
+  // 攝影機跟隨
+  const camX = Math.max(0, Math.min(WORLD_W - innerWidth, px - innerWidth * 0.45));
+  world.style.transform = `translateX(${-camX}px)`;
+
+  // 迷你地圖標記
+  mmMarker.style.left = (px / WORLD_W * 100) + '%';
+
+  // 迷霧解碼判定（250px 內）
+  locEls.forEach(loc => {
+    if (!loc.revealed && Math.abs(px - loc.x) < 250) reveal(loc);
+  });
+
+  updateNarration();
+
+  // 抵達遺跡 → 崩塌轉場
+  const goal = locEls[locEls.length - 1];
+  if (goal.revealed && Math.abs(px - goal.x) < 30) { collapseTransition(); return; }
+
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+// 崩塌轉場：畫面上每一個字各自受重力墜落（Level 2 消失的演出）
+// ═══════════════════════════════════════════════
+function collapseTransition() {
+  ended = true;
+  narrEl.style.opacity = '0';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('keys-hint').style.display = 'none';
+  minimap.style.display = 'none';
+
+  if (reduced) { showNextScene(); return; }
+
+  // 地名詞拆成逐字，才能一顆一顆掉
+  locEls.forEach(loc => {
+    const baseX = loc.el._x, baseY = loc.el._y;
+    [...loc.el.querySelectorAll('.lch')].forEach((c, i) => {
+      const s = addSpan(c.textContent, baseX + i * 26, baseY, 'loc');
+      s.style.fontSize = '24px';
+    });
+    loc.el.remove();
+    allSpans.splice(allSpans.indexOf(loc.el), 1);
+  });
+
+  // 每個字符：隨機延遲、初速、角速度
+  const bodies = allSpans.map(s => ({
+    s, x: s._x, y: s._y,
+    vx: (Math.random() - 0.5) * 3,
+    vy: -Math.random() * 3,
+    rot: 0, vr: (Math.random() - 0.5) * 14,
+    delay: Math.random() * 0.5
+  }));
+
+  const t0 = performance.now();
+  function fall(now) {
+    const t = (now - t0) / 1000;
+    let alive = false;
+    bodies.forEach(b => {
+      if (t < b.delay) { alive = true; return; }
+      b.vy += 0.55;
+      b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+      b.s.style.transform =
+        `translate(${b.x}px, ${b.y}px) rotate(${b.rot}deg)`;
+      if (b.y < innerHeight + 80) alive = true;
+    });
+    if (alive && t < 4) requestAnimationFrame(fall);
+    else showNextScene();
+  }
+  requestAnimationFrame(fall);
+  setTimeout(showNextScene, 2600);   // 保底：時間到就進下一幕
+}
+
+let nextShown = false;
+function showNextScene() {
+  if (nextShown) return;
+  nextShown = true;
+  const ns = document.getElementById('next-scene');
+  ns.style.display = 'flex';
+  requestAnimationFrame(() => {
+    ns.querySelector('.title').style.opacity = '1';
+    ns.querySelector('.title').style.letterSpacing = '26px';
+    ns.querySelector('.sub').style.opacity = '1';
+    ns.querySelector('button').style.opacity = '1';
+  });
+}
+
+// 視窗縮放：地面跟著搬（跟引擎 v12.0 學的）
+addEventListener('resize', () => {
+  const newGroundY = Math.round(innerHeight * 0.62);
+  const dy = newGroundY - groundY;
+  groundY = newGroundY;
+  allSpans.forEach(s => {
+    s._y += dy;
+    s.style.transform = `translate(${s._x}px, ${s._y}px)`;
+  });
+});
+
+updateNarration();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

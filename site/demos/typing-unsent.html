@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>輸入中⋯</title>
+<!--
+  ══════════════════════════════════════════════
+  稀有機制樣本《輸入中⋯》v0.1
+  兩個招牌機制合成一件作品:
+
+  A. 未送出的訊息——聊天重播裡，你眼睜睜看著對方
+     打了一長串真心話、又一個字一個字刪掉、
+     最後只送出「沒什麼。」被刪掉的才是真話。
+
+  B. 打字測謊——輪到你回覆時，是一個真的輸入框。
+     頁面測量:你多久才按下第一個鍵、總共花了幾秒、
+     刪改了幾次、最長的停頓多久、以及——
+     你曾經打過、後來刪掉的那句話。
+     結尾頁面會把這些還給你看。
+
+  打開後預期看到:
+  1. 一個聊天介面。對話自動重播（含「正在輸入⋯」動點）。
+  2. 對方打字打得特別久的那一次:半透明的草稿逐字浮現、
+     停頓、再逐字刪光——然後送出的只有「沒什麼。」
+  3. 他問:「你那天，為什麼沒來?」輸入框亮起，換你打。
+  4. 送出後他的回覆會依你的「猶豫程度」不同
+     （刪改次數/首鍵延遲/長停頓——與內容無關，頁面不讀語義）。
+  5. 終幕:系統聲部逐條展示你的打字數據;
+     如果你打過更長的草稿又刪掉，它會把那句話還給你。
+     最後一行:「這一切只發生在你的瀏覽器裡，哪裡也沒去。」
+     （這是真話——本頁無任何網路傳輸。）
+  6. 空白直接送出也是一種回答，有專屬分支。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+         --warm:#ffb347; --cold:#9fd8ff; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,#0b0a10,#141220); user-select:none; }
+
+  #phone{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(420px,94vw); height:min(680px,92vh);
+    background:rgba(14,12,22,.92); border:1px solid rgba(147,160,191,.2);
+    border-radius:18px; display:flex; flex-direction:column; overflow:hidden; }
+  #bar{ padding:14px 18px 12px; border-bottom:1px solid rgba(147,160,191,.14);
+    display:flex; align-items:baseline; gap:10px; }
+  #bar .name{ font-size:16px; letter-spacing:2px; }
+  #bar .status{ font:10px 'Courier New',monospace; letter-spacing:.15em;
+    color:var(--faint); }
+
+  #chat{ flex:1; overflow-y:auto; padding:16px 14px; display:flex;
+    flex-direction:column; gap:10px; }
+  .msg{ max-width:76%; padding:9px 14px; border-radius:14px;
+    font-size:15px; line-height:1.7; letter-spacing:.03em;
+    animation:pop .25s ease-out; }
+  @keyframes pop{ from{ transform:translateY(6px); opacity:0; } }
+  .them{ align-self:flex-start; background:rgba(147,160,191,.14);
+    border-bottom-left-radius:4px; }
+  .me{ align-self:flex-end; background:rgba(255,179,71,.16);
+    border-bottom-right-radius:4px; }
+  .sysline{ align-self:center; font:11px 'Courier New',monospace;
+    letter-spacing:.12em; color:var(--faint); padding:2px 0; text-align:center;
+    line-height:1.9; max-width:92%; }
+  .sysline .quote{ color:#cfc4e6; font-style:italic; }
+
+  /* 正在輸入 + 幽靈草稿 */
+  #typingRow{ align-self:flex-start; display:none; flex-direction:column; gap:6px; }
+  #typingRow.show{ display:flex; }
+  #ghost{ font-size:13.5px; font-style:italic; color:rgba(207,196,230,.55);
+    max-width:280px; line-height:1.7; min-height:0; padding:0 4px; }
+  #dots{ background:rgba(147,160,191,.14); border-radius:14px;
+    border-bottom-left-radius:4px; padding:10px 16px; width:64px;
+    display:flex; gap:5px; }
+  #dots i{ width:5px; height:5px; border-radius:50%; background:var(--muted);
+    animation:dot 1.2s infinite; }
+  #dots i:nth-child(2){ animation-delay:.2s; }
+  #dots i:nth-child(3){ animation-delay:.4s; }
+  @keyframes dot{ 0%,60%,100%{ opacity:.25; transform:translateY(0); }
+                  30%{ opacity:1; transform:translateY(-3px); } }
+
+  #inputRow{ display:flex; gap:8px; padding:12px;
+    border-top:1px solid rgba(147,160,191,.14); opacity:.35;
+    pointer-events:none; transition:opacity .5s; }
+  #inputRow.live{ opacity:1; pointer-events:auto; }
+  #inp{ flex:1; background:rgba(233,228,214,.05);
+    border:1px solid rgba(147,160,191,.25); border-radius:10px;
+    color:var(--paper); font:15px Georgia,'Noto Serif TC',serif;
+    padding:10px 14px; outline:none; }
+  #inp:focus{ border-color:rgba(255,179,71,.5); }
+  #send{ cursor:pointer; font:14px 'Noto Serif TC',serif; letter-spacing:.1em;
+    color:var(--warm); background:transparent;
+    border:1px solid rgba(255,179,71,.4); border-radius:10px; padding:0 18px; }
+  #send:hover{ background:rgba(255,179,71,.1); }
+
+  #btnReplay{ position:fixed; top:16px; right:16px; z-index:10; display:none;
+    cursor:pointer; font:11px 'Courier New',monospace; color:var(--muted);
+    background:transparent; border:1px solid rgba(147,160,191,.3);
+    border-radius:6px; padding:4px 12px; letter-spacing:.15em; }
+  #btnReplay.show{ display:block; }
+  #btnReplay:hover{ color:var(--warm); border-color:var(--warm); }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="bar">
+    <span class="name">阿澈</span>
+    <span class="status" id="status">上次上線:三年前</span>
+  </div>
+  <div id="chat">
+    <div id="typingRow"><div id="ghost"></div>
+      <div id="dots"><i></i><i></i><i></i></div></div>
+  </div>
+  <div id="inputRow">
+    <input id="inp" placeholder="輸入訊息⋯" autocomplete="off">
+    <button id="send">送出</button>
+  </div>
+</div>
+<button id="btnReplay">↺ 重來</button>
+
+<script>
+'use strict';
+const chat = document.getElementById('chat');
+const typingRow = document.getElementById('typingRow');
+const ghost = document.getElementById('ghost');
+const statusEl = document.getElementById('status');
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function bubble(side, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + side;
+  d.textContent = text;
+  chat.insertBefore(d, typingRow);
+  chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+function sysline(html) {
+  const d = document.createElement('div');
+  d.className = 'sysline';
+  d.innerHTML = html;
+  chat.insertBefore(d, typingRow);
+  chat.scrollTop = chat.scrollHeight;
+}
+async function typing(ms) {
+  typingRow.classList.add('show');
+  chat.scrollTop = chat.scrollHeight;
+  await wait(ms);
+}
+function stopTyping() { typingRow.classList.remove('show'); ghost.textContent = ''; }
+
+/* 未送出的訊息:草稿逐字浮現 → 停頓 → 逐字刪光 */
+async function ghostDraft(text, holdMs = 1400) {
+  typingRow.classList.add('show');
+  ghost.textContent = '';
+  for (const ch of text) {
+    ghost.textContent += ch;
+    chat.scrollTop = chat.scrollHeight;
+    await wait(65 + Math.random() * 70);
+  }
+  await wait(holdMs);
+  while (ghost.textContent.length) {
+    ghost.textContent = ghost.textContent.slice(0, -1);
+    await wait(26);
+  }
+  await wait(500);
+}
+
+/* ══ 讀者輸入的測量 ══ */
+const inp = document.getElementById('inp');
+const M = { unlockT: 0, firstKeyT: 0, lastEventT: 0,
+            backspaces: 0, longestPause: 0, maxDraft: '' };
+inp.addEventListener('input', () => {
+  const now = performance.now();
+  if (!M.firstKeyT) M.firstKeyT = now;
+  if (M.lastEventT) M.longestPause = Math.max(M.longestPause, now - M.lastEventT);
+  M.lastEventT = now;
+  if (inp.value.length > M.maxDraft.length) M.maxDraft = inp.value;
+});
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Backspace' || e.key === 'Delete') M.backspaces++;
+  if (e.key === 'Enter') { e.preventDefault(); doSend(); }
+});
+
+/* ══ 劇本 ══ */
+async function play() {
+  await wait(900);
+  statusEl.textContent = '線上';
+  await wait(900);
+
+  await typing(1100); stopTyping(); bubble('them', '在嗎');
+  await wait(1400);
+  bubble('me', '在');                         // 開場這句還是劇本代打的
+  await wait(1200);
+
+  await typing(1600); stopTyping(); bubble('them', '上次的事');
+  await wait(800);
+
+  // 未送出的訊息
+  await ghostDraft('那天我等到十一點，護士都來趕人了。我一直跟自己說你只是塞車。', 1600);
+  stopTyping();
+  await wait(400);
+  await typing(700); stopTyping(); bubble('them', '沒什麼。');
+  await wait(1600);
+
+  await typing(1200); stopTyping(); bubble('them', '就想問一句。');
+  await wait(1000);
+  await typing(1500); stopTyping(); bubble('them', '你那天，為什麼沒來?');
+  await wait(600);
+
+  // 輪到你了——真的輪到你了
+  document.getElementById('inputRow').classList.add('live');
+  inp.focus();
+  M.unlockT = performance.now();
+}
+
+/* ══ 送出與回應 ══ */
+let sent = false;
+async function doSend() {
+  if (sent) return;
+  sent = true;
+  const text = inp.value;
+  const totalMs = performance.now() - M.unlockT;
+  const firstMs = M.firstKeyT ? M.firstKeyT - M.unlockT : totalMs;
+  document.getElementById('inputRow').classList.remove('live');
+  inp.blur();
+
+  const empty = text.trim().length === 0;
+  if (!empty) bubble('me', text);
+  await wait(900);
+
+  const hesitant = M.backspaces >= 3 || firstMs > 4000 || M.longestPause > 3500;
+
+  if (empty) {
+    await typing(2200); stopTyping();
+    bubble('them', '⋯⋯什麼都不說，也是一種回答。');
+  } else if (hesitant) {
+    await typing(2400); stopTyping();
+    bubble('them', '打這麼久。辛苦你了。');
+  } else {
+    await typing(1200); stopTyping();
+    bubble('them', '嗯。回得真快。');
+  }
+  await wait(1400);
+  await typing(1000); stopTyping();
+  bubble('them', '晚安。');
+  await wait(900);
+  statusEl.textContent = '離線';
+  await wait(1500);
+
+  /* ══ 終幕:頁面把你的打字還給你看 ══ */
+  sysline('——');
+  await wait(700);
+  sysline('你用了 ' + (totalMs / 1000).toFixed(1) + ' 秒。');
+  await wait(900);
+  if (M.firstKeyT)
+    sysline('按下第一個鍵之前，你停了 ' + (firstMs / 1000).toFixed(1) + ' 秒。');
+  await wait(900);
+  sysline('你刪改了 ' + M.backspaces + ' 次' +
+    (M.longestPause > 1500
+      ? '，最長的一次停頓 ' + (M.longestPause / 1000).toFixed(1) + ' 秒。' : '。'));
+  await wait(1100);
+
+  const draft = M.maxDraft.trim();
+  if (!empty && draft.length > text.trim().length + 2) {
+    sysline('你差點送出的，是——');
+    await wait(1000);
+    sysline('<span class="quote">「' + escapeHtml(draft) + '」</span>');
+    await wait(1400);
+    sysline('兩句沒送出的話，隔著一個螢幕，誰也沒見到誰。');
+  } else if (empty && draft.length > 0) {
+    sysline('你其實打過——<span class="quote">「' + escapeHtml(draft) +
+      '」</span>。然後全部刪掉了。');
+  } else {
+    sysline('他看不到這些。只有這一頁看見了。');
+  }
+  await wait(1400);
+  sysline('這一切只發生在你的瀏覽器裡，哪裡也沒去。');
+  document.getElementById('btnReplay').classList.add('show');
+}
+document.getElementById('send').addEventListener('click', doSend);
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+document.getElementById('btnReplay').onclick = () => location.reload();
+
+play();
+</script>
+</body>
+</html>

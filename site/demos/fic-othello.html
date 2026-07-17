@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<!--
+  文的演出：「黑白棋 / Othello」（HP同人，作者 GorillaOne）
+  設計：雙通道——左側正文可讀（擬聲詞維持 AO3 式置中），
+       右側 8×8 字符棋盤，每個擬聲詞落下的瞬間棋盤同步演出。
+       擬聲詞本來就是這篇文的節拍器，這裡只是給每一拍接上真的會翻的棋子。
+
+  打開後預期看到（點擊任意處 / 空白鍵推進）：
+  1. 開局是一面中盤棋局：白棋佔著中央（鄧不利多的權力），左下角
+     有一枚佔了半個世紀的白棋（霍格沃茨）。
+  2. 「啪」×5：每道公文蓋下，中央白棋被硬翻成黑（壓扁彈開的翻面動畫），
+     五道蓋完中盤全黑，只剩角落一枚白。
+  3. 「喀噠」×6：佈局章每段暗線在邊緣悄悄落子。斯奈普那枚是
+     「被塗成黑色的白棋」——黑子帶一圈微光，釘在敵方大本營深處。
+     鄧不利多拿起代表自己的白棋，走進中央死地。
+  4. 「砰」×5：整盤震動、黑棋砸進空格、邊緣暗線被強行翻黑——
+     但每枚被翻的暗線都留著那圈微光。綠光閃過，中央白棋熄滅；
+     角落被帶微光的黑棋坐進（伏地魔以為死角染黑了）。
+  5. 翻轉章：五個「喀噠」逐一把黑翻白；尖叫棚屋交出記憶時，
+     角落那圈光點亮、翻回白色——然後「喀噠喀噠喀噠——」
+     連鎖翻轉從角落一波波掃過全盤，每枚翻面的棋子旁彈出
+     小小的「喀」「噠」字飛散。（作者註：最後幾步像在跳舞。）
+  6. 終局：右上角留著幾枚黑棋。最後一子落下，盤面浮出計數——
+     白，多於黑。夠了。↺ 再下一局。
+  7. 系統開啟「減少動態」時：翻面直接換色、震動與粒子停用。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>黑白棋</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #0d0f14; color: #cdd3e0; cursor: pointer; user-select: none;
+    font-family: "Noto Serif TC", "Noto Sans TC", "Microsoft JhengHei", serif;
+  }
+
+  #layout {
+    display: flex; height: 100vh; align-items: center;
+    justify-content: space-evenly; gap: 3vw; padding: 0 4vw;
+  }
+  @media (max-width: 780px) {
+    #layout { flex-direction: column; justify-content: flex-start;
+              padding-top: 4vh; gap: 3vh; }
+  }
+
+  /* ── 正文通道 ── */
+  #text-panel { max-width: 480px; width: 100%; }
+  #chapter { color: #59617a; font-size: 13px; letter-spacing: 5px;
+             margin-bottom: 18px; min-height: 1.2em; }
+  #sfx {
+    text-align: center; min-height: 58px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prose { font-size: 17px; line-height: 2.05; letter-spacing: 0.5px;
+           min-height: 8em; }
+  #prose .q  { color: #c9b98a; }              /* 公文 / 台詞 */
+  #prose .warm { color: #e8d9a8; }            /* 歡迎回到霍格沃茨 */
+  #prose .dim  { color: #7a8296; font-size: 0.88em; }
+
+  /* 擬聲詞（置中，AO3 式）*/
+  .sfx-pa   { font-size: 34px; font-weight: 800; color: #e8ecf5; }
+  .sfx-ka   { font-size: 19px; color: #b9c2d6; font-style: italic; letter-spacing: 2px; }
+  .sfx-peng { font-size: 40px; font-weight: 900; color: #e8b0a0; }
+  .sfx-chain{ font-size: 24px; font-weight: 800; color: #e8ecf5;
+              letter-spacing: 4px; font-style: italic; white-space: nowrap; }
+  @keyframes stampIn { from { transform: scale(1.9); opacity: 0; }
+                       60%  { transform: scale(0.94); opacity: 1; }
+                       to   { transform: scale(1); } }
+  .stamp-anim { animation: stampIn 0.28s ease-out; }
+  @keyframes tickIn { from { transform: translateY(-6px); opacity: 0; }
+                      to   { transform: none; opacity: 1; } }
+  .tick-anim { animation: tickIn 0.3s ease-out; }
+
+  /* ── 棋盤通道 ── */
+  #board-wrap { position: relative; }
+  #board {
+    display: grid; grid-template-columns: repeat(8, var(--cell));
+    grid-auto-rows: var(--cell); gap: 2px;
+    background: #14241c; padding: 8px; border-radius: 8px;
+    border: 1px solid #24382c;
+    box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+  }
+  .cell {
+    background: #1b2f24; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .piece {
+    font-size: calc(var(--cell) * 0.72); line-height: 1;
+    transition: transform 0.15s ease-in;
+    will-change: transform;
+  }
+  .p-none  { color: rgba(255,255,255,0.07); }
+  .p-black { color: #0c0e13; text-shadow: 0 1px 1px rgba(255,255,255,0.10); }
+  .p-white { color: #e8ecf5; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+  .ring    { text-shadow: 0 0 5px rgba(232,236,245,0.5), 0 1px 1px rgba(255,255,255,0.1); }
+  .ring-lit{ text-shadow: 0 0 12px rgba(255,236,180,0.95), 0 0 4px #fff; }
+  .glow-w  { text-shadow: 0 0 10px rgba(232,236,245,0.8); }
+  .glow-g  { text-shadow: 0 0 14px rgba(120,255,140,0.95) !important; }
+  .dead    { opacity: 0.35; }
+
+  @keyframes boardShake {
+    0%,100% { transform: translate(0,0); }
+    20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px,-4px); }
+    60% { transform: translate(-4px,-2px); } 80% { transform: translate(3px, 3px); }
+  }
+  .shaking { animation: boardShake 0.4s; }
+
+  #flash {
+    position: fixed; inset: 0; background: #52d472; opacity: 0;
+    pointer-events: none; z-index: 50; transition: opacity 0.25s;
+  }
+
+  .kaparticle {
+    position: fixed; z-index: 40; pointer-events: none;
+    font-size: 12px; color: #d9c07a;
+    transition: transform 0.8s ease-out, opacity 0.8s ease-out;
+  }
+
+  #count {
+    position: absolute; left: 50%; bottom: -42px; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 4px; color: #b9c2d6;
+    opacity: 0; transition: opacity 1.5s; white-space: nowrap;
+  }
+  #count.shown { opacity: 1; }
+
+  #hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    color: #444c60; font-size: 12px; letter-spacing: 4px; z-index: 20;
+  }
+  #ending {
+    position: fixed; top: 16px; right: 18px; z-index: 30;
+    opacity: 0; transition: opacity 1.5s; pointer-events: none;
+  }
+  #ending.shown { opacity: 1; pointer-events: auto; }
+  #ending button {
+    background: none; color: #8fa1c9; border: 1px solid #333a4a;
+    border-radius: 999px; padding: 6px 18px; font-family: inherit;
+    font-size: 13px; letter-spacing: 3px; cursor: pointer;
+  }
+  #ending button:hover { color: #fff; border-color: #7a89ad; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stamp-anim, .tick-anim, .shaking { animation: none !important; }
+    .piece { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="flash"></div>
+<div id="layout">
+  <div id="text-panel">
+    <div id="chapter"></div>
+    <div id="sfx"></div>
+    <div id="prose"></div>
+  </div>
+  <div id="board-wrap">
+    <div id="board"></div>
+    <div id="count"></div>
+  </div>
+</div>
+<div id="hint">點擊繼續 ▸</div>
+<div id="ending"><button onclick="location.reload()">↺ 再下一局</button></div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 棋盤：8×8 字符棋盤
+// ═══════════════════════════════════════════════
+const boardEl = document.getElementById('board');
+const cellPx = Math.max(26, Math.min(52,
+  Math.floor(Math.min(innerWidth * (innerWidth < 780 ? 0.9 : 0.42),
+                      innerHeight * 0.72) / 8) - 2));
+document.documentElement.style.setProperty('--cell', cellPx + 'px');
+
+// 初始中盤：白棋佔中央（鄧不利多的權力），左下角 = 霍格沃茨死角
+const INIT = [
+  '........',
+  '...b....',
+  '..bww...',
+  '..wwwb..',
+  '..bwww..',
+  '....b...',
+  '........',
+  'w.......',
+];
+
+const grid = INIT.map(r => [...r]);           // 'w' | 'b' | '.'
+const cells = [];                             // {el, piece}
+for (let r = 0; r < 8; r++) {
+  cells.push([]);
+  for (let c = 0; c < 8; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const p = document.createElement('span');
+    p.className = 'piece';
+    p.textContent = '●';
+    cell.appendChild(p);
+    boardEl.appendChild(cell);
+    cells[r].push({ el: cell, piece: p });
+    paint(r, c);
+  }
+}
+
+function paint(r, c) {
+  const p = cells[r][c].piece;
+  const v = grid[r][c];
+  p.classList.remove('p-none', 'p-black', 'p-white');
+  p.classList.add(v === 'w' ? 'p-white' : v === 'b' ? 'p-black' : 'p-none');
+  p.textContent = v === '.' ? '·' : '●';
+}
+
+// 翻面：壓扁 → 換色 → 彈開
+function setPiece(r, c, v, opt = {}) {
+  const p = cells[r][c].piece;
+  const doSwap = () => {
+    grid[r][c] = v;
+    paint(r, c);
+    if (opt.ring)    p.classList.add('ring');
+    if (opt.unring)  p.classList.remove('ring', 'ring-lit');
+    if (opt.glow)    p.classList.add('glow-w');
+    if (opt.unglow)  p.classList.remove('glow-w');
+    if (opt.dead)    p.classList.add('dead');
+    if (opt.particle && !reduced) spawnKa(r, c);
+  };
+  if (reduced) { doSwap(); return; }
+  p.style.transform = 'rotateY(88deg) scaleY(1.06)';
+  setTimeout(() => { doSwap(); p.style.transform = ''; }, 150);
+}
+
+function shakeBoard() {
+  if (reduced) return;
+  boardEl.classList.remove('shaking');
+  void boardEl.offsetWidth;
+  boardEl.classList.add('shaking');
+}
+
+// 翻面時彈出的小小「喀」「噠」
+let kaFlip = false;
+function spawnKa(r, c) {
+  const rect = cells[r][c].el.getBoundingClientRect();
+  const s = document.createElement('span');
+  s.className = 'kaparticle';
+  s.textContent = (kaFlip = !kaFlip) ? '喀' : '噠';
+  s.style.left = (rect.left + rect.width / 2 - 6) + 'px';
+  s.style.top  = (rect.top - 4) + 'px';
+  document.body.appendChild(s);
+  requestAnimationFrame(() => {
+    s.style.transform =
+      `translate(${(Math.random() - 0.5) * 40}px, ${-24 - Math.random() * 22}px) rotate(${(Math.random()-0.5)*60}deg)`;
+    s.style.opacity = '0';
+  });
+  setTimeout(() => s.remove(), 900);
+}
+
+function greenFlash() {
+  if (reduced) return;
+  const f = document.getElementById('flash');
+  f.style.opacity = '0.28';
+  setTimeout(() => f.style.opacity = '0', 260);
+}
+
+const empties = () => {
+  const out = [];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++)
+    if (grid[r][c] === '.') out.push([r, c]);
+  return out;
+};
+
+// ═══════════════════════════════════════════════
+// 正文通道
+// ═══════════════════════════════════════════════
+const chapterEl = document.getElementById('chapter');
+const sfxEl = document.getElementById('sfx');
+const proseEl = document.getElementById('prose');
+
+function show(b) {
+  if (b.chapter !== undefined) chapterEl.textContent = b.chapter;
+  sfxEl.innerHTML = '';
+  if (b.sfx) {
+    const s = document.createElement('span');
+    s.className = b.sfxCls + ' ' +
+      (b.sfxCls === 'sfx-ka' ? 'tick-anim' : 'stamp-anim');
+    s.textContent = b.sfx;
+    sfxEl.appendChild(s);
+  }
+  proseEl.innerHTML = '';
+  (b.segs ?? []).forEach(sg => {
+    const span = document.createElement('span');
+    if (sg.c) span.className = sg.c;
+    span.textContent = sg.t;
+    proseEl.appendChild(span);
+    proseEl.appendChild(document.createElement('br'));
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 棋步（動作）
+// ═══════════════════════════════════════════════
+// 五道公文：中央白棋逐批被硬翻成黑
+const STAMPS = [
+  [[2,3],[2,4]], [[3,2],[3,3]], [[3,4],[4,3]], [[4,4]], [[4,5]],
+];
+function actStamp(i) {
+  shakeBoard();
+  STAMPS[i].forEach(([r,c], k) =>
+    setTimeout(() => setPiece(r, c, 'b'), k * 130));
+}
+
+// 邊角落子
+function actPlace(r, c, v, opt) { setPiece(r, c, v, opt); }
+
+// 砰：黑棋砸進空格 + 指定暗線白棋被翻黑（留微光）
+function actBang(flipTargets) {
+  shakeBoard();
+  const es = empties().sort(() => Math.random() - 0.5).slice(0, 4);
+  es.forEach(([r,c], k) => setTimeout(() => setPiece(r, c, 'b'), k * 90));
+  flipTargets.forEach(([r,c], k) =>
+    setTimeout(() => setPiece(r, c, 'b', { ring: true }), 300 + k * 120));
+}
+
+// 連鎖翻轉：從左下角一波波掃過全盤（保留右上角一撮黑棋）
+const KEEP_BLACK = new Set(['0,7','0,6','1,7','0,5','1,6','2,7']);
+function actCascade(done) {
+  let maxDelay = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    if (grid[r][c] !== 'b') continue;
+    if (KEEP_BLACK.has(r + ',' + c)) continue;
+    const d = Math.max(7 - r, c);              // 距左下角的棋盤距離
+    const delay = reduced ? 0 : d * 200 + Math.random() * 120;
+    maxDelay = Math.max(maxDelay, delay);
+    setTimeout(() => setPiece(r, c, 'w', { unring: true, particle: true }), delay);
+  }
+  setTimeout(done, maxDelay + 600);
+}
+
+function showCount() {
+  let w = 0, b = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    if (grid[r][c] === 'w') w++;
+    if (grid[r][c] === 'b') b++;
+  }
+  const el = document.getElementById('count');
+  el.textContent = `○ ${w} ─ ● ${b}`;
+  el.classList.add('shown');
+}
+
+// ═══════════════════════════════════════════════
+// 節拍表：擬聲詞是節拍器，棋盤是舞台
+// ═══════════════════════════════════════════════
+const BEATS = [
+  { chapter: '一：中盤',
+    segs: [{t:'1995年，夏。魔法部部長辦公室。'},{t:'康奈利·福吉重重地蓋下印章。'}] },
+
+  { sfx: '啪。', sfxCls: 'sfx-pa',
+    segs: [{t:'「剝奪阿不思·鄧不利多，威森加摩首席魔法師頭銜。」', c:'q'}],
+    act: () => actStamp(0) },
+  { sfx: '啪。', sfxCls: 'sfx-pa',
+    segs: [{t:'「撤銷國際巫師聯合會主席職務。」', c:'q'}],
+    act: () => actStamp(1) },
+  { sfx: '啪。', sfxCls: 'sfx-pa',
+    segs: [{t:'「授權《預言家日報》頭版：鄧不利多老邁失智，哈利·波特謊稱目睹伏地魔復活。」', c:'q'}],
+    act: () => actStamp(2) },
+  { sfx: '啪。', sfxCls: 'sfx-pa',
+    segs: [{t:'「委派恩不里居為霍格沃茨高級審查員。」', c:'q'}],
+    act: () => actStamp(3) },
+  { sfx: '啪。', sfxCls: 'sfx-pa',
+    segs: [{t:'「召開針對哈利·波特之違規使用魔法聽證會。」', c:'q'}],
+    act: () => actStamp(4) },
+
+  { segs: [{t:'辦公桌上的棋盤中央，幾枚白棋被強行翻成了黑棋。'},
+           {t:'福吉看著大局已定的中盤，滿意地笑了。他把那個礙眼的老傢伙趕出了權力中心。'},
+           {t:'現在，鄧不利多什麼都不是了。只是一個待在蘇格蘭鄉下的中學校長。', c:'dim'}] },
+
+  { segs: [{t:'霍格沃茨，校長室。'},
+           {t:'麥格教授把《預言家日報》摔在桌上，氣得嘴唇發白。'},
+           {t:'鄧不利多把報紙推到一旁。他沒有生氣，也沒有反駁。他只是剝開一顆檸檬雪寶的糖紙，放進嘴裡。'},
+           {t:'他沒有去爭奪中盤的控制權。'}] },
+
+  { segs: [{t:'他的指尖輕輕點在棋盤最邊緣、最不起眼的死角——那個他已經牢牢佔領了半個世紀的位置。'},
+           {t:'以學校為起點，他安插在各處的暗線，開始悄然啟動。'}],
+    act: () => cells[7][0].piece.classList.add('glow-w') },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka', segs: [],
+    act: () => actPlace(6, 0, 'w') },
+
+  // ── 二：佈局 ──
+  { chapter: '二：佈局',
+    segs: [{t:'政客搶奪報紙的頭版。棋手佈置邊緣的暗線。'}] },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'寒風刺骨的山頭。一個穿著黑袍的男人單膝跪地，把自己的靈魂和壽命發誓交給兩邊的主人。'},
+           {t:'一枚被塗成黑色的白棋，被深深釘進了敵人的大本營。'}],
+    act: () => actPlace(1, 6, 'b', { ring: true }) },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'女貞路四號的隔壁。一個養著幾隻貓的啞炮老太太，日復一日地坐在窗前，盯著那個額頭有疤的男孩平安長大。'}],
+    act: () => actPlace(7, 4, 'w') },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'十一歲的聖誕節。一件原本屬於死神的隱形斗篷，被悄悄放回了男孩的床頭。'},
+           {t:'附帶一張沒有署名的紙條：「好好使用它。」', c:'q'}],
+    act: () => actPlace(4, 0, 'w') },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'地牢深處，十一道機關橫亙在前。一塊棋盤，一個陷阱，一個謎題。'},
+           {t:'三個一年級的孩子走進了黑暗，他們自己找出答案。'}],
+    act: () => actPlace(2, 0, 'w') },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'城堡七樓的密室。一個男孩在黑板前轉過身，十六個孩子舉起了魔杖。'},
+           {t:'他沒有在場。他不需要在場。'}],
+    act: () => actPlace(7, 6, 'w') },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'最後，是校長室。鄧不利多看著自己焦黑、枯萎的右手。'},
+           {t:'他平靜地拿起了代表「自己」的那枚白棋，主動走進了死局，把自己當成了最昂貴的誘餌。'},
+           {t:'為了保住那個最痛苦的雙面間諜，為了折斷老魔杖綿延的殺孽，也為了徹底鎖死那個名為「救世主」的勝局。', c:'dim'}],
+    act: () => actPlace(3, 4, 'w', { glow: true }) },
+
+  // ── 三：掀桌 ──
+  { chapter: '三：掀桌',
+    segs: [{t:'伏地魔不喜歡下棋。他喜歡掀翻棋盤。'}] },
+
+  { sfx: '砰。', sfxCls: 'sfx-peng',
+    segs: [{t:'魔法部淪陷。斯克林傑死於非命——被找到的時候，身上有刑訊的痕跡。'}],
+    act: () => actBang([[4,0]]) },
+  { sfx: '砰。', sfxCls: 'sfx-peng',
+    segs: [{t:'預言家日報易主。通緝令貼滿大街小巷。'}],
+    act: () => actBang([[2,0]]) },
+  { sfx: '砰。', sfxCls: 'sfx-peng',
+    segs: [{t:'傲羅辦公室崩潰。昨天追捕食死徒的人，今天成了通緝犯。'}],
+    act: () => actBang([[7,4]]) },
+  { sfx: '砰。', sfxCls: 'sfx-peng',
+    segs: [{t:'麻瓜出身登記委員會，泥巴種一個個消失。'}],
+    act: () => actBang([[7,6]]) },
+  { sfx: '砰。', sfxCls: 'sfx-peng',
+    segs: [{t:'馬份莊園的長桌上，一個女人在空中緩緩旋轉。她的名字叫博納提。'},
+           {t:'她只是教過幾個孩子讀書。', c:'dim'}],
+    act: () => actBang([[6,0]]) },
+
+  { segs: [{t:'滿盤皆黑。'},
+           {t:'伏地魔的紅眼睛看向最後一個角落。霍格沃茨。'},
+           {t:'只要拔掉那個角落，整局棋就結束了。'}] },
+
+  { segs: [{t:'天文塔上，綠光閃過。白髮老人墜入黑暗。'}],
+    act: () => { greenFlash();
+      setTimeout(() => setPiece(3, 4, 'b', { unglow: true, dead: true }), 300); } },
+
+  { segs: [{t:'伏地魔跨過他的屍體，把食死徒塞進了城堡，讓斯內普坐進了校長室。'},
+           {t:'他以為換掉一個校長，就能把這個死角徹底染黑，贏下殘局。'}],
+    act: () => setPiece(7, 0, 'b', { ring: true }) },
+
+  { segs: [{t:'但他不懂黑白棋的規則。'},
+           {t:'他不知道，中盤的棋子再多，也是最脆弱的。'},
+           {t:'他更不知道，為什麼那個老瘋子，寧願讓出大半個江山，甚至賠上自己的命，也必須死死咬住那個名為「學校」的角。'}] },
+
+  // ── 四：翻轉 ──
+  { chapter: '四：翻轉',
+    segs: [{t:'1998年5月。霍格沃茨之戰。'},
+           {t:'伏地魔站在城堡外。他不理解。'},
+           {t:'法律是他的，軍隊是他的，恐懼是他的。為什麼這群人還在抵抗？'}] },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'納威·隆巴頓，一個曾經連魔藥都熬不好的笨小孩，從分院帽裡拔出了格蘭芬多的寶劍。'}],
+    act: () => setPiece(7, 5, 'w', { particle: true }) },
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'科林·克里維，一個未成年的麻瓜出身男孩，違抗了疏散命令，偷偷溜回了走廊。'}],
+    act: () => setPiece(6, 3, 'w', { particle: true }) },
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'米勒娃·麥格，一個平時只關心作業和紀律的變形術教授，揮舞魔杖，召喚了城堡幾百年的石像。'}],
+    act: () => setPiece(5, 1, 'w', { particle: true }) },
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'霍拉斯·斯拉格霍恩，一個最懂得明哲保身、永遠躲在安全線後的斯萊特林，帶著霍格莫德的村民和家長衝破了防線。'}],
+    act: () => setPiece(6, 6, 'w', { particle: true }) },
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'流著血的尖叫棚屋裡，那個被塗成黑色的男人，在臨死前交出了銀色的記憶。'}],
+    act: () => {
+      cells[1][6].piece.classList.add('ring-lit');
+      setTimeout(() => setPiece(1, 6, 'w', { unring: true, particle: true }), 600);
+      setTimeout(() => {
+        cells[7][0].piece.classList.add('ring-lit');
+        setPiece(7, 0, 'w', { unring: true, particle: true });
+      }, 1100);
+    } },
+
+  { segs: [{t:'伏地魔看著眼前這道無法被恐懼撕裂的陣線。'},
+           {t:'不需要任何一條魔法部法令。不需要任何一個威森加摩頭銜。'},
+           {t:'過去五十年間，整個英國魔法界，有誰不是坐在那間大禮堂裡，聽著那個老人的瘋言瘋語長大的？'},
+           {t:'刻在骨血裡的答案，早就寫好了。'}] },
+
+  { segs: [{t:'一旦角落的信號亮起。一旦那個戴著眼鏡的男孩從海格懷裡翻身躍起。'},
+           {t:'那些他以為已經被恐懼統治的「黑棋」，那些在魔法部裡低頭聽命的成年巫師，瞬間沿著記憶中的走廊，開始了瘋狂的連鎖反應。'}],
+    act: () => cells[7][0].piece.classList.add('glow-w') },
+
+  { sfx: '喀噠喀噠喀噠喀噠——', sfxCls: 'sfx-chain',
+    segs: [{t:'沿著對角線。沿著邊緣。沿著每一條被守住的防線。'},
+           {t:'滿盤黑棋，一潰千里般翻轉。'}],
+    lock: true,
+    act: (unlock) => actCascade(unlock) },
+
+  // ── 五：終局 ──
+  { chapter: '五：終局',
+    segs: [{t:'國王十字車站。一片純白。'},
+           {t:'哈利看著眼前這個戴著半月形眼鏡的老人。'},
+           {t:'「他們曾經剝奪了你所有的頭銜。」哈利輕聲說。', c:'q'},
+           {t:'鄧不利多沒有回答。'}] },
+
+  { segs: [{t:'他沒有長篇大論地解釋什麼是政治，也沒有提起那些聽起來嚇人的國際職務。'},
+           {t:'他只是笑著眨了眨眼睛，像過去七年裡的每一次開學晚宴一樣，對著他唯一的聽眾，溫和地張開雙臂：'}] },
+
+  { sfx: '喀噠。', sfxCls: 'sfx-ka',
+    segs: [{t:'「歡迎回到霍格沃茨，哈利。」', c:'warm'}],
+    act: () => {
+      const es = empties();
+      if (es.length) {
+        const [r, c] = es[0];
+        setPiece(r, c, 'w', { glow: true, particle: true });
+      }
+    } },
+
+  { segs: [{t:'最後一子落下。'},
+           {t:'白，多於黑。'},
+           {t:'夠了。'}],
+    act: () => {
+      showCount();
+      setTimeout(() => document.getElementById('ending').classList.add('shown'), 1200);
+      document.getElementById('hint').style.opacity = '0';
+    } },
+];
+
+// ═══════════════════════════════════════════════
+// 推進
+// ═══════════════════════════════════════════════
+let beat = -1, busy = false;
+function advance() {
+  if (busy) return;
+  beat++;
+  if (beat >= BEATS.length) return;
+  const b = BEATS[beat];
+  show(b);
+  if (b.act) {
+    if (b.lock) { busy = true; b.act(() => { busy = false; }); }
+    else b.act();
+  }
+}
+addEventListener('click', e => {
+  if (e.target.closest('#ending')) return;
+  advance();
+});
+addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+});
+advance();
+</script>
+</body>
+</html>

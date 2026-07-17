@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>測謊排版 Mockup · 消失的鑰匙</title>
+<!--
+  ══════════════════════════════════════════════
+  測謊排版 Mockup v0.1（案件類的招牌機制驗證）
+  命題:排版就是測謊儀。
+       說謊的那一句有極細微的顫抖——讀者的工作是把它找出來。
+
+  設計陷阱（本 demo 刻意內建）:
+  ・整段都在抖的人是「害怕」，不是說謊——緊張的無辜者是紅鯡魚。
+  ・真正的說謊者全身平靜，只有謊言那一句在微顫。
+    「只有局部在抖的證詞才可疑」是本機制教讀者的閱讀法。
+
+  玩法:
+  1. 三位證人的證詞。每一句都可以點擊「指認」。
+  2. 指認錯誤:那句話安定發光——「這句話站得很穩。」（累計誤指）
+  3. 指認正確:那句話被標記，顫抖加劇。
+  4. 兩句謊言都找到 → 它們從各自的證詞裡飛出、在畫面中央對撞，
+     碎成筆畫，真相打字浮現。
+  5. 按住「⌕ 細看」可暫時放大顫抖幅度（給看不清微顫的讀者）。
+  6. 系統開啟「減少動態」時:謊言改以波浪虛線底標示（不靠動態）。
+
+  文本:佔位小案件《消失的鑰匙》，正式用請替換 CASE 資料。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --warm:#ffb347; --lie:#e08585;
+    --glass:rgba(16,13,28,.8); --line:rgba(147,160,191,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,#0c0a12,#151126);
+    user-select:none;
+  }
+  #app{
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; padding:16px 12px; gap:12px; overflow-y:auto;
+  }
+  #head{
+    width:min(94vw,640px); display:flex; justify-content:space-between;
+    font:10px 'Courier New',monospace; letter-spacing:.22em; color:var(--faint);
+  }
+  #caseTitle{
+    font-size:22px; letter-spacing:8px; color:var(--paper); margin:4px 0 0;
+  }
+  #brief{
+    width:min(94vw,640px); color:var(--muted); font-size:14px;
+    line-height:1.8; letter-spacing:.04em;
+  }
+
+  .card{
+    width:min(94vw,640px); position:relative;
+    background:var(--glass); border:1px solid var(--line); border-radius:12px;
+    padding:14px 20px 16px;
+    transition:transform .3s, border-color .4s, opacity .6s;
+  }
+  .card .who{
+    font:11.5px 'Courier New',monospace; letter-spacing:.22em;
+    margin-bottom:8px; display:flex; align-items:center; gap:10px;
+  }
+  .card .glyph{ font-size:22px; }
+  .card .txt{ font-size:16px; line-height:2.0; letter-spacing:.04em; }
+
+  .phrase{ display:inline-block; cursor:pointer; border-radius:4px;
+           padding:0 1px; transition:background .25s; }
+  .phrase:hover{ background:rgba(233,228,214,.06); }
+  .phrase span{ display:inline-block; }
+
+  /* 微顫:說謊的句子（幅度刻意極小） */
+  @keyframes microjit{
+    0%{transform:translate(0,0)} 50%{transform:translate(.5px,-.35px)}
+    100%{transform:translate(-.4px,.3px)}
+  }
+  .lie-ch{ animation:microjit var(--jd,.16s) steps(2) infinite; }
+  body.magnify .lie-ch{ animation-duration:.09s;
+    animation-name:magjit; }
+  @keyframes magjit{
+    0%{transform:translate(0,0)} 50%{transform:translate(1.6px,-1.2px)}
+    100%{transform:translate(-1.4px,1px)}
+  }
+  /* 紅鯡魚:整段害怕的顫（幅度反而較大） */
+  .fear-ch{ animation:microjit var(--jd,.14s) steps(2) infinite; }
+
+  .phrase.accused{ }
+  .phrase.accused .lie-ch{ color:var(--lie);
+    animation-duration:.07s; animation-name:magjit; }
+  .phrase.accused{ border-bottom:1px solid var(--lie); }
+  .phrase.cleared{ animation:settleGlow 1s ease-out; }
+  @keyframes settleGlow{
+    0%{ background:rgba(159,216,255,.14);} 100%{ background:transparent;}
+  }
+
+  /* 減少動態:謊言改用波浪虛線 */
+  @media (prefers-reduced-motion:reduce){
+    .lie-ch,.fear-ch{ animation:none !important; }
+    .phrase.rm-lie{ text-decoration:underline wavy rgba(224,133,133,.45);
+                    text-underline-offset:4px; }
+  }
+
+  #foot{
+    width:min(94vw,640px); display:flex; justify-content:space-between;
+    align-items:center; min-height:34px;
+    font:12px 'Courier New',monospace; letter-spacing:.12em; color:var(--faint);
+  }
+  #msg{ transition:opacity .3s; max-width:70%; }
+  #tools{ display:flex; gap:8px; }
+  #tools button{
+    cursor:pointer; font:11px 'Courier New',monospace; letter-spacing:.12em;
+    color:var(--muted); background:transparent;
+    border:1px solid var(--line); border-radius:6px; padding:5px 12px;
+  }
+  #tools button:hover{ color:var(--warm); border-color:var(--warm); }
+
+  /* 對撞揭示 */
+  .flying{
+    position:fixed; z-index:50; white-space:nowrap; pointer-events:none;
+    font-size:17px; color:var(--lie);
+    transition:transform 1.1s cubic-bezier(.5,0,.7,.4), opacity .3s;
+  }
+  .shard{
+    position:fixed; z-index:50; pointer-events:none; color:var(--lie);
+    font-size:14px; will-change:transform,opacity;
+  }
+  #truth{
+    width:min(94vw,640px); border:1px solid rgba(255,179,71,.3);
+    border-radius:12px; padding:14px 20px 16px; display:none;
+    background:rgba(30,22,14,.5);
+  }
+  #truth.show{ display:block; }
+  #truth .who{ font:11.5px 'Courier New',monospace; letter-spacing:.22em;
+               color:var(--warm); margin-bottom:8px; }
+  #truth .txt{ font-size:16px; line-height:2.0; min-height:3em; }
+  #truth .lesson{ margin-top:10px; color:var(--faint); font-size:12.5px;
+                  line-height:1.8; letter-spacing:.06em; }
+  #btnReplay{ display:none; margin-top:10px; cursor:pointer;
+    font:11px 'Courier New',monospace; color:var(--muted); letter-spacing:.15em;
+    background:transparent; border:1px solid var(--line);
+    border-radius:6px; padding:5px 14px; }
+  #btnReplay.show{ display:inline-block; }
+  #btnReplay:hover{ color:var(--warm); border-color:var(--warm); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head"><span>TYPOGRAPHIC POLYGRAPH</span><span id="score">誤指:0</span></div>
+  <div id="caseTitle">消失的鑰匙</div>
+  <div id="brief">
+    排練室的道具鑰匙不見了。三個人最後見過它。
+    其中<b>兩句話</b>是謊——說謊的句子，會有一點藏不住的顫抖。
+    點擊你懷疑的句子指認。
+  </div>
+  <div id="cards"></div>
+  <div id="truth">
+    <div class="who">真相</div>
+    <div class="txt" id="truthTxt"></div>
+    <div class="lesson" id="lessonTxt"></div>
+    <button id="btnReplay">↺ 重查一次</button>
+  </div>
+  <div id="foot">
+    <span id="msg">提示:害怕的人整段都在抖。說謊的人，只有那一句在抖。</span>
+    <div id="tools"><button id="btnMag">⌕ 細看（按住）</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ══ 案件資料（佔位）══
+   fear:true = 整段害怕地顫（紅鯡魚，無辜）
+   句子物件 lie:true = 謊言（只有這句微顫） */
+const CASE = {
+  witnesses: [
+    { key:'cheng', glyph:'澄', name:'阿澄 · 舞台監督', color:'#cdd3e0',
+      lines: [
+        { t:'鑰匙一直掛在門邊的釘子上，誰都拿得到。' },
+        { t:'我一整晚都待在排練室，沒離開過半步。', lie:true, id:'L1' },
+        { t:'十一點鎖門的時候，釘子上已經是空的了。' },
+      ]},
+    { key:'zhou', glyph:'舟', name:'小舟 · 新人演員', color:'#9fd8ff', fear:true,
+      lines: [
+        { t:'我、我只是回來拿外套！' },
+        { t:'走廊的燈壞了，我什麼都沒看清楚。' },
+        { t:'但我好像聽到儲藏室那邊，有金屬的聲音。' },
+      ]},
+    { key:'dai', glyph:'戴', name:'老戴 · 道具管理', color:'#cdd3e0',
+      lines: [
+        { t:'那把鑰匙是我親手掛回去的，四點半。' },
+        { t:'之後我就在道具間清點，跟鑰匙再無交集。', lie:true, id:'L2' },
+        { t:'要我說，新來的那個一直鬼鬼祟祟的。' },
+      ]},
+  ],
+  truth: '阿澄離開過排練室——他在走廊上，看見老戴把鑰匙收進了口袋。一個為了包庇，一個為了脫身。兩句謊，拼出一個真相。',
+  lesson: '複盤:小舟整段都在顫——那是害怕，不是說謊。阿澄和老戴全身平靜，只有一句在微顫。「局部的顫抖」才是謊言的形狀。'
+};
+
+/* ══ 生成證詞卡 ══ */
+const cardsEl = document.getElementById('cards');
+cardsEl.style.display = 'flex';
+cardsEl.style.flexDirection = 'column';
+cardsEl.style.gap = '12px';
+cardsEl.style.width = 'min(94vw,640px)';
+
+const lieEls = {};                 // id → {phraseEl, card, found}
+let missCount = 0, found = 0, solved = false;
+
+CASE.witnesses.forEach(w => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    `<div class="who"><span class="glyph" style="color:${w.color}">${w.glyph}</span>` +
+    `<span style="color:${w.color}">${w.name}</span></div>`;
+  const txt = document.createElement('div');
+  txt.className = 'txt';
+  w.lines.forEach(line => {
+    const ph = document.createElement('span');
+    ph.className = 'phrase';
+    [...line.t].forEach(ch => {
+      const s = document.createElement('span');
+      s.textContent = ch;
+      if (line.lie && !reduced) {
+        s.className = 'lie-ch';
+        s.style.setProperty('--jd', (0.14 + Math.random() * 0.06).toFixed(3) + 's');
+        s.style.animationDelay = (-Math.random() * 0.2).toFixed(2) + 's';
+      } else if (w.fear && !reduced) {
+        s.className = 'fear-ch';
+        s.style.setProperty('--jd', (0.11 + Math.random() * 0.06).toFixed(3) + 's');
+        s.style.animationDelay = (-Math.random() * 0.2).toFixed(2) + 's';
+      }
+      ph.appendChild(s);
+    });
+    if (line.lie && reduced) ph.classList.add('rm-lie');
+    ph.addEventListener('click', () => accuse(ph, line, card));
+    txt.appendChild(ph);
+    txt.appendChild(document.createElement('br'));
+    if (line.lie) lieEls[line.id] = { phraseEl: ph, card, found: false, text: line.t };
+  });
+  card.appendChild(txt);
+  cardsEl.appendChild(card);
+});
+
+/* ══ 指認 ══ */
+const msgEl = document.getElementById('msg');
+function setMsg(t) { msgEl.style.opacity = '0';
+  setTimeout(() => { msgEl.textContent = t; msgEl.style.opacity = '1'; }, 250); }
+
+function accuse(ph, line, card) {
+  if (solved) return;
+  if (line.lie) {
+    const rec = lieEls[line.id];
+    if (rec.found) return;
+    rec.found = true; found++;
+    ph.classList.add('accused');
+    setMsg('這句話在發抖。（' + found + ' / 2）');
+    if (found === 2) setTimeout(confront, 800);
+  } else {
+    ph.classList.remove('cleared'); void ph.offsetWidth;
+    ph.classList.add('cleared');
+    missCount++;
+    document.getElementById('score').textContent = '誤指:' + missCount;
+    setMsg('這句話站得很穩。');
+  }
+}
+
+/* ══ 對質:兩句謊飛向中央對撞、碎成筆畫、真相浮現 ══ */
+function confront() {
+  solved = true;
+  const ids = Object.keys(lieEls);
+  const cx = innerWidth / 2, cy = innerHeight * 0.42;
+  const flyers = ids.map((id, i) => {
+    const rec = lieEls[id];
+    const r = rec.phraseEl.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'flying';
+    f.textContent = rec.text;
+    f.style.left = r.left + 'px';
+    f.style.top = r.top + 'px';
+    document.body.appendChild(f);
+    rec.phraseEl.style.opacity = '0.25';
+    const targetX = cx + (i === 0 ? -10 : 10) - r.left - r.width / 2;
+    const targetY = cy - r.top;
+    if (reduced) { f.remove(); return null; }
+    requestAnimationFrame(() =>
+      f.style.transform = `translate(${targetX}px, ${targetY}px) scale(0.9)`);
+    return f;
+  });
+
+  setTimeout(() => {
+    flyers.forEach(f => f && (f.style.opacity = '0'));
+    if (!reduced) {
+      const strokes = ['丶','丿','一','乚','亅','丨'];
+      const bodies = [];
+      for (let i = 0; i < 26; i++) {
+        const s = document.createElement('span');
+        s.className = 'shard';
+        s.textContent = strokes[i % strokes.length];
+        document.body.appendChild(s);
+        bodies.push({ el: s, x: cx, y: cy,
+          vx: (Math.random() - 0.5) * 9, vy: -2 - Math.random() * 5,
+          vr: (Math.random() - 0.5) * 30, rot: 0, life: 70 });
+      }
+      (function fall() {
+        let alive = false;
+        bodies.forEach(b => {
+          b.vy += 0.45; b.x += b.vx; b.y += b.vy; b.rot += b.vr; b.life--;
+          b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rot}deg)`;
+          b.el.style.opacity = String(Math.max(0, b.life / 40));
+          if (b.life > 0) alive = true; else b.el.remove();
+        });
+        if (alive) requestAnimationFrame(fall);
+      })();
+    }
+    setTimeout(() => flyers.forEach(f => f && f.remove()), 400);
+    revealTruth();
+  }, reduced ? 100 : 1250);
+}
+
+async function revealTruth() {
+  const box = document.getElementById('truth');
+  box.classList.add('show');
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const tEl = document.getElementById('truthTxt');
+  for (const ch of CASE.truth) {
+    tEl.textContent += ch;
+    const P = { '，': 140, '。': 280, '——': 200 };
+    await new Promise(r => setTimeout(r, reduced ? 0 : 28 + (P[ch] ?? 0)));
+  }
+  document.getElementById('lessonTxt').textContent = CASE.lesson;
+  document.getElementById('btnReplay').classList.add('show');
+  setMsg('結案。誤指 ' + missCount + ' 次。');
+}
+document.getElementById('btnReplay').onclick = () => location.reload();
+
+/* ══ 細看（按住放大顫抖）══ */
+const magBtn = document.getElementById('btnMag');
+const magOn  = () => document.body.classList.add('magnify');
+const magOff = () => document.body.classList.remove('magnify');
+magBtn.addEventListener('pointerdown', e => { e.stopPropagation(); magOn(); });
+magBtn.addEventListener('pointerup', magOff);
+magBtn.addEventListener('pointerleave', magOff);
+</script>
+</body>
+</html>

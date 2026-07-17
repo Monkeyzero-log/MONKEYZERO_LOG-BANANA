@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>爭論分屏 Mockup · 版面即戰況</title>
+<!--
+  ══════════════════════════════════════════════
+  爭論分屏 Mockup v0.1「版面即戰況」
+  命題:吵架的勝負不用旁白判定，直接寫在兩邊佔的面積上。
+
+  機制:
+  ・勢力＝面積:左右屏用 clip-path 多邊形切分，每句台詞帶
+    「勢」目標值，rAF 平滑推移;佔優方變大、字也變大。
+  ・不規則格:分界線上端/下端分開控制——攻勢凌厲時
+    分界線是斜的，像一把刀壓過去。
+  ・被壓扁的物理:劣勢方 <32% 進入窘迫態（字縮小、字距收緊）;
+    <20% 變成細條——字被迫轉成直書（writing-mode），
+    橫著都放不下了。被打斷、說不出話，全部用空間表達。
+  ・重擊感:致命台詞落地時版面過衝 6% 再回彈（220ms），
+    畫面往劣勢方震一下。
+  ・第三者亂入:中間楔形猛插進來，把左右同時擠成細條。
+
+  打開後預期看到（點擊/空白鍵推進，14 拍佔位劇本）:
+  1. 均勢開局 50/50 → 幾回合拉鋸（分界線隨攻勢傾斜）。
+  2. 「媽的墳在這裡。」——大逆轉重擊，左屏被壓到 18%，
+     台詞轉成直書立在細條裡。
+  3. 安靜的翻盤（不用重擊，緩慢推回）→ 換右屏被壓成細條。
+  4. 第 11 拍:中屏楔形猛地插入「吵夠了沒有。」
+     左右兩人瞬間都只剩一條縫。
+  5. 終幕:中屏退場，左右緩緩回到 50/50——誰也沒贏。
+  6. 頂部勢力讀數（左 58 ─ 右 42 / 左·中·右）隨拍更新。
+  7. 系統開啟「減少動態」時:無震動、推移放緩。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+         --coolC:#9fd8ff; --warmC:#ffb347; --elder:#cfc4b0; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper); cursor:pointer;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:#08070c; user-select:none; }
+  body.shakeL{ animation:shL .3s; }
+  body.shakeR{ animation:shR .3s; }
+  @keyframes shL{ 25%{transform:translateX(-9px)} 60%{transform:translateX(5px)} }
+  @keyframes shR{ 25%{transform:translateX(9px)} 60%{transform:translateX(-5px)} }
+
+  .pane{ position:fixed; inset:0; will-change:clip-path; }
+  #pL{ background:linear-gradient(160deg,#101823,#0c1018);
+       border-right:1px solid rgba(159,216,255,.08); }
+  #pR{ background:linear-gradient(200deg,#1f1610,#141009); }
+  #pM{ background:linear-gradient(180deg,#191612,#100e0b); }
+
+  .content{ position:absolute; top:50%; transform:translate(-50%,-50%);
+    width:min(38vw,340px); text-align:center; will-change:left,transform;
+    transition:opacity .4s; }
+  .content .who{ font:11px 'Courier New',monospace; letter-spacing:.24em;
+    margin-bottom:12px; }
+  #pL .who{ color:var(--coolC); } #pR .who{ color:var(--warmC); }
+  #pM .who{ color:var(--elder); }
+  .content .txt{ font-size:19px; line-height:2; letter-spacing:.05em;
+    min-height:2em; transition:font-size .5s, letter-spacing .5s; }
+  .pane.dimmed .content{ opacity:.4; }
+
+  /* 窘迫態與細條態 */
+  .pane.crushed .txt{ font-size:14px; letter-spacing:-.04em; line-height:1.7; }
+  .pane.sliver .content{ width:auto; }
+  .pane.sliver .txt{ writing-mode:vertical-rl; font-size:13px;
+    letter-spacing:.1em; max-height:56vh; margin:0 auto; }
+  .pane.sliver .who{ writing-mode:vertical-rl; margin:0 auto 10px; }
+
+  #balRead{ position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    z-index:20; font:10.5px 'Courier New',monospace; letter-spacing:.24em;
+    color:var(--faint); }
+  #sceneTag{ position:fixed; top:32px; left:50%; transform:translateX(-50%);
+    z-index:20; font:10px 'Courier New',monospace; letter-spacing:.2em;
+    color:#3f4658; }
+  #next{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    z-index:20; color:var(--faint); animation:blink 1.6s infinite; opacity:0; }
+  #next.show{ opacity:1; }
+  @keyframes blink{ 0%,100%{opacity:.2} 50%{opacity:.85} }
+  #btnReplay{ position:fixed; top:14px; right:16px; z-index:20; display:none;
+    cursor:pointer; font:11px 'Courier New',monospace; color:var(--muted);
+    background:transparent; border:1px solid rgba(147,160,191,.3);
+    border-radius:6px; padding:4px 12px; letter-spacing:.15em; }
+  #btnReplay.show{ display:block; }
+  #btnReplay:hover{ color:var(--warmC); border-color:var(--warmC); }
+
+  @media (prefers-reduced-motion:reduce){
+    body.shakeL,body.shakeR{ animation:none; }
+  }
+</style>
+</head>
+<body>
+<div class="pane" id="pM"><div class="content">
+  <div class="who" id="whoM"></div><div class="txt" id="txtM"></div></div></div>
+<div class="pane" id="pL"><div class="content">
+  <div class="who" id="whoL"></div><div class="txt" id="txtL"></div></div></div>
+<div class="pane" id="pR"><div class="content">
+  <div class="who" id="whoR"></div><div class="txt" id="txtR"></div></div></div>
+
+<div id="balRead">左 50 ─ 右 50</div>
+<div id="sceneTag">SPLIT-SCREEN ARGUMENT · 版面即戰況</div>
+<span id="next">▼</span>
+<button id="btnReplay">↺ 再吵一次</button>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ══ 版面狀態:四條邊界線（左界上/下、右界上/下，單位 %）══
+   左屏 = 0..a、中屏 = a..b、右屏 = b..100
+   無第三者時 a==b（中屏塌陷成零寬） */
+const E = { aT: 50, aB: 50, bT: 50, bB: 50 };          // 現值
+const T = { aT: 50, aB: 50, bT: 50, bB: 50 };          // 目標
+let ease = 0.06;
+
+const pL = document.getElementById('pL');
+const pM = document.getElementById('pM');
+const pR = document.getElementById('pR');
+const cL = pL.querySelector('.content');
+const cM = pM.querySelector('.content');
+const cR = pR.querySelector('.content');
+
+function loop() {
+  for (const k in E) E[k] += (T[k] - E[k]) * (reduced ? 0.25 : ease);
+
+  pL.style.clipPath = `polygon(0 0, ${E.aT}% 0, ${E.aB}% 100%, 0 100%)`;
+  pM.style.clipPath = `polygon(${E.aT}% 0, ${E.bT}% 0, ${E.bB}% 100%, ${E.aB}% 100%)`;
+  pR.style.clipPath = `polygon(${E.bT}% 0, 100% 0, 100% 100%, ${E.bB}% 100%)`;
+
+  const aAvg = (E.aT + E.aB) / 2, bAvg = (E.bT + E.bB) / 2;
+  const shareL = aAvg, shareM = bAvg - aAvg, shareR = 100 - bAvg;
+
+  /* 內容跟著自己那塊的中心走，並依面積縮放 */
+  cL.style.left = (aAvg / 2) + '%';
+  cM.style.left = ((aAvg + bAvg) / 2) + '%';
+  cR.style.left = ((bAvg + 100) / 2) + '%';
+  const sc = s => Math.max(0.6, Math.min(1.3, 0.55 + s / 55)).toFixed(3);
+  cL.style.transform = `translate(-50%,-50%) scale(${sc(shareL)})`;
+  cR.style.transform = `translate(-50%,-50%) scale(${sc(shareR)})`;
+  cM.style.transform = `translate(-50%,-50%) scale(${sc(Math.min(shareM, 70))})`;
+
+  /* 窘迫態 / 細條態:面積決定字的姿勢 */
+  setPosture(pL, shareL); setPosture(pR, shareR);
+  pM.style.visibility = shareM < 1.5 ? 'hidden' : 'visible';
+
+  /* 勢力讀數 */
+  document.getElementById('balRead').textContent =
+    shareM > 3
+      ? `左 ${Math.round(shareL)} · 中 ${Math.round(shareM)} · 右 ${Math.round(shareR)}`
+      : `左 ${Math.round(shareL)} ─ 右 ${Math.round(shareR)}`;
+
+  requestAnimationFrame(loop);
+}
+function setPosture(pane, share) {
+  pane.classList.toggle('sliver', share < 20);
+  pane.classList.toggle('crushed', share >= 20 && share < 32);
+}
+requestAnimationFrame(loop);
+
+/* ══ 版面指令 ══ */
+function setBalance(bal, tilt = 0, opt = {}) {
+  // bal = 左屏佔比;tilt>0 = 左方刀鋒下壓（上寬下窄的斜切）
+  const tgt = { aT: bal + tilt, aB: bal - tilt, bT: bal + tilt, bB: bal - tilt };
+  applyEdges(tgt, opt);
+}
+function setThree(aT, aB, bT, bB, opt = {}) {
+  applyEdges({ aT, aB, bT, bB }, opt);
+}
+function applyEdges(tgt, opt) {
+  ease = opt.slam ? 0.22 : (opt.slow ? 0.03 : 0.06);
+  if (opt.impact && !reduced) {
+    // 過衝:先壓過頭再回彈
+    const over = opt.impact === 'L' ? 6 : -6;   // 'L' = 左方重擊（版面向右過衝）
+    for (const k in tgt) T[k] = tgt[k] + over;
+    setTimeout(() => { for (const k in tgt) T[k] = tgt[k]; }, 220);
+    document.body.classList.remove('shakeL', 'shakeR');
+    void document.body.offsetWidth;
+    document.body.classList.add(opt.impact === 'L' ? 'shakeR' : 'shakeL');
+  } else {
+    for (const k in tgt) T[k] = tgt[k];
+  }
+}
+
+/* ══ 台詞 ══ */
+const TXT = { L: document.getElementById('txtL'),
+              R: document.getElementById('txtR'),
+              M: document.getElementById('txtM') };
+const WHO = { L: document.getElementById('whoL'),
+              R: document.getElementById('whoR'),
+              M: document.getElementById('whoM') };
+const PANE = { L: pL, R: pR, M: pM };
+let skipFlag = false;
+async function say(side, who, text) {
+  skipFlag = false;
+  document.getElementById('next').classList.remove('show');
+  for (const s of ['L','R','M'])
+    PANE[s].classList.toggle('dimmed', s !== side);
+  WHO[side].textContent = who;
+  TXT[side].textContent = '';
+  for (const ch of text) {
+    TXT[side].textContent += ch;
+    if (!skipFlag) {
+      const P = { '，': 150, '。': 300, '？': 280, '！': 280, '⋯': 240, '——': 200 };
+      await new Promise(r => setTimeout(r, reduced ? 0 : 34 + (P[ch] ?? 0)));
+    }
+  }
+  document.getElementById('next').classList.add('show');
+}
+
+/* ══ 劇本（佔位:搬家之爭）══ */
+const BEATS = [
+  async () => { setBalance(58, 0, { impact: 'L' });
+    await say('L', '阿岸', '「我決定了。下個月，就搬走。」'); },
+
+  async () => { setBalance(40, 0, { impact: 'R' });
+    await say('R', '小茉', '「你『決定』了？這個家的事，什麼時候輪到你一個人決定？」'); },
+
+  async () => { setBalance(62, 6, { impact: 'L' });
+    await say('L', '阿岸', '「這裡沒有工作、沒有醫院，連買個藥都要開車一小時！」'); },
+
+  async () => { setBalance(25, -4, { impact: 'R' });
+    await say('R', '小茉', '「媽的墳，在這裡。」'); },
+
+  async () => { setBalance(18, -2, { slow: true });
+    await say('L', '阿岸', '「我⋯⋯」'); },
+
+  async () => { setBalance(13, -3, { impact: 'R' });
+    await say('R', '小茉', '「你連清明都沒有回來過。現在，你跟我談決定？」'); },
+
+  // 安靜的翻盤:不用重擊，緩慢推回
+  async () => { setBalance(46, 0, { slow: true });
+    await say('L', '阿岸', '「我沒回來——是因為我在還她的醫藥費。」'); },
+
+  async () => { setBalance(54, 0, { slow: true });
+    await say('R', '小茉', '「⋯⋯什麼？」'); },
+
+  async () => { setBalance(68, 7, { impact: 'L' });
+    await say('L', '阿岸', '「這五年，每一張帳單。你以為，錢是從哪裡來的？」'); },
+
+  async () => { setBalance(78, 4, { slow: true });
+    await say('R', '小茉', '「你為什麼不早說⋯⋯」'); },
+
+  // 第三者亂入:楔形猛插，兩邊瞬間剩一條縫
+  async () => { setThree(13, 18, 87, 82, { slam: true, impact: 'L' });
+    document.body.classList.add('shakeR');
+    await say('M', '奶奶', '「吵夠了沒有。」'); },
+
+  async () => { setThree(10, 15, 90, 85, { slow: true });
+    await say('M', '奶奶', '「你媽走之前說的是——『別讓兩個孩子，為我吵架。』」'); },
+
+  async () => { setThree(16, 16, 84, 84, { slow: true });
+    await say('M', '奶奶', '「飯涼了。都進來。」'); },
+
+  // 終幕:中屏退場，左右回到 50/50——誰也沒贏
+  async () => { setBalance(50, 0, { slow: true });
+    TXT.M.textContent = ''; WHO.M.textContent = '';
+    await say('L', '', ' ');
+    TXT.L.textContent = ''; WHO.L.textContent = '';
+    TXT.R.textContent = ''; WHO.R.textContent = '';
+    for (const s of ['L','R','M']) PANE[s].classList.remove('dimmed');
+    document.getElementById('sceneTag').textContent = '誰也沒贏。飯桌上見。';
+    document.getElementById('next').classList.remove('show');
+    document.getElementById('btnReplay').classList.add('show'); },
+];
+
+/* ══ 推進 ══ */
+let beat = -1, busy = false;
+async function advance() {
+  if (busy) { skipFlag = true; return; }
+  beat++; if (beat >= BEATS.length) return;
+  busy = true; await BEATS[beat](); busy = false;
+}
+addEventListener('pointerdown', e => {
+  if (e.target.closest('#btnReplay')) return; advance();
+});
+addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+});
+document.getElementById('btnReplay').onclick = () => location.reload();
+advance();
+</script>
+</body>
+</html>

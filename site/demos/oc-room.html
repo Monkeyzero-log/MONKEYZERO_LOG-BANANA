@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OC 樣本 · 小房間</title>
+<!--
+  ══════════════════════════════════════════════
+  OC 日常樣本 v0.1《小房間》
+  招牌機制:
+  A. 可探索的房間——家具都是字，點擊任何東西觸發一段小日常。
+     日常故事不需要主線，需要一個可以閒逛的空間。
+  B. 桌寵化 OC——「茸」在房間裡自己閒晃、停下發呆、呼吸;
+     游標靠近會轉頭看你、再靠近會小小跳一下;
+     點他會開心蹦跳+說一句隨機的話。
+  C. 頁面記得你來過幾次（localStorage，沙盒環境退回頁內記憶）。
+
+  打開後預期看到:
+  1. 一個由字砌成的房間:燈、窗與月、床、桌上有杯和書、
+     盆栽、門、還有一隻縮成一團的「毛球」（偶爾冒出 z）。
+  2. 「茸」在房間裡慢慢走動、停下、呼吸。塵埃粒子緩緩漂浮。
+  3. 滑鼠靠近茸:他轉向你;貼很近:他跳一下。
+  4. 點擊茸:開心蹦跳（擠壓伸展+♪）並隨機說一句話。
+  5. 點擊任何家具:下方說明框打出那件東西的小故事;
+     點「毛球」時牠會醒一下（z 停止、換個姿勢字）。
+  6. 開頭一句:「這是你第 N 次來看阿茸。」——N 跨關閉累積
+     （Claude 預覽沙盒中退回本次記憶，下載後生效）。
+  7. 系統開啟「減少動態」時:閒晃改為定點、粒子與蹦跳停用。
+
+  文本為佔位 OC「阿茸」，替換 FURNITURE / OC_LINES 即可換成你的孩子。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+         --warm:#ffb347; --cozy:#e8c9a0; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:radial-gradient(100% 80% at 50% 20%, #1a1524, #0e0b14 75%);
+    user-select:none; }
+  #head{ position:fixed; top:14px; left:16px; z-index:10;
+    font:10px 'Courier New',monospace; letter-spacing:.22em; color:var(--faint); }
+  #visit{ position:fixed; top:14px; right:16px; z-index:10;
+    font:10px 'Courier New',monospace; letter-spacing:.18em; color:var(--faint); }
+
+  #room{ position:fixed; left:50%; top:46%; transform:translate(-50%,-50%);
+    width:min(640px,94vw); height:min(400px,58vh);
+    border:1px solid rgba(147,160,191,.18); border-radius:14px;
+    background:rgba(20,16,30,.5); }
+  .thing{ position:absolute; cursor:pointer; text-align:center;
+    transition:text-shadow .3s, transform .3s; transform:translate(-50%,-50%); }
+  .thing:hover{ text-shadow:0 0 14px rgba(232,201,160,.5); }
+  .thing .g{ display:inline-block; }
+  .thing .n{ display:block; font:9px 'Courier New',monospace;
+    letter-spacing:.15em; color:var(--faint); margin-top:3px; opacity:0;
+    transition:opacity .3s; }
+  .thing:hover .n{ opacity:1; }
+  #lamp .g{ color:var(--warm); text-shadow:0 0 18px rgba(255,179,71,.4);
+    animation:lampBreath 5s ease-in-out infinite; }
+  @keyframes lampBreath{ 50%{ text-shadow:0 0 26px rgba(255,179,71,.55); } }
+  #moon .g{ color:#cdd3e0; }
+  #cat .g{ display:inline-block; transition:transform .4s; }
+  #cat.awake .g{ transform:rotate(-8deg) scale(1.08); }
+
+  /* ── OC ── */
+  #oc{ position:absolute; text-align:center; cursor:pointer; z-index:5;
+    transform:translate(-50%,-50%); will-change:left,top; }
+  #oc .g{ display:inline-block; font-size:34px; color:#e8d9c9;
+    will-change:transform; }
+  #oc .n{ display:block; font:9px 'Courier New',monospace;
+    letter-spacing:.15em; color:var(--faint); margin-top:3px; }
+
+  .particle{ position:fixed; pointer-events:none; z-index:8;
+    will-change:transform,opacity; }
+
+  #caption{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    width:min(600px,92vw); z-index:10;
+    background:rgba(12,10,20,.88); border:1px solid rgba(147,160,191,.2);
+    border-radius:10px; padding:12px 20px 14px; backdrop-filter:blur(8px); }
+  #cname{ font:10.5px 'Courier New',monospace; letter-spacing:.22em;
+    color:var(--cozy); margin-bottom:6px; min-height:11px; }
+  #ctext{ font-size:15px; line-height:1.85; min-height:2.8em;
+    letter-spacing:.04em; }
+
+  @media (prefers-reduced-motion:reduce){
+    #lamp .g{ animation:none; }
+  }
+</style>
+</head>
+<body>
+<div id="head">OC ROOM SAMPLE · 點點房間裡的東西</div>
+<div id="visit"></div>
+<div id="room"></div>
+<div id="caption"><div id="cname"></div><div id="ctext"></div></div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const room = document.getElementById('room');
+
+/* ══ 來訪記憶 ══ */
+let visits = 1, persistent = true;
+try {
+  visits = (Number(localStorage.getItem('oc-room-visits')) || 0) + 1;
+  localStorage.setItem('oc-room-visits', String(visits));
+} catch { persistent = false; }
+document.getElementById('visit').textContent =
+  persistent ? '第 ' + visits + ' 次來訪' : '沙盒模式';
+
+/* ══ 家具（字砌的房間）══ */
+const FURNITURE = [
+  { id:'lamp', g:'燈', n:'燈',   x:14, y:16, size:26,
+    v:'燈是暖黃色的。阿茸試過白光，一天就換回來了。' },
+  { id:'moon', g:'月', n:'窗外', x:82, y:14, size:24,
+    v:'月亮很好。阿茸想過拍下來，後來決定多看一會兒就好。' },
+  { id:'win',  g:'⊞', n:'窗',   x:82, y:30, size:30,
+    v:'窗台上有一圈淺淺的杯印，是某個夏天留下的。' },
+  { id:'bed',  g:'床', n:'床',   x:16, y:74, size:34,
+    v:'枕頭底下藏著一顆糖，以防半夜突然難過。' },
+  { id:'desk', g:'桌', n:'桌',   x:56, y:66, size:32,
+    v:'桌上永遠有一種「等一下就收」的亂。等一下的意思是下個月。' },
+  { id:'cup',  g:'杯', n:'茶',   x:63, y:52, size:18,
+    v:'茶早就涼了。阿茸泡茶的意義在於泡，不在於喝。' },
+  { id:'book', g:'書', n:'書',   x:49, y:52, size:18,
+    v:'書籤停在第 43 頁，已經三個月了。書籤本人並不著急。' },
+  { id:'cat',  g:'球', n:'毛球', x:33, y:80, size:22,
+    v:'牠叫毛球。毛球誰都不理，除了凌晨三點的阿茸。', cat:true },
+  { id:'mint', g:'植', n:'薄荷', x:90, y:74, size:24,
+    v:'這盆薄荷是撿回來的，現在長得比阿茸的存款茂盛。' },
+  { id:'door', g:'門', n:'門',   x:44, y:20, size:30,
+    v:'門外是明天。今天還不想去。' },
+];
+const cname = document.getElementById('cname');
+const ctext = document.getElementById('ctext');
+let typeToken = 0;
+async function caption(name, text) {
+  const my = ++typeToken;
+  cname.textContent = name; ctext.textContent = '';
+  for (const ch of text) {
+    if (my !== typeToken) return;
+    ctext.textContent += ch;
+    const P = { '，': 140, '。': 260 };
+    await new Promise(r => setTimeout(r, reduced ? 0 : 26 + (P[ch] ?? 0)));
+  }
+}
+FURNITURE.forEach(f => {
+  const el = document.createElement('div');
+  el.className = 'thing'; el.id = f.id;
+  el.style.left = f.x + '%'; el.style.top = f.y + '%';
+  el.innerHTML = `<span class="g" style="font-size:${f.size}px">${f.g}</span>` +
+                 `<span class="n">${f.n}</span>`;
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    caption(f.n, f.v);
+    if (f.cat) {                                  // 毛球醒一下
+      el.classList.add('awake'); catAwake = true;
+      setTimeout(() => { el.classList.remove('awake'); catAwake = false; }, 2600);
+    }
+  });
+  room.appendChild(el);
+});
+
+/* 毛球的 z */
+let catAwake = false;
+const particles = [];
+function spawn(text, x, y, opt = {}) {
+  const s = document.createElement('span');
+  s.className = 'particle';
+  s.textContent = text;
+  s.style.color = opt.color ?? '#6a7590';
+  s.style.fontSize = (opt.size ?? 11) + 'px';
+  document.body.appendChild(s);
+  particles.push({ el: s, x, y, vx: opt.vx ?? 0, vy: opt.vy ?? -0.35,
+                   life: opt.life ?? 90, maxLife: opt.life ?? 90 });
+}
+setInterval(() => {
+  if (reduced || catAwake) return;
+  const c = document.getElementById('cat').getBoundingClientRect();
+  spawn('z', c.left + c.width / 2 + 8, c.top - 4, { size: 10 });
+}, 2600);
+/* 塵埃 */
+setInterval(() => {
+  if (reduced) return;
+  const r = room.getBoundingClientRect();
+  spawn('·', r.left + Math.random() * r.width, r.top + Math.random() * r.height,
+        { vy: -0.12, vx: (Math.random() - 0.5) * 0.15, life: 260,
+          color: 'rgba(233,228,214,.22)', size: 8 });
+}, 700);
+
+/* ══ OC:桌寵 ══ */
+const oc = document.createElement('div');
+oc.id = 'oc';
+oc.innerHTML = '<span class="g">茸</span><span class="n">阿茸</span>';
+room.appendChild(oc);
+const ocG = oc.querySelector('.g');
+
+const OC = { x: 50, y: 48, tx: 50, ty: 48, state: 'idle',
+  pauseUntil: 0, flip: 1, phase: 0,
+  bounce: 0, bounceLeft: 0, hopCool: 0 };
+const WAYPOINTS = [ [50,48],[30,58],[66,44],[24,36],[58,78],[76,60],[40,70] ];
+function pickWaypoint() {
+  const [x, y] = WAYPOINTS[Math.floor(Math.random() * WAYPOINTS.length)];
+  OC.tx = x; OC.ty = y;
+}
+const OC_LINES = [
+  '嗯?', '你來啦。', '今天也沒做什麼，挺好的。',
+  '要喝茶嗎?是涼的。', '毛球又不理我了。', '再五分鐘，就去做正事。',
+];
+oc.addEventListener('click', e => {
+  e.stopPropagation();
+  OC.state = 'bounce'; OC.bounce = 0; OC.bounceLeft = 3 * Math.PI;
+  caption('阿茸', OC_LINES[Math.floor(Math.random() * OC_LINES.length)]);
+});
+
+let mouse = { x: -999, y: -999 };
+addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+function loop(now) {
+  /* OC 行為 */
+  const r = room.getBoundingClientRect();
+  const px = r.left + OC.x / 100 * r.width;
+  const py = r.top + OC.y / 100 * r.height;
+  const md = Math.hypot(mouse.x - px, mouse.y - py);
+  let bobY = 0, squash = 1;
+
+  if (OC.state === 'bounce') {
+    OC.bounce += 0.20;
+    bobY = -Math.abs(Math.sin(OC.bounce)) * 12;
+    squash = 1 - Math.abs(Math.cos(OC.bounce)) * 0.13;
+    if (Math.sin(OC.bounce) > 0.98 && Math.random() < 0.4)
+      spawn('♪', px + (Math.random() - 0.5) * 18, py - 30,
+            { vy: -0.6, life: 60, color: '#9fd8ff', size: 11 });
+    if (OC.bounce > OC.bounceLeft) { OC.state = 'idle'; OC.pauseUntil = now + 1500; }
+  } else {
+    if (md < 90) {                                // 看向游標
+      OC.flip = mouse.x >= px ? 1 : -1;
+      if (md < 42 && now > OC.hopCool && !reduced) {
+        OC.state = 'bounce'; OC.bounce = 0; OC.bounceLeft = Math.PI;
+        OC.hopCool = now + 2200;
+      }
+    }
+    if (OC.state === 'idle' && now > OC.pauseUntil) {
+      if (reduced) OC.pauseUntil = now + 99999;
+      else { pickWaypoint(); OC.state = 'walk'; }
+    }
+    if (OC.state === 'walk') {
+      const dx = OC.tx - OC.x, dy = OC.ty - OC.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 0.6) { OC.state = 'idle'; OC.pauseUntil = now + 1800 + Math.random() * 3500; }
+      else {
+        OC.x += dx / d * 0.09; OC.y += dy / d * 0.09;
+        if (md >= 90) OC.flip = dx >= 0 ? 1 : -1;
+        bobY = -Math.abs(Math.sin(now / 160)) * 3;
+      }
+    }
+    if (OC.state === 'idle') bobY = Math.sin(now / 800 + OC.phase) * 1.4;
+  }
+  oc.style.left = OC.x + '%'; oc.style.top = OC.y + '%';
+  ocG.style.transform =
+    `translateY(${bobY}px) scaleX(${(OC.flip * (2 - squash)).toFixed(3)}) scaleY(${squash.toFixed(3)})`;
+
+  /* 粒子 */
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    p.el.style.opacity = String(Math.min(1, p.life / (p.maxLife * 0.5)));
+    if (p.life <= 0) { p.el.remove(); particles.splice(i, 1); }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+caption('小房間',
+  (persistent ? '這是你第 ' + visits + ' 次來看阿茸。' : '') +
+  '房間裡的每樣東西都可以點。阿茸也可以。');
+</script>
+</body>
+</html>

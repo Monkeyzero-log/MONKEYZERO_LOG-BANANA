@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>輪迴樣本 · 第 N 夜</title>
+<!--
+  ══════════════════════════════════════════════
+  輪迴懸疑樣本 v0.1《第 N 夜》
+  招牌機制:
+  A. 倒帶轉場——每次輪迴重置，文字逐字「倒打」收回、
+     死亡碎片飛回原位、時鐘往回撥。倒帶本身就是規則說明書。
+  B. 頁面記得你——主角失憶，頁面沒有:
+     ・每次死亡在門口留下殘骸（跨輪迴累積，localStorage 持久化）
+     ・牆上的刻字每一輪多解碼三個字（進度同樣持久化）
+     ・關掉瀏覽器再回來，輪迴計數與殘骸都還在。
+
+  打開後預期看到（點擊/空白鍵推進）:
+  1. 時鐘 23:47。走廊盡頭一扇「門」。牆上有一行跳動的亂碼刻字。
+  2. 推進 → 你打開門 → 燈滅、紅黑碎片飛散、時鐘停在 00:00、
+     「第 N 夜，結束。」
+  3. 再點 → 倒帶:台詞逐字收回、碎片倒飛回門裡、時鐘從 00:00
+     倒撥回 23:47、輪迴計數 +1、門口多一點殘骸。
+  4. 每一輪牆上刻字多解碼三個字（第三輪解碼完成:「不要打開那扇門」）。
+  5. 刻字讀全後出現選擇:「開門」/「不開門」——不開門 = 活過這一夜，
+     顯示總輪迴數與提示:「關掉頁面，再回來。它還記得。」
+  6. 左下角「遺忘一切」按鈕可清空記憶重測。
+  7. 注意:在 Claude 對話內預覽時 localStorage 被沙盒擋住，
+     會自動退回「本次頁面記憶」模式——下載後或放上 GitHub Pages
+     才能體驗跨關閉的記憶。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+         --warm:#ffb347; --blood:#c96a6a; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper); cursor:pointer;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:radial-gradient(120% 90% at 50% 0%, #12101c, #0a0810 70%);
+    user-select:none; }
+  body.rewinding{ filter:contrast(1.1) saturate(.6); }
+
+  #loopRead{ position:fixed; top:14px; left:16px; z-index:10;
+    font:11px 'Courier New',monospace; letter-spacing:.28em; color:var(--faint); }
+  #rewindMark{ position:fixed; top:14px; right:16px; z-index:10;
+    font:13px 'Courier New',monospace; letter-spacing:.2em; color:var(--cold,#9fd8ff);
+    opacity:0; transition:opacity .3s; }
+  #rewindMark.show{ opacity:.9; animation:rw .5s steps(2) infinite; }
+  @keyframes rw{ 50%{ opacity:.3; } }
+
+  #clock{ position:fixed; top:12vh; left:50%; transform:translateX(-50%);
+    font:26px 'Courier New',monospace; letter-spacing:.35em; color:#8a93a8;
+    z-index:5; }
+
+  #hall{ position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:26px; }
+  #door{ font-size:64px; color:#b8a888; transition:opacity .5s, text-shadow .5s;
+         position:relative; }
+  #door.opened{ text-shadow:0 0 30px rgba(255,240,200,.35); }
+  #wallText{ font-size:15px; letter-spacing:.35em; color:#7a6a8a;
+    font-family:'Courier New',monospace; min-height:1.4em; }
+  #wallText .undec{ color:#4a4258; }
+
+  .shard{ position:fixed; z-index:40; pointer-events:none;
+    font-size:14px; will-change:transform,opacity; }
+  .residue{ position:fixed; z-index:4; pointer-events:none;
+    color:#6a4a4a; font-size:10px; opacity:.55; }
+
+  #dialog{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    width:min(600px,92vw); z-index:10;
+    background:rgba(12,10,20,.9); border:1px solid rgba(147,160,191,.22);
+    border-radius:10px; padding:13px 20px 15px; }
+  #dtext{ font-size:15.5px; line-height:1.9; min-height:3em; letter-spacing:.04em; }
+  #dnext{ position:absolute; right:14px; bottom:8px; color:var(--faint);
+    animation:blink 1.6s infinite; opacity:0; }
+  #dnext.show{ opacity:1; }
+  @keyframes blink{ 0%,100%{opacity:.2} 50%{opacity:.85} }
+
+  #choices{ display:none; gap:18px; justify-content:center; margin-top:10px; }
+  #choices.show{ display:flex; }
+  #choices button{ cursor:pointer; font:inherit; font-size:14.5px;
+    letter-spacing:.12em; color:var(--paper);
+    background:rgba(233,228,214,.04); border:1px solid rgba(147,160,191,.3);
+    border-radius:8px; padding:8px 20px; }
+  #choices button:hover{ border-color:var(--warm); }
+
+  #btnForget{ position:fixed; bottom:16px; left:16px; z-index:10;
+    cursor:pointer; font:10px 'Courier New',monospace; letter-spacing:.18em;
+    color:var(--faint); background:transparent;
+    border:1px solid rgba(147,160,191,.2); border-radius:6px; padding:4px 10px; }
+  #btnForget:hover{ color:var(--blood); border-color:var(--blood); }
+  #storageNote{ position:fixed; bottom:16px; right:16px; z-index:10;
+    font:9.5px 'Courier New',monospace; letter-spacing:.1em; color:#3f4658; }
+</style>
+</head>
+<body>
+<div id="loopRead">第 1 夜</div>
+<div id="rewindMark">◀◀ REWIND</div>
+<div id="clock">23:47</div>
+<div id="hall">
+  <div id="wallText"></div>
+  <div id="door">門</div>
+</div>
+<div id="dialog">
+  <div id="dtext"></div>
+  <div id="choices">
+    <button id="chOpen">開門</button>
+    <button id="chStay">不開門</button>
+  </div>
+  <span id="dnext">▼</span>
+</div>
+<button id="btnForget">遺忘一切</button>
+<div id="storageNote"></div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ══ 記憶:localStorage（沙盒環境自動退回頁內記憶）══ */
+const MEM_KEY = 'loop-night-v1';
+let memFallback = {};
+let persistent = true;
+function loadMem() {
+  try { return JSON.parse(localStorage.getItem(MEM_KEY)) ?? {}; }
+  catch { persistent = false; return memFallback; }
+}
+function saveMem(m) {
+  try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); }
+  catch { persistent = false; memFallback = m; }
+}
+let MEM = loadMem();
+MEM.loop = MEM.loop ?? 1;
+MEM.decoded = MEM.decoded ?? 0;
+MEM.residues = MEM.residues ?? [];
+saveMem(MEM);
+document.getElementById('storageNote').textContent =
+  persistent ? '此頁記得你（localStorage）' : '沙盒模式:僅記得本次（下載後可跨關閉記憶）';
+
+/* ══ 牆上的刻字:每輪多解碼三個字 ══ */
+const WALL = '不要打開那扇門';
+const NOISE = '骸咒祀蝕禁異暗';
+const wallEl = document.getElementById('wallText');
+function renderWall() {
+  wallEl.innerHTML = '';
+  [...WALL].forEach((ch, i) => {
+    const s = document.createElement('span');
+    if (i < MEM.decoded) { s.textContent = ch; }
+    else { s.textContent = NOISE[Math.floor(Math.random() * NOISE.length)];
+           s.className = 'undec'; }
+    wallEl.appendChild(s);
+  });
+}
+setInterval(renderWall, 150);
+
+/* ══ 殘骸:跨輪迴累積 ══ */
+function drawResidues() {
+  document.querySelectorAll('.residue').forEach(e => e.remove());
+  const door = document.getElementById('door').getBoundingClientRect();
+  MEM.residues.forEach(r => {
+    const s = document.createElement('span');
+    s.className = 'residue';
+    s.textContent = r.t;
+    s.style.left = (door.left + door.width / 2 + r.dx) + 'px';
+    s.style.top  = (door.bottom + r.dy) + 'px';
+    document.body.appendChild(s);
+  });
+}
+addEventListener('resize', drawResidues);
+
+/* ══ 台詞（可倒打）══ */
+const dtext = document.getElementById('dtext');
+const dnext = document.getElementById('dnext');
+let skipFlag = false;
+async function say(text) {
+  skipFlag = false; dnext.classList.remove('show');
+  dtext.textContent = '';
+  for (const ch of text) {
+    dtext.textContent += ch;
+    if (!skipFlag) {
+      const P = { '，': 150, '。': 300, '——': 200 };
+      await new Promise(r => setTimeout(r, reduced ? 0 : 32 + (P[ch] ?? 0)));
+    }
+  }
+  dnext.classList.add('show');
+}
+async function unsay() {                          // 倒打:逐字收回
+  dnext.classList.remove('show');
+  while (dtext.textContent.length) {
+    dtext.textContent = dtext.textContent.slice(0, -1);
+    await new Promise(r => setTimeout(r, reduced ? 0 : 14));
+  }
+}
+
+/* ══ 死亡碎片（記錄以便倒飛回去）══ */
+let shards = [];
+function deathBurst() {
+  const door = document.getElementById('door').getBoundingClientRect();
+  const ox = door.left + door.width / 2, oy = door.top + door.height / 2;
+  const chars = ['丶','丿','一','乚','、','、','、'];
+  shards = [];
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement('span');
+    s.className = 'shard';
+    s.textContent = chars[i % chars.length];
+    s.style.color = i % 3 === 0 ? 'var(--blood)' : '#8a93a8';
+    document.body.appendChild(s);
+    const b = { el: s, x: ox, y: oy, ox, oy,
+      vx: (Math.random() - 0.5) * 8, vy: -2 - Math.random() * 5,
+      rot: 0, vr: (Math.random() - 0.5) * 26, settled: false };
+    shards.push(b);
+  }
+  if (reduced) { shards.forEach(b => b.el.remove()); shards = []; return; }
+  (function fall() {
+    let alive = false;
+    shards.forEach(b => {
+      if (b.settled) return;
+      b.vy += 0.45; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+      if (b.y > innerHeight * 0.8) { b.y = innerHeight * 0.8; b.settled = true; }
+      else alive = true;
+      b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rot}deg)`;
+    });
+    if (alive) requestAnimationFrame(fall);
+  })();
+}
+async function shardsReturn() {                   // 倒帶:碎片飛回原點
+  if (!shards.length) return;
+  await Promise.all(shards.map(b => new Promise(res => {
+    b.el.style.transition = 'transform 1s cubic-bezier(.3,0,.5,1), opacity .9s';
+    requestAnimationFrame(() => {
+      b.el.style.transform = `translate(${b.ox}px, ${b.oy}px) rotate(0deg)`;
+      b.el.style.opacity = '0';
+    });
+    setTimeout(() => { b.el.remove(); res(); }, reduced ? 50 : 1050);
+  })));
+  shards = [];
+}
+
+/* ══ 時鐘 ══ */
+const clockEl = document.getElementById('clock');
+function setClock(t) { clockEl.textContent = t; }
+async function clockRewind() {                    // 00:00 → 23:47 倒撥
+  const seq = ['00:00','23:59','23:57','23:54','23:51','23:49','23:47'];
+  for (const t of seq) { setClock(t);
+    await new Promise(r => setTimeout(r, reduced ? 0 : 110)); }
+}
+
+/* ══ 一夜的流程 ══ */
+const loopRead = document.getElementById('loopRead');
+const door = document.getElementById('door');
+const choices = document.getElementById('choices');
+let phase = 0, busy = false, ended = false;
+
+function beginNight() {
+  loopRead.textContent = '第 ' + MEM.loop + ' 夜';
+  setClock('23:47');
+  door.classList.remove('opened'); door.style.opacity = '1';
+  drawResidues();
+  phase = 0;
+}
+
+async function step() {
+  if (phase === 0) {
+    phase = 1;
+    const extra = MEM.residues.length
+      ? '門口的地上，有一些你不記得的碎屑。' : '';
+    await say('走廊很長。鐘停在 23:47。牆上有人刻了一行字，你讀不全。' + extra);
+
+  } else if (phase === 1) {
+    phase = 2;
+    if (MEM.decoded >= WALL.length) {             // 刻字讀全:出現選擇
+      await say('這一次，牆上的字，你全部讀懂了。');
+      choices.classList.add('show');
+      return;
+    }
+    await say('你的手已經放在門把上了。');
+
+  } else if (phase === 2) {
+    phase = 3;
+    await openDoorDeath();
+
+  } else if (phase === 3) {
+    phase = 0;
+    await rewind();
+  }
+}
+
+async function openDoorDeath() {
+  door.classList.add('opened');
+  setClock('00:00');
+  deathBurst();
+  MEM.residues.push({ t: '·', dx: (Math.random() - 0.5) * 90,
+                      dy: 10 + Math.random() * 26 });
+  if (MEM.residues.length > 40) MEM.residues.shift();
+  saveMem(MEM);
+  await say('燈滅了。第 ' + MEM.loop + ' 夜，結束。');
+}
+
+async function rewind() {
+  document.body.classList.add('rewinding');
+  document.getElementById('rewindMark').classList.add('show');
+  await unsay();                                  // 台詞倒打收回
+  await Promise.all([shardsReturn(), clockRewind()]);  // 碎片飛回+時鐘倒撥
+  MEM.loop++;
+  MEM.decoded = Math.min(WALL.length, MEM.decoded + 3);   // 頁面偷偷多記三個字
+  saveMem(MEM);
+  document.body.classList.remove('rewinding');
+  document.getElementById('rewindMark').classList.remove('show');
+  beginNight();
+  await say('⋯⋯走廊很長。鐘停在 23:47。你好像，來過這裡。');
+  phase = 1;
+}
+
+/* 選擇 */
+document.getElementById('chOpen').onclick = async e => {
+  e.stopPropagation(); choices.classList.remove('show');
+  phase = 3; await openDoorDeath();
+};
+document.getElementById('chStay').onclick = async e => {
+  e.stopPropagation(); choices.classList.remove('show');
+  ended = true;
+  setClock('06:00');
+  door.style.opacity = '0.25';
+  await say('你把手收了回來。天亮了。——你輪迴了 ' + MEM.loop + ' 夜。' +
+    (persistent ? '關掉這個頁面，再回來。它還記得。' : '（沙盒模式:下載後它才能跨關閉記得你。）'));
+};
+
+/* 推進 */
+addEventListener('pointerdown', e => {
+  if (e.target.closest('button')) return;
+  if (ended) return;
+  if (busy) { skipFlag = true; return; }
+  busy = true; step().then(() => busy = false);
+});
+addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && !ended) {
+    e.preventDefault();
+    if (busy) { skipFlag = true; return; }
+    busy = true; step().then(() => busy = false);
+  }
+});
+document.getElementById('btnForget').onclick = e => {
+  e.stopPropagation();
+  try { localStorage.removeItem(MEM_KEY); } catch {}
+  location.reload();
+};
+
+beginNight();
+say('（點擊推進。這個頁面會記得你來過幾次。）').then(() => { phase = 0; });
+</script>
+</body>
+</html>

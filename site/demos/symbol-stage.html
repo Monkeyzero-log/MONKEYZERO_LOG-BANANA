@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>符號舞台 Mockup · 鏡頭與演技</title>
+<!--
+  ══════════════════════════════════════════════
+  符號舞台 Mockup v0.1
+  命題:角色是符號、舞台是座標、鏡頭是敘事者。
+       像素 RPG 的過場動畫，但一切由文字構成。
+
+  系統:
+  ・演員 = 一個字符 + 名牌（使/守/豆），狀態機驅動演技
+  ・演技表:慢走/快走（步伐起伏+足跡）、發抖、
+    倒地（符號旋轉倒下 + 紅色「、」噴濺 + 筆畫碎片「丶丿一乚」飛散
+    ——符號碎成自己的筆畫）、跪下、坐起、開心彈跳（擠壓伸展+♪）
+  ・鏡頭 = 對整個世界 translate+scale，rAF 平滑過渡:
+    全景/中景/跟拍（鎖定移動中的角色）/近鏡/超近鏡（7.5×，
+    符號佔滿畫面，顫抖被放大成地震）/對峙位（寶可夢站位:
+    我方左下大背對、對方右上小、腳下橢圓光台——不用真的打）
+  ・世界粒子:飄雪，與劇情連動（信使倒下那一拍，雪停了）
+
+  打開後預期看到（點擊/空白鍵推進，測試劇本《雪地的信》，佔位文本）:
+  1.  全景:邊境哨站，柵欄與火堆由字符構成，雪一直在下。
+  2.  跟拍:遠處一個「使」慢慢走近，鏡頭跟著他移動。
+  3.  對峙位:「守」跳出喝止——寶可夢站位，兩座橢圓光台亮起。
+  4.  近鏡「使」:他舉起一枚「信」，信浮在身邊。
+  5.  超近鏡「守」:符號放大佔滿半個畫面，開始顫抖（認出字跡）。
+  6.  中景:「使」倒地——旋轉倒下、紅點噴濺、筆畫碎片飛散，雪停了。
+  7.  「守」快步跑到他身邊跪下;「豆」彈跳著跑去叫人。
+  8.  時間跳躍:畫面轉暖。「使」坐起，「豆」開心地原地彈跳（♪）。
+  9.  近鏡收尾:「送到了。」↺ 重演。
+  10. 系統開啟「減少動態」時:鏡頭直接切換、粒子與顫抖停用。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --warm:#ffb347; --blood:#e05555;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper); cursor:pointer;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,#0b0d16,#141a2a 70%,#1a2133);
+    user-select:none;
+  }
+  #tint{
+    position:fixed; inset:0; pointer-events:none; z-index:3;
+    background:rgba(120,160,220,0.07); transition:background 3s;
+  }
+  #tint.warm{ background:rgba(255,170,90,0.10); }
+
+  /* ── 世界（鏡頭對它做 transform）── */
+  #world{
+    position:fixed; left:0; top:0; width:0; height:0; z-index:2;
+    will-change:transform;
+  }
+  .scenery{
+    position:absolute; color:#4a5468; white-space:pre;
+    font-family:monospace;
+  }
+  #fire{ color:#ff8a4d; animation:flick 0.5s steps(2) infinite; }
+  @keyframes flick{ 50%{ color:#ffb347; transform:scale(1.06);} }
+
+  .platform{
+    position:absolute; width:180px; height:44px; border-radius:50%;
+    background:radial-gradient(ellipse at center, rgba(159,216,255,0.13), transparent 70%);
+    border:1px solid rgba(159,216,255,0.10);
+    opacity:0; transition:opacity 0.8s;
+    transform:translate(-50%,-50%);
+  }
+  .platform.show{ opacity:1; }
+
+  /* ── 演員 ── */
+  .actor{ position:absolute; left:0; top:0; will-change:transform;
+          text-align:center; }
+  .actor .glyph{
+    display:inline-block; font-size:42px; line-height:1;
+    transition:color 0.6s;
+    will-change:transform;
+  }
+  .actor .tag{
+    display:block; font:10px 'Courier New',monospace;
+    letter-spacing:.2em; color:var(--faint); margin-top:4px;
+  }
+  .actor.speaking .glyph{ text-shadow:0 0 12px rgba(233,228,214,0.4); }
+  .actor .glyph.trembling{ animation:trem 0.1s steps(2) infinite; }
+  @keyframes trem{ 0%{transform:translate(0,0) rotate(0deg);}
+                   50%{transform:translate(1.1px,-0.8px) rotate(0.6deg);}
+                   100%{transform:translate(-0.9px,0.6px) rotate(-0.5deg);} }
+  .actor .glyph.down{ transform:rotate(84deg) translateY(4px); opacity:0.45;
+                      transition:transform 0.55s cubic-bezier(.6,0,.9,.5), opacity 0.8s; }
+  .actor .glyph.kneel{ transform:scaleY(0.72) translateY(7px);
+                       transition:transform 0.4s; }
+  .actor .glyph.sit{ transform:scaleY(0.85) translateY(4px) rotate(4deg);
+                     transition:transform 0.9s; }
+
+  .particle{
+    position:absolute; pointer-events:none; will-change:transform,opacity;
+    font-size:13px;
+  }
+
+  /* ── 對話框（RPG 式）── */
+  #dialog{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+    width:min(680px,92vw); z-index:10;
+    background:rgba(12,10,20,0.88); border:1px solid rgba(147,160,191,0.25);
+    border-radius:10px; padding:14px 20px 16px;
+    backdrop-filter:blur(8px);
+  }
+  #dname{ font:11.5px 'Courier New',monospace; letter-spacing:.22em;
+          margin-bottom:7px; min-height:12px; color:var(--faint); }
+  #dtext{ font-size:16.5px; line-height:1.85; min-height:3.7em;
+          letter-spacing:.04em; }
+  #dtext .fx-t{ display:inline-block; animation:trem 0.18s steps(2) infinite; }
+  #dnext{ position:absolute; right:14px; bottom:8px; color:var(--faint);
+          animation:blink 1.6s infinite; opacity:0; }
+  #dnext.show{ opacity:1; }
+  @keyframes blink{ 0%,100%{opacity:.2;} 50%{opacity:.85;} }
+
+  #shotRead{
+    position:fixed; top:14px; right:16px; z-index:10;
+    font:10px 'Courier New',monospace; letter-spacing:.22em; color:var(--faint);
+  }
+  #sceneRead{
+    position:fixed; top:14px; left:16px; z-index:10;
+    font:10px 'Courier New',monospace; letter-spacing:.22em; color:var(--faint);
+  }
+  #btnReplay{
+    position:fixed; top:34px; right:16px; z-index:10; display:none;
+    cursor:pointer; font:11px 'Courier New',monospace; color:var(--muted);
+    background:transparent; border:1px solid rgba(147,160,191,0.3);
+    border-radius:6px; padding:4px 12px; letter-spacing:.15em;
+  }
+  #btnReplay.show{ display:block; }
+  #btnReplay:hover{ color:var(--warm); border-color:var(--warm); }
+
+  @media (prefers-reduced-motion:reduce){
+    .actor .glyph.trembling, #fire{ animation:none; }
+  }
+</style>
+</head>
+<body>
+<div id="tint"></div>
+<div id="world"></div>
+<div id="sceneRead">SYMBOL STAGE MOCKUP</div>
+<div id="shotRead">鏡頭:—</div>
+<button id="btnReplay">↺ 重演</button>
+<div id="dialog">
+  <div id="dname"></div>
+  <div id="dtext"></div>
+  <span id="dnext">▼</span>
+</div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const world = document.getElementById('world');
+
+/* ══ 世界佈景（字符構成）══ */
+const GY = 300;                                   // 地面（世界座標）
+function addScenery(text, x, y, opt = {}) {
+  const s = document.createElement('span');
+  s.className = 'scenery';
+  s.textContent = text;
+  s.style.transform = `translate(${x}px, ${y}px)`;
+  if (opt.size) s.style.fontSize = opt.size + 'px';
+  if (opt.color) s.style.color = opt.color;
+  if (opt.id) s.id = opt.id;
+  world.appendChild(s);
+  return s;
+}
+// 柵欄與哨站
+for (let i = 0; i < 7; i++) addScenery('｜', 560 + i * 26, GY - 44, { size: 26 });
+addScenery('哨', 620, GY - 92, { size: 20, color: '#6a7590' });
+addScenery('▔▔▔▔▔▔▔▔', 552, GY - 66, { size: 14 });
+addScenery('火', 840, GY - 30, { size: 24, id: 'fire' });
+addScenery('丶 丶', 830, GY - 6, { size: 12, color: '#3a4152' });
+// 地面
+for (let x = -700; x < 1500; x += 60) addScenery('﹏', x, GY, { size: 18, color: '#2c3448' });
+
+/* 對峙光台 */
+const platA = document.createElement('div'); platA.className = 'platform';
+const platB = document.createElement('div'); platB.className = 'platform';
+world.appendChild(platA); world.appendChild(platB);
+
+/* ══ 演員 ══ */
+const actors = {};
+function makeActor(key, glyph, name, x, color) {
+  const el = document.createElement('div');
+  el.className = 'actor';
+  el.innerHTML = `<span class="glyph" style="color:${color}">${glyph}</span><span class="tag">${name}</span>`;
+  world.appendChild(el);
+  const a = {
+    key, el, g: el.querySelector('.glyph'), name, color,
+    x, y: GY - 46, scale: 1, flip: 1,
+    state: 'idle', walkTo: null, walkSpeed: 1, phase: Math.random() * 6,
+    bounce: 0, bounceLeft: 0, moveDone: null,
+    tx: null, ty: null, tscale: null,            // 對峙位用的補間目標
+  };
+  actors[key] = a;
+  return a;
+}
+makeActor('shi',  '使', '信使', -620, '#cdd3e0');
+makeActor('shou', '守', '守衛',  610, '#ffb347');
+makeActor('dou',  '豆', '豆子',  800, '#9fd8ff');
+
+/* ══ 粒子 ══ */
+const particles = [];
+function spawn(text, x, y, opt = {}) {
+  const s = document.createElement('span');
+  s.className = 'particle';
+  s.textContent = text;
+  s.style.color = opt.color ?? '#8a93a8';
+  if (opt.size) s.style.fontSize = opt.size + 'px';
+  world.appendChild(s);
+  particles.push({
+    el: s, x, y,
+    vx: opt.vx ?? 0, vy: opt.vy ?? 0,
+    g: opt.g ?? 0, life: opt.life ?? 60, maxLife: opt.life ?? 60,
+    ground: opt.ground ?? false, vr: opt.vr ?? 0, rot: 0,
+  });
+}
+let snowing = true;
+setInterval(() => {
+  if (!snowing || reduced) return;
+  spawn('·', -700 + Math.random() * 2200, -260, {
+    vy: 0.6 + Math.random() * 0.5, vx: -0.2 + Math.random() * 0.4,
+    life: 700, color: 'rgba(233,228,214,0.5)', size: 10
+  });
+}, 90);
+
+/* ══ 鏡頭:對世界做 translate + scale ══ */
+const cam = { x: 0, y: GY - 90, z: 0.8, tx: 0, ty: GY - 90, tz: 0.8, follow: null, ease: 0.05 };
+const shotReadEl = document.getElementById('shotRead');
+function shot(name, x, y, z, ease = 0.05) {
+  cam.follow = null;
+  cam.tx = x; cam.ty = y; cam.tz = z; cam.ease = ease;
+  shotReadEl.textContent = '鏡頭:' + name;
+  if (reduced) { cam.x = x; cam.y = y; cam.z = z; }
+}
+const SHOTS = {
+  wide:   a => shot('全景',   150, GY - 100, 0.8),
+  medium: a => shot('中景',   a ? actors[a].x : 300, GY - 80, 1.5),
+  close:  a => shot('近鏡·' + actors[a].name, actors[a].x, GY - 60, 3.4),
+  xclose: a => shot('超近鏡·' + actors[a].name, actors[a].x, GY - 62, 7.5, 0.03),
+  track:  a => { SHOTS.medium(a); cam.follow = a;
+                 shotReadEl.textContent = '鏡頭:跟拍·' + actors[a].name; },
+};
+
+/* ══ 主循環 ══ */
+function loop() {
+  // 鏡頭
+  if (cam.follow) cam.tx = actors[cam.follow].x;
+  cam.x += (cam.tx - cam.x) * cam.ease;
+  cam.y += (cam.ty - cam.y) * cam.ease;
+  cam.z += (cam.tz - cam.z) * cam.ease;
+  world.style.transform =
+    `translate(${innerWidth / 2 - cam.x * cam.z}px, ${innerHeight * 0.42 - cam.y * cam.z}px) scale(${cam.z})`;
+
+  // 演員
+  const now = performance.now();
+  for (const k in actors) {
+    const a = actors[k];
+    let bobY = 0;
+
+    if (a.state === 'walk' && a.walkTo !== null) {
+      const d = a.walkTo - a.x;
+      const step = Math.sign(d) * Math.min(Math.abs(d), a.walkSpeed);
+      a.x += step;
+      a.flip = d >= 0 ? 1 : -1;
+      bobY = -Math.abs(Math.sin(now / (140 / a.walkSpeed))) * 4;
+      if (Math.random() < 0.06)
+        spawn('、', a.x - a.flip * 14, GY - 6,
+              { life: 70, color: 'rgba(147,160,191,0.35)', size: 9 });
+      if (Math.abs(d) < 1) {
+        a.x = a.walkTo; a.walkTo = null; a.state = 'idle';
+        if (a.moveDone) { a.moveDone(); a.moveDone = null; }
+      }
+    } else if (a.state === 'bounce') {
+      a.bounce += 0.22;
+      bobY = -Math.abs(Math.sin(a.bounce)) * 16;
+      const squash = 1 - Math.abs(Math.cos(a.bounce)) * 0.14;
+      a.g.style.transform = `scaleY(${squash.toFixed(3)}) scaleX(${(2 - squash).toFixed(3)})`;
+      if (Math.sin(a.bounce) > 0.98 && Math.random() < 0.3)
+        spawn('♪', a.x + (Math.random() - 0.5) * 20, a.y - 26,
+              { vy: -0.7, life: 60, color: '#9fd8ff', size: 12 });
+      if (a.bounceLeft > 0 && a.bounce > a.bounceLeft) {
+        a.state = 'idle'; a.g.style.transform = '';
+        if (a.moveDone) { a.moveDone(); a.moveDone = null; }
+      }
+    } else if (a.state === 'idle') {
+      bobY = Math.sin(now / 700 + a.phase) * 1.5;   // 呼吸
+    }
+    // down / kneel / sit:姿勢由 glyph class 表現，容器不加起伏
+
+    if (a.tx !== null) a.x += (a.tx - a.x) * 0.06;
+    if (a.tscale !== null) a.scale += (a.tscale - a.scale) * 0.06;
+
+    a.el.style.transform =
+      `translate(${a.x - 21}px, ${a.y + (a.state === 'idle' || a.state === 'walk' || a.state === 'bounce' ? bobY : 0)}px) scale(${(a.scale * 1).toFixed(3)}) scaleX(${a.flip})`;
+    a.el.querySelector('.tag').style.transform = `scaleX(${a.flip})`;
+  }
+
+  // 粒子
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.vy += p.g;
+    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    if (p.ground && p.y > GY - 4) { p.y = GY - 4; p.vx *= 0.7; p.vy = 0; p.g = 0; p.vr *= 0.8; }
+    p.life--;
+    p.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg)`;
+    p.el.style.opacity = String(Math.min(1, p.life / (p.maxLife * 0.4)));
+    if (p.life <= 0 || p.y > GY + 60) { p.el.remove(); particles.splice(i, 1); }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ══ 演技指令 ══ */
+function walk(key, to, speed = 1) {
+  return new Promise(res => {
+    const a = actors[key];
+    a.state = 'walk'; a.walkTo = to; a.walkSpeed = speed; a.moveDone = res;
+    if (reduced) { a.x = to; a.walkTo = null; a.state = 'idle'; res(); }
+  });
+}
+function tremble(key, on = true) { actors[key].g.classList.toggle('trembling', on && !reduced); }
+function collapse(key) {                          // 倒地:紅點 + 筆畫碎片
+  const a = actors[key];
+  a.state = 'down'; tremble(key, false);
+  a.g.classList.add('down');
+  if (reduced) return;
+  const strokes = ['丶', '丿', '一', '乚'];
+  for (let i = 0; i < 14; i++)
+    spawn('、', a.x, a.y + 14, {
+      vx: (Math.random() - 0.5) * 4, vy: -1 - Math.random() * 2.5,
+      g: 0.22, life: 90, ground: true, color: 'var(--blood)', size: 11
+    });
+  strokes.forEach((st, i) =>
+    spawn(st, a.x, a.y + 8, {
+      vx: (Math.random() - 0.5) * 5, vy: -2.5 - Math.random() * 2,
+      g: 0.2, life: 120, ground: true, vr: (Math.random() - 0.5) * 20,
+      color: a.color, size: 15
+    }));
+}
+function kneel(key) { const a = actors[key]; a.state = 'kneel'; a.g.classList.add('kneel'); }
+function situp(key) {
+  const a = actors[key];
+  a.g.classList.remove('down'); a.g.classList.add('sit');
+  a.state = 'sit';
+}
+function bounce(key, cycles = 0) {
+  return new Promise(res => {
+    const a = actors[key];
+    a.state = 'bounce'; a.bounce = 0;
+    a.bounceLeft = cycles > 0 ? cycles * Math.PI : 0;
+    a.moveDone = cycles > 0 ? res : null;
+    if (cycles === 0) res();
+    if (reduced) { a.state = 'idle'; res(); }
+  });
+}
+function stopBounce(key) { const a = actors[key]; a.state = 'idle'; a.g.style.transform = ''; }
+function standoff(front, back) {                  // 對峙位（寶可夢站位）
+  const cx = cam.tx;
+  const A = actors[front], B = actors[back];
+  A.tx = cx - 200; A.tscale = 1.9; A.flip = 1;  A.y = GY - 20;
+  B.tx = cx + 210; B.tscale = 1.05; B.flip = -1; B.y = GY - 96;
+  platA.style.left = (cx - 200) + 'px'; platA.style.top = (GY + 26) + 'px';
+  platB.style.left = (cx + 210) + 'px'; platB.style.top = (GY - 52) + 'px';
+  platA.classList.add('show'); platB.classList.add('show');
+  shot('對峙位', cx, GY - 96, 1.35);
+}
+function endStandoff() {
+  for (const k in actors) {
+    const a = actors[k];
+    a.tx = null; a.tscale = null; a.scale = 1; a.y = GY - 46;
+  }
+  platA.classList.remove('show'); platB.classList.remove('show');
+}
+let prop = null;
+function showProp(text, key) {
+  const a = actors[key];
+  prop = addScenery(text, a.x + 30, a.y - 26, { size: 18, color: '#ffd479' });
+  prop.style.transition = 'transform 1s, opacity 1s';
+  requestAnimationFrame(() =>
+    prop.style.transform = `translate(${a.x + 30}px, ${a.y - 44}px)`);
+}
+function hideProp() { if (prop) { prop.style.opacity = '0'; prop = null; } }
+
+/* ══ 對話 ══ */
+const dname = document.getElementById('dname');
+const dtext = document.getElementById('dtext');
+const dnext = document.getElementById('dnext');
+let typingP = null, skipFlag = false;
+
+function say(name, color, text) {
+  return new Promise(async res => {
+    skipFlag = false;
+    dnext.classList.remove('show');
+    dname.textContent = name; dname.style.color = color;
+    dtext.innerHTML = '';
+    for (const k in actors)
+      actors[k].el.classList.toggle('speaking', actors[k].name === name);
+    let tremorOn = false;
+    for (let i = 0; i < text.length; i++) {
+      if (text.startsWith('{t}', i)) { tremorOn = true; i += 2; continue; }
+      if (text.startsWith('{/t}', i)) { tremorOn = false; i += 3; continue; }
+      const sp = document.createElement('span');
+      sp.textContent = text[i];
+      if (tremorOn && !reduced) sp.className = 'fx-t';
+      dtext.appendChild(sp);
+      if (!skipFlag) {
+        const P = { '，': 160, '。': 300, '！': 280, '？': 280, '⋯': 240 };
+        await new Promise(r => setTimeout(r, 30 + (P[text[i]] ?? 0)));
+      }
+    }
+    dnext.classList.add('show');
+    res();
+  });
+}
+const NARR = '#5b6784';
+
+/* ══ 劇本《雪地的信》（佔位文本）══ */
+const BEATS = [
+  async () => { SHOTS.wide();
+    await say('旁白', NARR, '邊境哨站。雪，下了三天。'); },
+
+  async () => { SHOTS.track('shi');
+    const w = walk('shi', 320, 0.55);           // 很慢很慢地走
+    await say('旁白', NARR, '雪地的另一頭，有個黑點，慢慢走近。');
+    await w; },
+
+  async () => {
+    await walk('shou', 470, 2.6);               // 快步攔截
+    standoff('shou', 'shi');
+    await say('守衛', '#ffb347', '站住！report——報上名來！'); },
+
+  async () => {
+    await say('信使', '#cdd3e0', '「⋯⋯送信的。」'); },
+
+  async () => { endStandoff(); SHOTS.close('shi'); showProp('信', 'shi');
+    await say('旁白', NARR, '他舉起一枚信。信封上的字，被雪打濕了一角。'); },
+
+  async () => { SHOTS.xclose('shou'); tremble('shou');
+    await say('守衛', '#ffb347', '這個字跡⋯⋯{t}這是我兒子的字。{/t}'); },
+
+  async () => { tremble('shou', false); SHOTS.medium('shi');
+    collapse('shi'); snowing = false;           // 倒下的那一拍，雪停了
+    await say('旁白', NARR, '信使倒下的時候，雪，終於停了。'); },
+
+  async () => {
+    await walk('shou', actors.shi.x + 40, 3);
+    kneel('shou');
+    await say('守衛', '#ffb347', '撐住！豆子——{t}去叫人！{/t}'); },
+
+  async () => {
+    bounce('dou');                               // 邊彈邊跑
+    const w = walk('dou', 1200, 3.2);
+    await say('旁白', NARR, '孩子連滾帶跳地衝進了風雪剛停的夜裡。');
+    await w; stopBounce('dou'); },
+
+  async () => { document.getElementById('tint').classList.add('warm');
+    SHOTS.wide();
+    situp('shi'); actors.shou.g.classList.remove('kneel'); actors.shou.state = 'idle';
+    actors.dou.x = 700; await bounce('dou', 4);  // 開心地原地彈四下
+    await say('豆子', '#9fd8ff', '他醒了！他醒了！'); },
+
+  async () => { SHOTS.close('shi');
+    await say('信使', '#cdd3e0', '「⋯⋯信，送到了嗎？」'); },
+
+  async () => { hideProp();
+    await say('守衛', '#ffb347', '「送到了。」');
+    document.getElementById('btnReplay').classList.add('show');
+    document.getElementById('sceneRead').textContent = '完 · 鏡頭與演技各走了一遍'; },
+];
+
+/* ══ 推進 ══ */
+let beat = -1, busy = false, typing = false;
+async function advance() {
+  if (busy) { skipFlag = true; return; }
+  beat++;
+  if (beat >= BEATS.length) return;
+  busy = true;
+  await BEATS[beat]();
+  busy = false;
+}
+addEventListener('pointerdown', e => {
+  if (e.target.closest('#btnReplay')) return;
+  advance();
+});
+addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+});
+document.getElementById('btnReplay').onclick = () => location.reload();
+
+advance();
+</script>
+</body>
+</html>

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<!--
+  詩的演出：「圓美」 v2 —— 詩就是那個圈
+  設計核心（v1 檢討後重做）：
+  ・v1 的圓是旁邊的道具，詩安穩躺在版面上——那是插圖，不是文字物理學。
+  ・v2：圓由詩自己的字砌成；缺口是被彈飛的那句話留下的洞。
+    「語義就是物質」的字面實現。
+
+  打開後預期看到（點擊任意處 / 空白鍵推進）：
+  1. 敘述句出現在圓心（永遠可讀的字幕），然後一個字一個字跳著
+     離開句子、走上圓周——句子逐字掏空、圓逐字成形。
+  2. 批評的聲音不上圓，它們攻擊圓：
+     「不要重疊、不要太濃、也不要太淡」→ 圓上的字真的變得濃淡不勻
+     「你的線太尖了」→ 圓抽搐傾斜一下
+     「很窄、太寬」→ 半圈擠緊、半圈拉散
+     擦子細語 → 缺口旁幾個字被擦掉，化成細屑墜落消散
+  3. 「一個缺口要顯露出來了！」→ 圓上「距離完美還差一筆」八個字
+     被整段彈射：旋轉、拋物線、摔落在下方地面躺著不動。
+     缺口處留下極淡的殘影（遺忘之點）。
+  4. 「讓圈旋轉吧」→ 整個圓開始緩慢旋轉（帶著缺口轉）。
+  5. 第二次作畫：整個圓被擦掉崩落；字顫抖著重新走一圈；
+     結尾同一句「距離完美還差一筆」再次被彈飛——
+     地面上並排躺著兩具同樣的句子。反覆循環。
+  6. 最後浮現「↺ 再畫一次」。地上的殘骸不會消失。
+  7. 系統開啟「減少動態」時：字直接就位、彈射改為淡出。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圓美 v2</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #0d0f14; color: #d6dbe6; cursor: pointer;
+    font-family: "Noto Serif TC", "Noto Sans TC", "Microsoft JhengHei", serif;
+    user-select: none;
+  }
+
+  #title {
+    position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
+    font-size: 26px; letter-spacing: 14px; color: #59617a; z-index: 20;
+  }
+
+  /* 地面：殘骸會躺在這 */
+  #ground-line {
+    position: fixed; left: 0; right: 0; bottom: 56px;
+    border-top: 1px dashed #2c3345; pointer-events: none;
+  }
+
+  /* 圓心字幕：永遠可讀的通道 */
+  #subtitle {
+    position: fixed; z-index: 15; text-align: center;
+    left: 50%; top: 44%; transform: translate(-50%, -50%);
+    font-size: 19px; line-height: 1.9; letter-spacing: 1px;
+    max-width: 300px; pointer-events: none;
+  }
+  #subtitle .sch { display: inline-block; }
+  #speaker-tag { font-size: 12px; color: #59617a; letter-spacing: 3px;
+                 margin-bottom: 8px; }
+
+  /* 圓周上的字 */
+  .rch {
+    position: fixed; left: 0; top: 0; z-index: 10;
+    font-size: 17px; pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .rch.ghost { opacity: 0.12 !important; }
+  .rch.dense { font-weight: 900; color: #f2f5ff; }
+  .rch.faint { opacity: 0.32; }
+  .rch.overlap { text-shadow: 0.14em 0 rgba(214,219,230,0.5); }
+
+  /* 聲音的字體學（字幕用）*/
+  .v-whisper { font-size: 0.75em; color: #9b8fb0; letter-spacing: 2px; }
+  .v-chant   { color: #d9c07a; }
+  .v-shout   { font-weight: 800; color: #e8b8a8;
+               text-shadow: 3px 4px 6px rgba(0,0,0,0.95); }
+  .v-dust    { font-size: 0.7em; color: #8a9a8f; }
+  .firm      { font-weight: 800; color: #ffffff; }
+  .wide      { letter-spacing: 0.5em; }
+  .narrow    { letter-spacing: -0.12em; }
+  .sharp     { display: inline-block; transform: skewX(-14deg); }
+  @keyframes spinch { to { transform: rotate(360deg); } }
+  .spin      { display: inline-block; animation: spinch 5s linear infinite; }
+
+  #hint {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    color: #444c60; font-size: 13px; letter-spacing: 4px; z-index: 20;
+  }
+  #ending {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    text-align: center; z-index: 20; opacity: 0; transition: opacity 1.8s;
+    pointer-events: none;
+  }
+  #ending.shown { opacity: 1; pointer-events: auto; }
+  #ending .note { color: #59617a; font-size: 13px; letter-spacing: 3px;
+                  margin-bottom: 12px; }
+  #ending button {
+    background: none; color: #8fa1c9; border: 1px solid #333a4a;
+    border-radius: 999px; padding: 7px 20px; font-family: inherit;
+    font-size: 14px; letter-spacing: 3px; cursor: pointer;
+  }
+  #ending button:hover { color: #fff; border-color: #7a89ad; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spin { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="title">圓　美</div>
+<div id="ground-line"></div>
+<div id="subtitle"><div id="speaker-tag"></div><div id="sub-text"></div></div>
+<div id="hint">點擊任意處，下一筆 ▸</div>
+<div id="ending">
+  <div class="note">地上躺著兩句一模一樣的話。</div>
+  <button id="btn-again">↺ 再畫一次</button>
+</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 幾何
+// ═══════════════════════════════════════════════
+let CX, CY, R, GROUND;
+function layout() {
+  CX = innerWidth / 2;
+  CY = innerHeight * 0.44;
+  R  = Math.min(innerWidth, innerHeight) * (innerWidth < 700 ? 0.36 : 0.30);
+  GROUND = innerHeight - 62;
+}
+layout();
+addEventListener('resize', layout);
+
+// ═══════════════════════════════════════════════
+// 圓周字的狀態機
+// state: walking → ring → (body 彈射/擦除) → debris / removed
+// ═══════════════════════════════════════════════
+const ringChars = [];      // 所有還在舞台上的字
+let rotOffset = 0, rotSpeed = 0;
+let trembleMode = false;
+let anglePer = 0, nextSlot = 0;
+
+function makeRingChar(ch, sx, sy, slot, eject) {
+  const el = document.createElement('span');
+  el.className = 'rch';
+  el.textContent = ch;
+  document.body.appendChild(el);
+  const c = {
+    el, ch, slot,
+    baseAngle: -Math.PI / 2 + slot * anglePer,
+    state: reduced ? 'ring' : 'walking',
+    t: 0, sx, sy,
+    angleJit: 0, angleJitT: 0,      // 批評造成的角度擾動（現值/目標）
+    radOff: 0, radOffT: 0,          // 半徑擾動
+    eject,                          // 是否屬於「距離完美還差一筆」
+    vx: 0, vy: 0, vr: 0, rotD: 0, alpha: 1
+  };
+  ringChars.push(c);
+  return c;
+}
+
+function slotPos(c) {
+  const a = c.baseAngle + rotOffset + c.angleJit;
+  const wob = trembleMode && !reduced
+    ? Math.sin(performance.now() / 90 + c.slot * 2.3) * 1.4 : 0;
+  const r = R + c.radOff + wob;
+  return { x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r,
+           deg: a * 180 / Math.PI + 90 };
+}
+
+function mainLoop() {
+  rotOffset += rotSpeed;
+  for (let i = ringChars.length - 1; i >= 0; i--) {
+    const c = ringChars[i];
+    c.angleJit += (c.angleJitT - c.angleJit) * 0.06;
+    c.radOff   += (c.radOffT   - c.radOff)   * 0.06;
+
+    if (c.state === 'walking') {
+      c.t = Math.min(1, c.t + 0.035);
+      const e = 1 - Math.pow(1 - c.t, 3);
+      const p = slotPos(c);
+      const x = c.sx + (p.x - c.sx) * e;
+      const y = c.sy + (p.y - c.sy) * e - Math.sin(c.t * Math.PI) * 34;  // 跳著走
+      c.el.style.transform =
+        `translate(${x - 8}px, ${y - 11}px) rotate(${p.deg * e}deg)`;
+      if (c.t >= 1) c.state = 'ring';
+
+    } else if (c.state === 'ring') {
+      const p = slotPos(c);
+      c.el.style.transform =
+        `translate(${p.x - 8}px, ${p.y - 11}px) rotate(${p.deg}deg)`;
+
+    } else if (c.state === 'body') {          // 彈射：拋物線 + 自轉
+      c.vy += 0.5;
+      c.x += c.vx; c.y += c.vy; c.rotD += c.vr;
+      if (c.y >= GROUND) {
+        c.y = GROUND;
+        if (Math.abs(c.vy) > 2.2) { c.vy = -c.vy * 0.3; c.vx *= 0.6; }
+        else { c.state = 'debris'; c.el.style.opacity = '0.55';
+               c.rotD = (Math.random() - 0.5) * 50; }
+      }
+      c.el.style.transform =
+        `translate(${c.x - 8}px, ${c.y - 11}px) rotate(${c.rotD}deg)`;
+
+    } else if (c.state === 'erased') {        // 擦除：邊落邊化為烏有
+      c.vy += 0.3;
+      c.x += c.vx; c.y += c.vy; c.rotD += c.vr;
+      c.alpha -= 0.03;
+      c.el.style.opacity = String(Math.max(0, c.alpha));
+      c.el.style.transform =
+        `translate(${c.x - 8}px, ${c.y - 11}px) rotate(${c.rotD}deg)`;
+      if (c.alpha <= 0) { c.el.remove(); ringChars.splice(i, 1); }
+    }
+    // debris / ghost：不再更新
+  }
+  requestAnimationFrame(mainLoop);
+}
+requestAnimationFrame(mainLoop);
+
+// ═══════════════════════════════════════════════
+// 字幕（永遠可讀的通道）
+// ═══════════════════════════════════════════════
+const subText = document.getElementById('sub-text');
+const speakerTag = document.getElementById('speaker-tag');
+
+function renderSubtitle(segs, tag) {
+  speakerTag.textContent = tag ?? '';
+  subText.innerHTML = '';
+  const charEls = [];
+  segs.forEach(sg => {
+    const span = document.createElement('span');
+    if (sg.c) span.className = sg.c;
+    [...sg.t].forEach(ch => {
+      const s = document.createElement('span');
+      s.className = 'sch';
+      s.textContent = ch;
+      if (sg.spinChars && !reduced) {
+        s.classList.add('spin');
+        s.style.animationDelay = (charEls.length * 0.5) + 's';
+      }
+      span.appendChild(s);
+      charEls.push(s);
+    });
+    subText.appendChild(span);
+  });
+  return charEls;
+}
+
+// ═══════════════════════════════════════════════
+// 動作：走上圓周
+// ═══════════════════════════════════════════════
+let busy = false;
+
+function walkLine(segs, opt = {}) {
+  busy = true;
+  const charEls = renderSubtitle(segs, opt.tag);
+  const full = segs.map(s => s.t).join('');
+  const ejStart = opt.ejectPhrase ? full.indexOf(opt.ejectPhrase) : -1;
+
+  charEls.forEach((sEl, k) => {
+    const rect = sEl.getBoundingClientRect();
+    const isEject = ejStart >= 0 && k >= ejStart && k < ejStart + opt.ejectPhrase.length;
+    setTimeout(() => {
+      const c = makeRingChar(full[k], rect.left + 8, rect.top + 10,
+                             nextSlot++, isEject);
+      if (opt.tremble) { /* trembleMode 全域已開 */ }
+      sEl.style.visibility = 'hidden';        // 字離開了句子
+      if (reduced) { const p = slotPos(c);
+        c.el.style.transform = `translate(${p.x-8}px, ${p.y-11}px) rotate(${p.deg}deg)`; }
+    }, reduced ? 0 : k * 85);
+  });
+  const total = reduced ? 200 : charEls.length * 85 + 700;
+  setTimeout(() => { busy = false; }, total);
+}
+
+// ═══════════════════════════════════════════════
+// 動作：批評聲音的物理攻擊
+// ═══════════════════════════════════════════════
+const onRing = () => ringChars.filter(c => c.state === 'ring' && !c.el.classList.contains('ghost'));
+
+function actFlicker() {                        // 私語：字忽明忽暗
+  onRing().forEach(c => {
+    if (Math.random() < 0.4 && !reduced)
+      c.el.animate([{opacity:1},{opacity:0.25},{opacity:1}],
+                   { duration: 900, delay: Math.random()*600 });
+  });
+}
+function actReadjust() {                       // 「重新調整」：全體字挪位
+  onRing().forEach(c => { c.angleJitT = (Math.random()-0.5) * 0.12; });
+  setTimeout(() => onRing().forEach(c => c.angleJitT = 0), 1600);
+}
+function actUneven() {                         // 濃／淡／疊：圓變得不勻
+  onRing().forEach(c => {
+    const r = Math.random();
+    if (r < 0.18) c.el.classList.add('dense');
+    else if (r < 0.36) c.el.classList.add('faint');
+    else if (r < 0.46) c.el.classList.add('overlap');
+  });
+}
+function actSkew() {                           // 太尖：圓抽搐傾斜一下
+  if (reduced) return;
+  onRing().forEach(c => {
+    c.el.animate([
+      { transform: c.el.style.transform },
+      { transform: c.el.style.transform + ' skewX(-16deg)' },
+      { transform: c.el.style.transform }
+    ], { duration: 700 });
+  });
+}
+function actNarrowWide() {                     // 很窄／太寬：半圈擠、半圈散
+  onRing().forEach(c => {
+    const a = c.baseAngle % (Math.PI*2);
+    c.angleJitT = (Math.cos(a) > 0 ? 1 : -1) *
+                  (Math.cos(a) > 0 ? 0.10 : 0.05) * Math.sin(c.slot);
+    c.radOffT = Math.cos(a) > 0 ? 10 : -8;
+  });
+  setTimeout(() => onRing().forEach(c => { c.angleJitT = 0; c.radOffT = 0; }), 2400);
+}
+function actEraseFew() {                       // 擦子：缺口旁幾個字化為細屑
+  const ring = onRing();
+  ring.slice(-3).forEach(c => {
+    c.state = 'erased';
+    c.el.textContent = '‥';
+    c.el.style.color = '#8a9a8f';
+    const p = slotPos(c);
+    c.x = p.x; c.y = p.y; c.rotD = p.deg;
+    c.vx = (Math.random()-0.5)*1.5; c.vy = 0.5; c.vr = (Math.random()-0.5)*8;
+  });
+}
+function actPulse() {                          // 回響：圓整體漲縮兩下
+  if (reduced) return;
+  let n = 0;
+  const iv = setInterval(() => {
+    onRing().forEach(c => c.radOffT = 12);
+    setTimeout(() => onRing().forEach(c => c.radOffT = 0), 350);
+    if (++n >= 2) clearInterval(iv);
+  }, 800);
+}
+function actEject() {                          // 彈射「距離完美還差一筆」→ 缺口
+  ringChars.filter(c => c.eject && (c.state === 'ring' || c.state === 'walking'))
+    .forEach((c, i) => {
+      // 留下遺忘殘影
+      const ghost = makeRingChar(c.ch, 0, 0, c.slot, false);
+      ghost.state = 'ring';
+      ghost.el.classList.add('ghost');
+      // 本體變成拋體
+      const p = slotPos(c);
+      c.state = 'body';
+      c.x = p.x; c.y = p.y; c.rotD = p.deg;
+      const outA = c.baseAngle + rotOffset;
+      if (reduced) { c.state = 'erased'; c.vx = 0; c.vy = 1; c.vr = 0; return; }
+      c.vx = Math.cos(outA) * (3.5 + Math.random()*2) + (Math.random()-0.5)*2;
+      c.vy = Math.sin(outA) * 3 - 4 - Math.random()*2;
+      c.vr = (Math.random()-0.5) * 24;
+      c.eject = false;
+    });
+}
+function actEraseAll() {                       // 第二次作畫前：整個圓崩落
+  ringChars.forEach(c => {
+    if (c.state !== 'ring' && c.state !== 'walking') return;
+    if (c.el.classList.contains('ghost')) { c.el.remove(); }
+    const p = slotPos(c);
+    c.state = 'erased';
+    c.x = p.x; c.y = p.y; c.rotD = p.deg;
+    c.vx = (Math.random()-0.5)*3; c.vy = -1 + Math.random()*1.5;
+    c.vr = (Math.random()-0.5)*14; c.alpha = 1;
+  });
+  // ghost 也清掉
+  for (let i = ringChars.length-1; i >= 0; i--)
+    if (ringChars[i].el.classList.contains('ghost')) {
+      ringChars[i].el.remove(); ringChars.splice(i,1);
+    }
+  rotOffset = 0; rotSpeed = 0; nextSlot = 0;
+}
+
+// ═══════════════════════════════════════════════
+// 節拍表：詩的每一筆
+// ═══════════════════════════════════════════════
+const P = '距離完美還差一筆';
+const ATTEMPT1 = '你畫了一個圈，一條圓的曲線，大膽而堅定。'
+  + '圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜的瞬間，線條將重新對齊。';
+const ATTEMPT2 = '你再次畫了一個圈，一條圓的曲線，顫抖而猶豫。'
+  + '圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜時，線條將重新對齊。';
+
+const BEATS = [
+  { run() { anglePer = Math.PI*2 / [...ATTEMPT1].length; nextSlot = 0;
+      walkLine([{t:'你畫了一個圈，一條圓的曲線，'},{t:'大膽而堅定',c:'firm'},{t:'。'}]); } },
+
+  { run() { walkLine([{t:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜的瞬間，線條將重新對齊。'}],
+      { ejectPhrase: P }); } },
+
+  { run() { renderSubtitle([{t:'然而草稿紙上有聲音在竊竊私語，'},
+      {t:'「你的圈有缺憾、缺少圓的優雅﹐還不足以稱作完美。」', c:'v-whisper'}], '草稿紙');
+      actFlicker(); } },
+
+  { run() { renderSubtitle([{t:'「來、轉動你的手」', c:'v-chant'},{t:'他們念道'}], '眾聲');
+      if (!reduced) rotOffset += 0.06; } },
+
+  { run() { renderSubtitle([{t:'「「讓我們重新調整你的藝術」」', c:'v-chant'}], '眾聲');
+      actReadjust(); } },
+
+  { run() { renderSubtitle([{t:'讓圈旋轉吧、我的朋友。'}]);
+      rotSpeed = reduced ? 0 : 0.0035; } },
+
+  { run() { renderSubtitle([{t:'「不要重疊、不要太濃、也不要太淡。」', c:'v-chant'}], '眾聲');
+      actUneven(); } },
+
+  { run() { renderSubtitle([{t:'你的線'},{t:'太尖',c:'sharp'},{t:'了，還需要另一部分補充。'}]);
+      actSkew(); } },
+
+  { run() { renderSubtitle([{t:'「不要畫得', c:'v-chant'},{t:'那麼寬', c:'v-chant wide'},
+      {t:'、一個缺口要顯露出來了！」', c:'v-chant'}], '眾聲');
+      setTimeout(actEject, 800); } },
+
+  { run() { renderSubtitle([{t:'友善的提醒，每一條曲線都是圓的組成部分，每一個彎經過都深思熟慮。'}]); } },
+
+  { run() { renderSubtitle([{t:'筆尖的影子呼喊：'},
+      {t:'「夥計，你的圈留在原地', c:'v-shout'},{t:'很窄', c:'v-shout narrow'},
+      {t:'、現在追逐又', c:'v-shout'},{t:'太寬', c:'v-shout wide'},{t:'！」', c:'v-shout'}], '筆尖的影子');
+      actNarrowWide(); } },
+
+  { run() { renderSubtitle([{t:'「但你的圈還沒有圍成圓，還有機會調整﹐搭檔。只需要再一次微調、一次轉折就好。」', c:'v-dust'},
+      {t:'擦子的細屑一旁細語。'}], '擦子的細屑');
+      actEraseFew(); } },
+
+  { run() { renderSubtitle([{t:'圈的起點傳來的聲音又在回響，'},
+      {t:'「還不夠圓！還不夠美！你的圈還不夠圓美！」', c:'v-chant'}], '圈的起點');
+      actPulse(); } },
+
+  { run() { renderSubtitle([{t:'每一次嚴謹的探索都形成新的悖論，'},
+      {t:'「很快就會到達目的地了!」', },
+      {t:'線的盡頭如此說著，'},{t:'反覆循環', spinChars:true},{t:'。'}], '線的盡頭'); } },
+
+  // ── 第二次作畫 ──
+  { run() { actEraseAll();
+      setTimeout(() => {
+        trembleMode = true;
+        anglePer = Math.PI*2 / [...ATTEMPT2].length; nextSlot = 0;
+        walkLine([{t:'你再次畫了一個圈，一條圓的曲線，'},{t:'顫抖而猶豫',c:'firm'},{t:'。'}]);
+      }, reduced ? 100 : 1300); } },
+
+  { run() { walkLine([{t:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜時，線條將重新對齊。'}],
+      { ejectPhrase: P }); } },
+
+  // 聲音內化：樣式與草稿紙私語完全相同
+  { run() { renderSubtitle([{t:'然而你對自己竊竊私語：'},
+      {t:'「我的圈有缺憾、仍欠缺圓的優雅﹐還不足以稱作完美。」', c:'v-whisper'}], '你');
+      actFlicker(); } },
+
+  { run() { renderSubtitle([{t:'「來，轉動我的手」', c:'v-chant'},{t:'你念道，'},
+      {t:'「讓我再調整我的藝術。」', c:'v-chant'}], '你');
+      actReadjust(); } },
+
+  { run() { renderSubtitle([{t:'讓圈繼續旋轉吧﹑我的朋友。'}]);
+      rotSpeed = reduced ? 0 : 0.0035; } },
+
+  { run() { renderSubtitle([{t:'畢竟還不夠圓、不夠美，你的圈還不到'},{t:'圓美',c:'firm'},{t:'。'}]);
+      setTimeout(actEject, 700);
+      setTimeout(() => document.getElementById('ending').classList.add('shown'), 2600); } },
+];
+
+// ═══════════════════════════════════════════════
+// 推進
+// ═══════════════════════════════════════════════
+let beat = -1;
+function advance() {
+  if (busy) return;
+  beat++;
+  if (beat >= BEATS.length) return;
+  BEATS[beat].run();
+  if (beat === BEATS.length - 1)
+    document.getElementById('hint').style.opacity = '0';
+}
+addEventListener('click', e => {
+  if (e.target.closest('#ending')) return;
+  advance();
+});
+addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+});
+document.getElementById('btn-again').addEventListener('click', e => {
+  e.stopPropagation();
+  location.reload();     // 反覆循環：整首重來
+});
+
+advance();               // 第一筆
+</script>
+</body>
+</html>

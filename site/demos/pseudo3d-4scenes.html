@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>偽3D 四景 Mockup</title>
+<!--
+  ══════════════════════════════════════════════
+  偽3D 四景 Mockup v0.1
+  核心只有一條公式:螢幕座標 = 世界座標 × 焦距 ÷ 深度（scale 同理）。
+  字符當像素，四種經典偽 3D:
+
+  一、星穹——字符往鏡頭飛（z 遞減、透視投影、霧衰減），
+      按住畫面加速穿越。用途:章節間的大轉場。
+  二、迴旋體——旋轉 3D 甜甜圈，純字符渲染（z-buffer + 光照）。
+      本土化發明:亮度階不用 .,-~:;=!*#$@，改用「筆畫密度」——
+      　・丶一二十未林森轟靈 ——越亮筆畫越密。
+      公理二的推論:筆畫密度＝受光強度。全形字等寬，網格天然對齊。
+  三、深度舞台——符號舞台的 3D 升級:演員在不同深度
+      （近大遠小、遠處霧淡）、滑鼠視差、◀▶ 推軌前進後退、
+      painter's sort 按深度排繪製順序。
+  四、迴廊——無限縱深走廊:門框一圈圈朝你退去、
+      牆上的「燈」隨深度變暗、盡頭那扇「門」永遠走不到（循環回收）。
+      為輪迴題材而生。
+
+  打開後預期看到:
+  1. 上方四顆按鈕切換場景;每景左下角有一行說明。
+  2. 星穹:按住任意處 → 加速穿越（字被拉近變大掠過）。
+  3. 迴旋體:甜甜圈持續自轉，亮面是「轟靈」暗面是「丶・」。
+  4. 深度舞台:移動滑鼠 → 視差;按 ◀ ▶（或方向鍵）→ 推軌，
+     走近誰，誰就變大變清楚。
+  5. 迴廊:自動前進;按住 → 奔跑;門永遠在前方。
+  6. 系統開啟「減少動態」時:自轉/飛行大幅放慢。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+         --cold:#9fd8ff; --warm:#ffb347; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper); cursor:pointer;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:radial-gradient(120% 100% at 50% 30%, #10131d, #07080d 75%);
+    user-select:none; }
+
+  #menu{ position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:8px; }
+  #menu button{ cursor:pointer; font:12px 'Noto Serif TC',serif;
+    letter-spacing:.15em; color:var(--muted); background:rgba(16,13,28,.7);
+    border:1px solid rgba(147,160,191,.25); border-radius:8px; padding:7px 14px; }
+  #menu button:hover{ color:var(--paper); }
+  #menu button.on{ color:var(--warm); border-color:rgba(255,179,71,.5); }
+
+  #note{ position:fixed; bottom:16px; left:16px; z-index:30;
+    font:10.5px 'Courier New',monospace; letter-spacing:.14em;
+    color:var(--faint); max-width:80vw; line-height:1.8; }
+
+  .scene{ position:fixed; inset:0; display:none; }
+  .scene.on{ display:block; }
+
+  .p3d{ position:absolute; left:0; top:0; will-change:transform,opacity;
+    white-space:nowrap; }
+
+  /* 迴旋體 */
+  #donutPre{ position:absolute; left:50%; top:52%;
+    transform:translate(-50%,-50%);
+    font-family:'Noto Sans Mono CJK TC','MingLiU','MS Gothic',monospace;
+    line-height:1.02; letter-spacing:0; color:var(--cold);
+    text-shadow:0 0 14px rgba(159,216,255,.25); margin:0; }
+
+  /* 深度舞台 */
+  .stage-actor .tag{ display:block; text-align:center;
+    font:10px 'Courier New',monospace; letter-spacing:.15em;
+    color:var(--faint); margin-top:2px; }
+  #dolly{ position:fixed; bottom:16px; right:16px; z-index:30; display:none;
+    gap:8px; }
+  #dolly.on{ display:flex; }
+  #dolly button{ cursor:pointer; font:16px serif; color:var(--muted);
+    background:rgba(16,13,28,.7); border:1px solid rgba(147,160,191,.25);
+    border-radius:8px; padding:6px 16px; }
+  #dolly button:hover{ color:var(--warm); }
+
+  /* 迴廊 */
+  .ring{ position:absolute; left:0; top:0; border:1px solid;
+    will-change:transform,opacity; }
+  .ring .lamp{ position:absolute; top:44%; font-size:12px; color:var(--warm); }
+  .ring .lampL{ left:-4px; transform:translateX(-100%); }
+  .ring .lampR{ right:-4px; transform:translateX(100%); }
+  #farDoor{ position:absolute; will-change:transform; color:#b8a888;
+    text-align:center; }
+</style>
+</head>
+<body>
+<div id="menu"></div>
+<div id="note"></div>
+
+<div class="scene" id="sc-star"></div>
+<div class="scene" id="sc-donut"><pre id="donutPre"></pre></div>
+<div class="scene" id="sc-stage"></div>
+<div class="scene" id="sc-hall"><div id="farDoor">門</div></div>
+<div id="dolly"><button id="dBack">◀ 後退</button><button id="dFwd">前進 ▶</button></div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CXf = () => innerWidth / 2, CYf = () => innerHeight / 2;
+const FOV = 340;
+let mouse = { x: 0, y: 0 };                       // -1..1
+addEventListener('pointermove', e => {
+  mouse.x = e.clientX / innerWidth * 2 - 1;
+  mouse.y = e.clientY / innerHeight * 2 - 1;
+});
+let pressing = false;
+addEventListener('pointerdown', e => { if (!e.target.closest('button')) pressing = true; });
+addEventListener('pointerup', () => pressing = false);
+
+/* ══ 場景管理 ══ */
+const SCENES = {};
+let current = null;
+const menu = document.getElementById('menu');
+const note = document.getElementById('note');
+function defScene(id, label, noteText, api) {
+  SCENES[id] = { el: document.getElementById(id), label, noteText, ...api, inited: false };
+  const b = document.createElement('button');
+  b.textContent = label; b.dataset.id = id;
+  b.onclick = () => switchTo(id);
+  menu.appendChild(b);
+}
+function switchTo(id) {
+  if (current) SCENES[current].el.classList.remove('on');
+  [...menu.children].forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  current = id;
+  const s = SCENES[id];
+  s.el.classList.add('on');
+  note.textContent = s.noteText;
+  document.getElementById('dolly').classList.toggle('on', id === 'sc-stage');
+  if (!s.inited) { s.init(); s.inited = true; }
+}
+function mainLoop(now) {
+  if (current) SCENES[current].tick(now);
+  requestAnimationFrame(mainLoop);
+}
+requestAnimationFrame(mainLoop);
+
+/* ══ 一、星穹:字符往鏡頭飛 ══ */
+defScene('sc-star', '星穹', '透視投影:screen = world × FOV ÷ z。按住 → 加速穿越。', {
+  init() {
+    const el = this.el;
+    const POOL = '····••✦文字光塵詩宇宙星';
+    this.stars = Array.from({ length: 150 }, () => {
+      const s = document.createElement('span');
+      s.className = 'p3d';
+      s.textContent = POOL[Math.floor(Math.random() * POOL.length)];
+      el.appendChild(s);
+      return { el: s, x: (Math.random() - .5) * 900, y: (Math.random() - .5) * 700,
+               z: 60 + Math.random() * 1500 };
+    });
+  },
+  tick() {
+    const speed = (pressing ? 26 : 4) * (reduced ? 0.3 : 1);
+    for (const st of this.stars) {
+      st.z -= speed;
+      if (st.z < 24) { st.z = 1500 + Math.random() * 300;
+        st.x = (Math.random() - .5) * 900; st.y = (Math.random() - .5) * 700; }
+      const k = FOV / st.z;
+      const sx = CXf() + (st.x - mouse.x * 60) * k;
+      const sy = CYf() + (st.y - mouse.y * 40) * k;
+      st.el.style.transform =
+        `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) scale(${Math.min(k, 3).toFixed(2)})`;
+      st.el.style.opacity = Math.min(1, (1600 - st.z) / 900).toFixed(2);
+      st.el.style.color = st.z < 200 ? '#e9e4d6' : '#93a0bf';
+    }
+  }
+});
+
+/* ══ 二、迴旋體:中文筆畫密度 = 亮度階 ══ */
+defScene('sc-donut', '迴旋體', '亮度階＝筆畫密度:　・丶一二十未林森轟靈（公理二:語義就是物質）。', {
+  init() {
+    this.A = 0; this.B = 0;
+    this.W = 44; this.H = 22;
+    this.RAMP = [...'　・丶一二十未来林森轟靈'];
+    const pre = document.getElementById('donutPre');
+    pre.style.fontSize =
+      Math.max(10, Math.min(20, Math.floor(innerWidth / this.W / 2))) + 'px';
+    this.pre = pre;
+  },
+  tick() {
+    const { W, H, RAMP } = this;
+    this.A += reduced ? 0.008 : 0.035;
+    this.B += reduced ? 0.004 : 0.017;
+    const buf = new Array(W * H).fill(0);
+    const zb  = new Array(W * H).fill(0);
+    const cA = Math.cos(this.A), sA = Math.sin(this.A);
+    const cB = Math.cos(this.B), sB = Math.sin(this.B);
+    for (let j = 0; j < 6.28; j += 0.07) {
+      const cj = Math.cos(j), sj = Math.sin(j);
+      for (let i = 0; i < 6.28; i += 0.025) {
+        const ci = Math.cos(i), si = Math.sin(i);
+        const h = cj + 2;
+        const D = 1 / (si * h * sA + sj * cA + 5);
+        const t = si * h * cA - sj * sA;
+        const x = Math.floor(W / 2 + W * 0.42 * D * (ci * h * cB - t * sB));
+        const y = Math.floor(H / 2 + H * 0.46 * D * (ci * h * sB + t * cB));
+        const o = x + W * y;
+        const N = Math.floor(8 * ((sj * sA - si * cj * cA) * cB
+                  - si * cj * sA - sj * cA - ci * cj * sB));
+        if (y >= 0 && y < H && x >= 0 && x < W && D > zb[o]) {
+          zb[o] = D;
+          buf[o] = Math.max(1, Math.min(RAMP.length - 1, N + 1));
+        }
+      }
+    }
+    let out = '';
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) out += RAMP[buf[x + W * y]];
+      out += '\n';
+    }
+    this.pre.textContent = out;
+  }
+});
+
+/* ══ 三、深度舞台:演員有 z、視差、推軌 ══ */
+defScene('sc-stage', '深度舞台', '近大遠小、遠處霧淡、painter\u2019s sort。滑鼠＝視差，◀▶/方向鍵＝推軌。', {
+  init() {
+    const el = this.el;
+    this.camZ = 0;
+    const DEF = [
+      { g: '使', n: '信使', x: -160, z: 260 },
+      { g: '守', n: '守衛', x:   90, z: 420 },
+      { g: '豆', n: '豆子', x:  -40, z: 640 },
+      { g: '影', n: '？？', x:  200, z: 980 },
+      { g: '燈', n: '',     x: -300, z: 500, prop: true },
+      { g: '木', n: '',     x:  320, z: 760, prop: true },
+      { g: '木', n: '',     x: -260, z: 1100, prop: true },
+    ];
+    this.things = DEF.map(d => {
+      const s = document.createElement('div');
+      s.className = 'p3d stage-actor';
+      s.innerHTML = `<span class="g" style="font-size:34px;display:block;text-align:center;${
+        d.prop ? 'color:#5a6a5a' : ''}">${d.g}</span><span class="tag">${d.n}</span>`;
+      el.appendChild(s);
+      return { ...d, el: s, phase: Math.random() * 6 };
+    });
+    // 地面參考點
+    this.floor = [];
+    for (let z = 150; z <= 1300; z += 120)
+      for (let x = -420; x <= 420; x += 140) {
+        const s = document.createElement('span');
+        s.className = 'p3d'; s.textContent = '﹏';
+        s.style.color = '#2c3448';
+        el.appendChild(s);
+        this.floor.push({ el: s, x, z });
+      }
+    document.getElementById('dFwd').onclick = () => this.camZ += 90;
+    document.getElementById('dBack').onclick = () => this.camZ -= 90;
+    addEventListener('keydown', e => {
+      if (current !== 'sc-stage') return;
+      if (e.key === 'ArrowUp')   this.camZ += 60;
+      if (e.key === 'ArrowDown') this.camZ -= 60;
+    });
+  },
+  tick(now) {
+    const project = (x, y, z) => {
+      const rz = Math.max(z - this.camZ, 26);
+      const k = FOV / rz;
+      return { sx: CXf() + (x - mouse.x * 90) * k,
+               sy: CYf() + (y - mouse.y * 50) * k + 60 * k, k, rz };
+    };
+    for (const f of this.floor) {
+      const p = project(f.x, 60, f.z);
+      f.el.style.transform =
+        `translate(${p.sx}px, ${p.sy}px) scale(${Math.min(p.k, 2.4).toFixed(2)})`;
+      f.el.style.opacity = Math.max(0, Math.min(.8, 1.3 - p.rz / 900)).toFixed(2);
+    }
+    for (const t of this.things) {
+      const bob = t.prop ? 0 : Math.sin(now / 700 + t.phase) * 2;
+      const p = project(t.x, bob, t.z);
+      t.el.style.transform =
+        `translate(${p.sx - 20}px, ${p.sy - 40 * p.k}px) scale(${Math.min(p.k, 3).toFixed(2)})`;
+      t.el.style.opacity = Math.max(.08, Math.min(1, 1.35 - p.rz / 900)).toFixed(2);
+      t.el.style.zIndex = Math.round(10000 - p.rz);      // painter's sort
+    }
+  }
+});
+
+/* ══ 四、迴廊:走不完的走廊 ══ */
+defScene('sc-hall', '迴廊', '門框循環回收＝無限縱深。按住 → 奔跑。門永遠在前方。', {
+  init() {
+    const el = this.el;
+    this.camZ = 0; this.N = 12; this.GAP = 210;
+    this.rings = Array.from({ length: this.N }, (_, i) => {
+      const d = document.createElement('div');
+      d.className = 'ring';
+      d.innerHTML = '<span class="lamp lampL">燈</span><span class="lamp lampR">燈</span>';
+      el.appendChild(d);
+      return { el: d, z: 120 + i * this.GAP };
+    });
+    this.door = document.getElementById('farDoor');
+  },
+  tick() {
+    this.camZ += (pressing ? 14 : 2.4) * (reduced ? 0.3 : 1);
+    const BASE_W = 620, BASE_H = 430;
+    for (const r of this.rings) {
+      let rz = r.z - this.camZ;
+      if (rz < 28) { r.z += this.N * this.GAP; rz = r.z - this.camZ; }
+      const k = FOV / rz;
+      const w = BASE_W * k, h = BASE_H * k;
+      r.el.style.width = w + 'px'; r.el.style.height = h + 'px';
+      r.el.style.transform =
+        `translate(${CXf() - w / 2 + mouse.x * -30 * k}px, ${CYf() - h / 2 + mouse.y * -18 * k}px)`;
+      const fog = Math.max(0, Math.min(.75, 1.15 - rz / 1700));
+      r.el.style.borderColor = `rgba(159,216,255,${fog.toFixed(2)})`;
+      r.el.querySelectorAll('.lamp').forEach(l => l.style.opacity = fog.toFixed(2));
+    }
+    // 盡頭那扇門:永遠固定在前方 1900 的深度（走不到）
+    const dz = 1900, k = FOV / dz;
+    this.door.style.fontSize = 300 * k + 'px';
+    this.door.style.transform =
+      `translate(${CXf() - 150 * k}px, ${CYf() - 170 * k}px)`;
+    this.door.style.opacity = '0.55';
+  }
+});
+
+switchTo('sc-star');
+</script>
+</body>
+</html>

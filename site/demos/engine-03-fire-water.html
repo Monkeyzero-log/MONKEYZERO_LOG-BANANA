@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<!--
+驗收 Demo 03：FIRE + WATER → STEAM + 💥
+  對應規格：第 11.1 / 11.2 章、第十九章 ChemicalReactionSystem ✅
+
+  打開後預期看到：
+  1. 「WATER」（藍色）從上方落下，「FIRE」（橘色）固定在地面上。
+  2. 兩者 AABB 相交的瞬間發生化學反應：
+     FIRE 與 WATER 同時淡出消失（走 releaseObject，約 0.5 秒淡出）。
+  3. 反應點生成「STEAM」和一顆「💥」粒子；💥 飛出約 1 秒後邊飛邊淡出。
+  4. ⚠ 已知限制（規格 11.2 誠實標註）：STEAM 是「裸物體」，
+     出生時沒有 isSmoke，所以它會像普通物體一樣往下掉、落地靜止，
+     而【不會】往上飄。看到 STEAM 下墜 = 符合規格，不是 bug。
+  5. 消失的物體會在原地附近留下極小的灰色「遺忘之點」（記憶系統），
+     幾秒內淡出，屬正常現象。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<title>Demo 03：FIRE + WATER 化學反應（第 11 / 19 章）</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: #0d0f14; font-family: monospace; }
+  /* 地面參考線（純視覺，對應 groundY = innerHeight - 50） */
+  #ground-line {
+    position: fixed; left: 0; right: 0; bottom: 50px;
+    border-top: 1px dashed #3a3f4d; pointer-events: none;
+  }
+  #ground-line::after {
+    content: "地面 groundY"; position: absolute; right: 8px; top: 2px;
+    color: #3a3f4d; font-size: 11px;
+  }
+  #hud {
+    position: fixed; top: 12px; left: 12px; z-index: 999;
+    background: rgba(20, 23, 32, 0.92); border: 1px solid #2c3140;
+    border-radius: 6px; padding: 10px 14px; color: #c8cede;
+    font-size: 13px; line-height: 1.7; max-width: 380px;
+  }
+  #hud h1 { margin: 0 0 4px; font-size: 14px; color: #ffffff; }
+  #hud .dim { color: #7a8296; font-size: 12px; }
+  #hud button, #hud input[type=range] { margin-top: 6px; }
+  #hud button {
+    background: #2c3140; color: #e8ecf5; border: 1px solid #444b5e;
+    border-radius: 4px; padding: 4px 10px; font-family: monospace;
+    cursor: pointer;
+  }
+  #hud button:hover { background: #3a4154; }
+</style>
+</head>
+<body>
+<div id="ground-line"></div>
+<div id="hud">
+  <h1>Demo 03：FIRE + WATER 化學反應（第 11 / 19 章）</h1>
+  <div class="dim">WATER 落到 FIRE 上 → 兩者消失 → 生成 STEAM + 💥。注意：STEAM 依規格會往下掉（裸物體，無 isSmoke）。</div>
+
+  <button onclick="location.reload()">重新播放</button>
+</div>
+<script>
+// ══════════════════════════════════════════════════
+// Textual Physics Engine v12.1 — 引擎程式碼原封不動抄錄自規格書
+// （第十五、十七～二十三章、24.1～24.6，未做任何修改）
+// ══════════════════════════════════════════════════
+
+const PHYSICS_CONSTANTS = {
+  // 相對論
+  LIGHT_SPEED: 60,              // 光速 = 最高幀率（fps）
+
+  // 量子力學（🔴 皆為預留常數，引擎目前未使用，見 12.2）
+  PLANCK_CONSTANT: 0.1,         // ℏ（px·chars）
+  UNCERTAINTY_PRODUCT: 0.05,    // ℏ/2（= PLANCK_CONSTANT / 2）
+
+  // 流體力學
+  BUOYANCY_FACTOR: 0.5,
+  WATER_DENSITY: 3,
+  AIR_DENSITY: 0.3,
+
+  // 熱力學
+  ENTROPY_RATE: 0.01,           // 🔴 預留常數，引擎目前未使用
+  HEAT_TRANSFER: 0.2,
+  DEFAULT_TEMPERATURE: 25,      // °C
+  PHASE_HYSTERESIS: 1,          // v12.0：相變遲滯緩衝帶（°C），見 10.3
+
+  // 動力學
+  DRAG_COEFFICIENT: 0.02,       // 空氣阻力係數
+  GROUND_RESTITUTION: 0.3,      // 地面恢復係數
+  GROUND_VELOCITY_THRESHOLD: 0.5,
+  DEFAULT_MASS: 1,              // v11.5：預設質量（力除以質量用）
+
+  // 粒子
+  PARTICLE_FADE_FRAMES: 30,     // v11.9：粒子 _released 後保留的淡出幀數
+
+  // 光學與聲學
+  LIGHT_DECAY: 0.01,            // 光亮度衰減係數
+  SOUND_DECAY: 0.05,            // 聲波視覺衰減係數
+
+  // 空間劃分
+  SPATIAL_GRID_THRESHOLD: 30,   // v11.4：SpatialGrid 啟用閾值
+
+  // 傳送（🔴 皆為預留常數，引擎目前未使用）
+  WORMHOLE_ENERGY: 1,
+  TUNNEL_PROBABILITY: 0.1
+};
+
+// ── 第十八章：力計算函數 ──
+function calculateBuoyancy(object, surroundings) {
+  const objectDensity = object.density ?? PHYSICS_CONSTANTS.WATER_DENSITY;
+
+  if (!surroundings || surroundings.length === 0) return 0;
+
+  const surroundingDensity =
+    surroundings.reduce((sum, obj) => {
+      const d = obj.density ?? PHYSICS_CONSTANTS.AIR_DENSITY;
+      return sum + (isNaN(d) ? 0 : d);
+    }, 0) / surroundings.length;
+
+  return (surroundingDensity - objectDensity) * PHYSICS_CONSTANTS.BUOYANCY_FACTOR;
+}
+
+// ── 第十九章：化學反應系統 ──
+class ChemicalReactionSystem {
+  constructor() {
+    this.rules = new Map([
+      ['FIRE+WATER',  { products:['STEAM'],        byproducts:['💥'],          energyRelease:50  }],
+      ['FIRE+ICE',    { products:['WATER','WATER'], byproducts:[],              energyRelease:30  }],
+      ['ACID+BASE',   { products:['SALT','WATER'],  byproducts:[],              energyRelease:10  }],
+      ['WOOD+FIRE',   { products:['ASH'],           byproducts:['SMOKE'],       energyRelease:80  }],
+      ['BOMB+FIRE',   { products:[],                byproducts:['💥','💥','💥'], energyRelease:200, isExplosion:true }],
+      ['GAS+SPARK',   { products:[],                byproducts:['💥','💥'],     energyRelease:150, isExplosion:true }],
+    ]);
+  }
+
+  detectAndReact(objects, engine) {
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i + 1; j < objects.length; j++) {
+        const a = objects[i], b = objects[j];
+        if (!a.chemicalId || !b.chemicalId) continue;
+        if (a.toBeRemoved || b.toBeRemoved) continue;
+
+        if (engine.checkAABBCollision(a, b)) {
+          this.tryReact(a, b, engine);
+        }
+      }
+    }
+  }
+
+  tryReact(objA, objB, engine) {
+    const key1  = `${objA.chemicalId}+${objB.chemicalId}`;
+    const key2  = `${objB.chemicalId}+${objA.chemicalId}`;
+    const rule  = this.rules.get(key1) || this.rules.get(key2);
+    if (!rule) return;
+
+    const midX = ((objA.x ?? 0) + (objB.x ?? 0)) / 2;
+    const midY = ((objA.y ?? 0) + (objB.y ?? 0)) / 2;
+
+    [objA, objB].forEach(obj => {
+      obj.toBeRemoved = true;
+      engine.releaseObject(obj);
+    });
+
+    rule.products.forEach((productId, i) => {
+      engine.addObject({
+        text: productId, chemicalId: productId,
+        x: midX + i * 20, y: midY,
+        velocityX: (Math.random() - 0.5) * 3, velocityY: -2
+      });
+    });
+
+    rule.byproducts.forEach((byproduct, i) => {
+      const angle = (i / rule.byproducts.length) * Math.PI * 2;
+      engine.addObject({
+        text: byproduct, x: midX, y: midY,
+        velocityX: Math.cos(angle) * 5,
+        velocityY: Math.sin(angle) * 5,
+        isParticle: true, lifetime: 60
+      });
+    });
+
+    if (rule.isExplosion) {
+      engine.objects.forEach(obj => {
+        if (obj.toBeRemoved) return;
+        const exDx   = (obj.x ?? 0) - midX;
+        const exDy   = (obj.y ?? 0) - midY;
+        const exDist = Math.sqrt(exDx * exDx + exDy * exDy) || 1;
+        if (exDist < 100) {
+          const force   = (100 - exDist) * 0.2;
+          obj.velocityX = (obj.velocityX ?? 0) + (exDx / exDist) * force;
+          obj.velocityY = (obj.velocityY ?? 0) + (exDy / exDist) * force;
+        }
+      });
+    }
+  }
+}
+
+// ── 第二十章：物件池 ──
+class ObjectPool {
+  constructor(initialSize = 50) {
+    this.pool = Array.from({ length: initialSize }, () => {
+      const el = document.createElement('span');
+      el.style.display = 'none';
+      el._inPool = true;
+      document.body.appendChild(el);
+      return el;
+    });
+  }
+
+  acquire() {
+    while (this.pool.length > 0) {
+      const el = this.pool.pop();
+      if (!el._inPool) continue;
+      el._inPool        = false;
+      el.style.cssText  = '';
+      el.style.display  = '';
+      el.style.position = 'absolute';
+      el.style.left     = '0px';
+      el.style.top      = '0px';
+      el.style.transition = '';
+      return el;
+    }
+    console.warn('ObjectPool 已空，建立新元素（考慮增大初始容量）');
+    const el = document.createElement('span');
+    el._inPool = false;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  release(el) {
+    if (!el || el._inPool) return;
+    el.style.display    = 'none';
+    el.style.transition = '';
+    el.textContent      = '';
+    el._inPool          = true;
+    this.pool.push(el);
+  }
+}
+
+// ── 第二十一章：光場系統 ──
+class LightFieldSystem {
+  update(objects) {
+    const lightSources = objects.filter(obj => obj.isLightSource);
+    if (lightSources.length === 0) {
+      objects.forEach(o => {
+        if (o._lightStyled && o.element) {
+          o.element.style.textShadow = '';
+          o.element.style.filter     = '';
+          o._lightStyled = false;
+        }
+        o._lit = false;
+      });
+      return;
+    }
+
+    objects.forEach(obj => {
+      if (obj.isLightSource || !obj.element) return;
+
+      let totalBrightness = 0;
+      let shadowX = 0, shadowY = 0;
+
+      lightSources.forEach(light => {
+        const dx       = (obj.x ?? 0) - (light.x ?? 0);
+        const dy       = (obj.y ?? 0) - (light.y ?? 0);
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const radius   = light.lightRadius ?? 300;
+
+        if (distance > radius) return;
+
+        const brightness = (light.lightIntensity ?? 1)
+          / (1 + distance * PHYSICS_CONSTANTS.LIGHT_DECAY);
+        totalBrightness += brightness;
+
+        const shadowDir  = distance;
+        shadowX += (dx / shadowDir) * brightness * 5;
+        shadowY += (dy / shadowDir) * brightness * 5;
+      });
+
+      obj._lit = totalBrightness > 0;
+      obj._lightStyled = true;
+
+      if (totalBrightness > 0) {
+        obj.element.style.textShadow =
+          `${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px ${(3 / totalBrightness).toFixed(1)}px rgba(0,0,0,0.8)`;
+        obj.element.style.filter =
+          `brightness(${(0.5 + totalBrightness).toFixed(2)})`;
+      } else {
+        obj.element.style.textShadow = '';
+        obj.element.style.filter     = 'brightness(0.5)';
+      }
+    });
+  }
+}
+
+// ── 第二十二章：聲場系統 ──
+class SoundFieldSystem {
+  update(objects) {
+    const soundSources = objects.filter(obj => obj.isSoundSource);
+    if (soundSources.length === 0) return;
+
+    objects.forEach(obj => {
+      if (obj.isSoundSource || !obj.element) return;
+
+      let totalForce = 0;
+
+      soundSources.forEach(source => {
+        const dx       = (obj.x ?? 0) - (source.x ?? 0);
+        const dy       = (obj.y ?? 0) - (source.y ?? 0);
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const radius   = source.soundRadius ?? 200;
+
+        if (distance > radius) return;
+
+        const force = (source.soundVolume ?? 1)
+          / (1 + distance * PHYSICS_CONSTANTS.SOUND_DECAY);
+        totalForce += force;
+      });
+
+      if (totalForce > 0.1) {
+        const vibration = (Math.random() - 0.5) * totalForce * 2;
+        obj.element.style.letterSpacing = `${vibration.toFixed(2)}px`;
+      } else {
+        obj.element.style.letterSpacing = '';
+      }
+    });
+  }
+}
+
+// ── 第二十三章：空間劃分 ──
+class SpatialGrid {
+  constructor(cellSize = 100) {
+    this.cellSize = cellSize;
+    this.grid     = new Map();
+    this.ready    = false;
+  }
+
+  isReady() { return this.ready; }
+
+  insert(obj) {
+    const key = this.getKey(obj.x ?? 0, obj.y ?? 0);
+    if (!this.grid.has(key)) this.grid.set(key, []);
+    this.grid.get(key).push(obj);
+  }
+
+  rebuild(objects) {
+    this.grid.clear();
+    objects.forEach(obj => this.insert(obj));
+    this.ready = objects.length >= PHYSICS_CONSTANTS.SPATIAL_GRID_THRESHOLD;
+  }
+
+  query(obj, radius) {
+    const result     = [];
+    const cellRadius = Math.ceil(radius / this.cellSize);
+    const cx         = Math.floor((obj.x ?? 0) / this.cellSize);
+    const cy         = Math.floor((obj.y ?? 0) / this.cellSize);
+    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
+      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
+        const cell = this.grid.get(`${cx+dx},${cy+dy}`);
+        if (cell) result.push(...cell.filter(o => o !== obj));
+      }
+    }
+    return result;
+  }
+
+  getKey(x, y) {
+    return `${Math.floor(x/this.cellSize)},${Math.floor(y/this.cellSize)}`;
+  }
+}
+
+// ── 24.1 效能監測器 ──
+class PerformanceMonitor {
+  constructor() {
+    this.frameCount = 0;
+    this.fps        = 60;
+    this.lastTime   = performance.now();
+    this.cpuUsage   = 0;
+  }
+  update() {
+    const now       = performance.now();
+    const delta     = now - this.lastTime;
+    this.fps        = 1000 / delta;
+    this.cpuUsage   = (delta / 16.67) * 100;
+    this.lastTime   = now;
+    this.frameCount++;
+    if (this.frameCount % 60 === 0) {
+      if (this.cpuUsage > 80) {
+        console.warn('CPU過載，降級渲染...');
+        if (typeof ENGINE !== 'undefined') ENGINE.degradeComplexity?.();
+      }
+    }
+  }
+}
+
+// ── 24.2 渲染緩衝區（🔴 未接線，保留骨架）──
+class RenderBufferSystem {
+  constructor(monitor) {
+    this.monitor     = monitor;
+    this.layers      = { committed:[], staged:[], draft:[], corrupted:[] };
+    this.maxCapacity = 100;
+  }
+  getCPULoad() {
+    return this.monitor ? Math.min(this.monitor.cpuUsage / 100, 1.0) : 0;
+  }
+  commit() {
+    if (this.getCPULoad() < 0.5) {
+      const ready = this.layers.staged.filter(
+        item => Date.now() - item.timestamp > 1000
+      );
+      ready.forEach(item => {
+        this.layers.committed.push(item);
+        this.layers.staged = this.layers.staged.filter(i => i !== item);
+      });
+    }
+  }
+}
+
+// ── 24.3 共鳴系統 ──
+class TextResonance {
+  constructor(threshold = 0.85) {
+    this.threshold      = threshold;
+    this.resonancePairs = [];
+  }
+  cosineSimilarity(vecA, vecB) {
+    if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+    const dot  = vecA.reduce((s, a, i) => s + a * vecB[i], 0);
+    const magA = Math.sqrt(vecA.reduce((s, a) => s + a*a, 0));
+    const magB = Math.sqrt(vecB.reduce((s, b) => s + b*b, 0));
+    return dot / ((magA * magB) || 1);
+  }
+  scanResonance(objects) {
+    this.resonancePairs = [];
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i+1; j < objects.length; j++) {
+        const a = objects[i], b = objects[j];
+        if (!a.semanticVector || !b.semanticVector) continue;
+        const sim = this.cosineSimilarity(a.semanticVector, b.semanticVector);
+        if (sim >= this.threshold) {
+          this.resonancePairs.push({ a, b, similarity: sim, phase: 0 });
+        }
+      }
+    }
+  }
+  update() {
+    const MIN_DIST = 20, DAMPING = 0.98;
+
+    this.resonancePairs = this.resonancePairs.filter(
+      pair => !pair.a._released && !pair.b._released
+    );
+
+    this.resonancePairs.forEach(pair => {
+      pair.phase += 0.05 * pair.similarity;
+      const spacing = Math.sin(pair.phase) * (pair.similarity - this.threshold) * 10;
+      if (pair.a.element) pair.a.element.style.letterSpacing = `${spacing}px`;
+      if (pair.b.element) pair.b.element.style.letterSpacing = `${spacing}px`;
+      const dx = (pair.b.x ?? 0) - (pair.a.x ?? 0);
+      const dy = (pair.b.y ?? 0) - (pair.a.y ?? 0);
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > MIN_DIST) {
+        const att = pair.similarity * 0.02;
+        pair.a.velocityX = (pair.a.velocityX ?? 0) + (dx/dist)*att;
+        pair.a.velocityY = (pair.a.velocityY ?? 0) + (dy/dist)*att;
+        pair.b.velocityX = (pair.b.velocityX ?? 0) - (dx/dist)*att;
+        pair.b.velocityY = (pair.b.velocityY ?? 0) - (dy/dist)*att;
+      } else {
+        const rep = (MIN_DIST - dist) * 0.05;
+        pair.a.velocityX = (pair.a.velocityX ?? 0) - (dx/(dist||1))*rep;
+        pair.a.velocityY = (pair.a.velocityY ?? 0) - (dy/(dist||1))*rep;
+        pair.b.velocityX = (pair.b.velocityX ?? 0) + (dx/(dist||1))*rep;
+        pair.b.velocityY = (pair.b.velocityY ?? 0) + (dy/(dist||1))*rep;
+      }
+      [pair.a, pair.b].forEach(o => {
+        o.velocityX = (o.velocityX ?? 0) * DAMPING;
+        o.velocityY = (o.velocityY ?? 0) * DAMPING;
+      });
+    });
+  }
+}
+
+// ── 24.4 記憶系統 ──
+class TextMemory {
+  constructor(capacity = 10) {
+    this.capacity        = capacity;
+    this.shortTerm       = [];
+    this.longTerm        = new Map();
+    this.forgettingCurve = 0.95;
+  }
+  encode(object) {
+    const snap = {
+      text: object.text,
+      key: (object.text ?? '').slice(0,10).trim(),
+      x: object.x, y: object.y,
+      strength: 1.0, timestamp: Date.now(), accessCount: 0
+    };
+    this.shortTerm.unshift(snap);
+    if (this.shortTerm.length > this.capacity) {
+      this.onForgotten(this.shortTerm.pop());
+    }
+  }
+  consolidate(snap) {
+    snap.accessCount++;
+    if (snap.accessCount >= 3) {
+      this.longTerm.set(snap.key, { ...snap, strength: 1.0 });
+      this.shortTerm = this.shortTerm.filter(s => s !== snap);
+    }
+  }
+  recall(key) {
+    const mem = this.longTerm.get(key)
+      || this.shortTerm.find(s => s.key.includes(key));
+    if (mem) {
+      mem.strength = Math.min(mem.strength + 0.3, 1.0);
+      mem.accessCount++;
+      this.consolidate(mem);
+      return mem;
+    }
+    return null;
+  }
+  decay() {
+    this.shortTerm.forEach(s => { s.strength *= this.forgettingCurve; });
+    this.shortTerm.filter(s => s.strength < 0.05).forEach(s => this.onForgotten(s));
+    this.shortTerm = this.shortTerm.filter(s => s.strength >= 0.05);
+    this.longTerm.forEach((mem, key) => {
+      mem.strength *= 0.999;
+      if (mem.strength < 0.01) { this.onForgotten(mem); this.longTerm.delete(key); }
+    });
+  }
+  onForgotten(snap) {
+    const g = document.createElement('sub');
+    g.textContent = '.';
+    g.style.cssText = `
+      position:absolute;
+      left:${snap.x ?? 0}px;
+      top:${snap.y ?? 0}px;
+      opacity:0.1;
+      font-size:8px;
+      color:#666;
+      pointer-events:none;
+      transition: opacity 3s;
+    `;
+    g.title = `遺忘: "${snap.text}"`;
+    document.body.appendChild(g);
+
+    requestAnimationFrame(() => { g.style.opacity = '0'; });
+
+    setTimeout(() => g.parentNode?.removeChild(g), 3100);
+  }
+}
+
+// ── 24.5 進化系統 ──
+class TextEvolution {
+  constructor(mutationRate = 0.01, selectionPressure = 0.5) {
+    this.mutationRate      = mutationRate;
+    this.selectionPressure = selectionPressure;
+    this.generation        = 0;
+  }
+  mutate(object) {
+    if (Math.random() > this.mutationRate) return { ...object };
+    const text = object.text ?? '';
+    if (!text.length) return { ...object };
+    const pos  = Math.floor(Math.random() * text.length);
+    const type = Math.random();
+    let mutated;
+    if (type < 0.6)      mutated = text.slice(0,pos) + this.getAdjacentKey(text[pos]) + text.slice(pos+1);
+    else if (type < 0.8) mutated = text.slice(0,pos) + String.fromCharCode(65+Math.floor(Math.random()*26)) + text.slice(pos);
+    else                 mutated = text.slice(0,pos) + text.slice(pos+1);
+    return { ...object, text: mutated, generation: (object.generation??0)+1 };
+  }
+  fitness(object, environment) {
+    const kws = environment.dominantKeywords ?? [];
+    if (!kws.length) return 0.5;
+    const text = object.text ?? '';
+    return text.split('').filter(c => kws.some(kw => kw.includes(c.toUpperCase()))).length
+      / Math.max(text.length, 1);
+  }
+  select(objects, environment) {
+    const kept = [], removed = [];
+    objects.forEach(obj => {
+      const f = this.fitness(obj, environment);
+      if (f < this.selectionPressure * Math.random()) {
+        obj.fitnessScore = f;
+        removed.push(obj);
+      } else {
+        obj.fitnessScore = f;
+        kept.push(obj);
+      }
+    });
+    return { kept, removed };
+  }
+  reproduce(parent, engine) {
+    const { element, _id, aabb, semanticVector,
+            _released, toBeRemoved, needsRecalculate,
+            fitnessScore, _fadeRemaining,
+            _autoMass, _autoDensity,
+            ...inherited } = parent;
+
+    const childConfig = {
+      ...inherited,
+      x: (parent.x??0) + (Math.random()-0.5)*50,
+      y: (parent.y??0) + (Math.random()-0.5)*50,
+      generation: (parent.generation??0)+1,
+      semanticWeight: (parent.semanticWeight??1)*0.9,
+    };
+
+    const saved = this.mutationRate;
+    this.mutationRate = Math.min(this.mutationRate*2, 0.1);
+    const result = this.mutate(childConfig);
+    this.mutationRate = saved;
+
+    if (engine) {
+      const el = engine.objectPool.acquire();
+      el.textContent      = result.text ?? '';
+      el.style.position   = 'absolute';
+      el.style.left       = '0px';
+      el.style.top        = '0px';
+      el.style.color      = result.color     ?? '#ffffff';
+      el.style.fontSize   = result.fontSize  ?? '16px';
+      el.style.fontWeight = result.fontWeight ?? 'normal';
+      el.style.fontFamily = result.fontFamily ?? 'monospace';
+      el.style.opacity    = result.opacity !== undefined
+        ? String(result.opacity) : '1';
+      if (result.textShadow) el.style.textShadow = result.textShadow;
+      document.body.appendChild(el);
+
+      const child = {
+        ...result,
+        element: el,
+        semanticVector: engine.computeSemanticVector(result.text ?? ''),
+        _id: engine._nextId++,
+        _autoMass:    parent._autoMass    ?? true,
+        _autoDensity: parent._autoDensity ?? true,
+        needsRecalculate: true,
+      };
+
+      engine.updateAABB(child);
+      return child;
+    }
+
+    return {
+      ...inherited,
+      ...result,
+      _autoMass:    parent._autoMass    ?? true,
+      _autoDensity: parent._autoDensity ?? true,
+      needsRecalculate: true,
+    };
+  }
+  nextGeneration(objects, environment, engine) {
+    this.generation++;
+    let evolved = objects.map(o => {
+      const m = this.mutate(o);
+      if (m.text !== o.text && m.element) {
+        m.element.textContent = m.text;
+        m.needsRecalculate = true;
+        if (engine) {
+          m.semanticVector = engine.computeSemanticVector(m.text);
+        }
+      }
+      return m;
+    });
+    const { kept, removed } = this.select(evolved, environment);
+    const elite  = [...kept]
+      .sort((a,b) => (b.fitnessScore??0) - (a.fitnessScore??0))
+      .slice(0, Math.ceil(kept.length * 0.2));
+    return {
+      kept: [...kept, ...elite.map(p => this.reproduce(p, engine))],
+      removed
+    };
+  }
+  getAdjacentKey(char) {
+    const map = {
+      'A':'SQWZ','B':'VGHN','C':'XDFV','D':'SFCE','E':'WRDS',
+      'F':'DGCVR','G':'FHBVT','H':'GJNBY','I':'UOJK','J':'HKNUI',
+      'K':'JLMIO','L':'KPOJ','M':'NKJL','N':'BHMJ','O':'IPLK',
+      'P':'OL','Q':'WA','R':'ETDF','S':'ADWE','T':'RYFG',
+      'U':'YIHJ','V':'CFGB','W':'QES','X':'ZSDC','Y':'TUGH','Z':'XAS'
+    };
+    const n = map[char.toUpperCase()];
+    return n ? n[Math.floor(Math.random()*n.length)] : char;
+  }
+}
+
+// ── 24.6 語義向量場 ──
+class SemanticVectorField {
+  constructor() { this.field = new Map(); this.resolution = 50; }
+
+  calculateEmotionVector(text) {
+    const pos = ['LOVE','JOY','HAPPY','BRIGHT','FIRE','LIFE'];
+    const neg = ['HATE','SAD','DARK','DEATH','FEAR','VOID'];
+    const up  = (text??'').toUpperCase();
+    let p=0, n=0;
+    pos.forEach(w => { if(up.includes(w)) p++; });
+    neg.forEach(w => { if(up.includes(w)) n++; });
+    return { valence:(p-n)/Math.max(p+n,1), arousal:(p+n)/3 };
+  }
+
+  calculateInfluence(text, x, y) {
+    const dx = (text.x??0)-x, dy = (text.y??0)-y;
+    const d  = Math.sqrt(dx*dx+dy*dy)||1;
+    const em = this.calculateEmotionVector(text.text);
+    const mag = (em.arousal*1000)/(d*d);
+    const dir = em.valence>0?-1:1;
+    const ang = Math.atan2(y-(text.y??0), x-(text.x??0));
+    return { x:Math.cos(ang)*mag*dir, y:Math.sin(ang)*mag*dir, magnitude:mag };
+  }
+
+  generateField(texts) {
+    this.field.clear();
+    const res = this.resolution;
+    const influenceRadius = 3;
+
+    const cellsToCompute = new Set();
+    texts.forEach(t => {
+      const cx = Math.floor((t.x ?? 0) / res) * res;
+      const cy = Math.floor((t.y ?? 0) / res) * res;
+      for (let dx = -influenceRadius; dx <= influenceRadius; dx++) {
+        for (let dy = -influenceRadius; dy <= influenceRadius; dy++) {
+          cellsToCompute.add(`${cx + dx * res},${cy + dy * res}`);
+        }
+      }
+    });
+
+    cellsToCompute.forEach(key => {
+      const [x, y] = key.split(',').map(Number);
+      let tx=0, ty=0, tm=0;
+      texts.forEach(t => {
+        const i = this.calculateInfluence(t, x, y);
+        tx += i.x; ty += i.y; tm += i.magnitude;
+      });
+      this.field.set(key, { x:tx, y:ty, magnitude:tm });
+    });
+  }
+
+  applyField(text) {
+    const gx = Math.floor((text.x??0)/this.resolution)*this.resolution;
+    const gy = Math.floor((text.y??0)/this.resolution)*this.resolution;
+    const v  = this.field.get(`${gx},${gy}`);
+    if (v && v.magnitude>0.1) {
+      text.velocityX = (text.velocityX??0) + v.x*0.01;
+      text.velocityY = (text.velocityY??0) + v.y*0.01;
+      if (text.element && !text._lit) {
+        text.element.style.filter = `brightness(${1+v.magnitude*0.1})`;
+      }
+    }
+  }
+}
+
+// ── 第十七章：核心物理引擎 ──
+class TextualPhysicsEngine {
+
+  constructor() {
+    this.gravity       = true;
+    this.gravityForce  = 0.5;
+    this.objects       = [];
+    this.frameCount    = 0;
+    this.groundY       = window.innerHeight - 50;
+    this.temperature   = PHYSICS_CONSTANTS.DEFAULT_TEMPERATURE;
+    this._nextId       = 0;
+    this.evolutionEnabled = true;
+
+    window.addEventListener('resize', () => {
+      this.groundY = window.innerHeight - 50;
+    });
+
+    this.perfMonitor    = new PerformanceMonitor();
+    this.renderBuffer   = new RenderBufferSystem(this.perfMonitor);
+    this.resonance      = new TextResonance(0.85);
+    this.memory         = new TextMemory(10);
+    this.evolution      = new TextEvolution(0.01, 0.5);
+    this.vectorField    = new SemanticVectorField();
+    this.spatialGrid    = new SpatialGrid(100);
+    this.chemicalRules  = new ChemicalReactionSystem();
+    this.objectPool     = new ObjectPool(50);
+    this.lightSystem    = new LightFieldSystem();
+    this.soundSystem    = new SoundFieldSystem();
+
+    this.environment = {
+      dominantKeywords: [],
+      updateFromScene(objects) {
+        const freq = {};
+        objects.forEach(obj => {
+          if (!obj.text) return;
+          for (const c of obj.text.toUpperCase()) {
+            if (/\s/.test(c)) continue;
+            freq[c] = (freq[c] || 0) + 1;
+          }
+        });
+        this.dominantKeywords = Object.entries(freq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([c]) => c);
+      }
+    };
+  }
+
+  getMass(obj) {
+    return obj.mass ?? PHYSICS_CONSTANTS.DEFAULT_MASS;
+  }
+
+  addObject(config) {
+    const el = this.objectPool.acquire();
+    el.textContent    = config.text      ?? '';
+    el.style.position = 'absolute';
+    el.style.left     = '0px';
+    el.style.top      = '0px';
+    el.style.color    = config.color     ?? '#ffffff';
+    el.style.fontSize = config.fontSize  ?? '16px';
+    el.style.fontWeight = config.fontWeight ?? 'normal';
+    el.style.fontFamily = config.fontFamily ?? 'monospace';
+    el.style.opacity  = config.opacity !== undefined
+      ? String(config.opacity) : '1';
+    if (config.textShadow) el.style.textShadow = config.textShadow;
+
+    document.body.appendChild(el);
+
+    const obj = {
+      ...config,
+      element: el,
+      semanticVector: config.semanticVector
+        ?? this.computeSemanticVector(config.text ?? '')
+    };
+
+    obj.x         = obj.x         ?? 0;
+    obj.y         = obj.y         ?? 0;
+    obj.velocityX = obj.velocityX ?? 0;
+    obj.velocityY = obj.velocityY ?? 0;
+
+    el.style.transform = `translate(${obj.x}px, ${obj.y}px)`;
+
+    obj._id = this._nextId++;
+
+    obj._autoMass    = !('mass'    in config);
+    obj._autoDensity = !('density' in config);
+
+    if (obj.phase !== undefined && obj.density !== undefined) {
+      switch (obj.phase) {
+        case 'solid':
+          obj.solidDensity  = obj.solidDensity  ?? obj.density;
+          break;
+        case 'liquid':
+          obj.liquidDensity = obj.liquidDensity ?? obj.density;
+          break;
+        case 'gas':
+          obj.gasDensity    = obj.gasDensity    ?? obj.density;
+          break;
+      }
+    }
+
+    this.updateAABB(obj);
+    this.objects.push(obj);
+    this.spatialGrid.insert(obj);
+    return obj;
+  }
+
+  updateAABB(obj) {
+    if (!obj.element) return;
+    const rect = obj.element.getBoundingClientRect();
+    obj.aabb = {
+      w: rect.width  || 16,
+      h: rect.height || 16
+    };
+  }
+
+  recalculatePhysics(obj) {
+    this.updateAABB(obj);
+    const volume      = (obj.aabb?.w ?? 16) * (obj.aabb?.h ?? 16);
+    const charCount   = (obj.text ?? '').length;
+    const semanticWeight = obj.semanticWeight ?? charCount;
+
+    if (obj._autoDensity !== false) {
+      obj.density = (semanticWeight / Math.max(volume, 1)) * 1000;
+    }
+
+    obj.charCount = charCount;
+
+    if (obj._autoMass !== false) {
+      obj.mass = semanticWeight || PHYSICS_CONSTANTS.DEFAULT_MASS;
+    }
+  }
+
+  computeSemanticVector(text) {
+    const vec = new Array(26).fill(0);
+    for (const char of text.toUpperCase()) {
+      const idx = char.charCodeAt(0) - 65;
+      if (idx >= 0 && idx < 26) vec[idx]++;
+    }
+    const mag = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
+    return vec.map(v => v / mag);
+  }
+
+  getNearbyObjects(obj) {
+    if (this.spatialGrid.isReady()) {
+      return this.spatialGrid.query(obj, 200);
+    }
+    return this.objects.filter(other => {
+      if (other === obj) return false;
+      const dx = (other.x ?? 0) - (obj.x ?? 0);
+      const dy = (other.y ?? 0) - (obj.y ?? 0);
+      return Math.sqrt(dx * dx + dy * dy) < 200;
+    });
+  }
+
+  checkAABBCollision(objA, objB) {
+    const ax = objA.x ?? 0, ay = objA.y ?? 0;
+    const bx = objB.x ?? 0, by = objB.y ?? 0;
+    const aw = objA.aabb?.w ?? 16, ah = objA.aabb?.h ?? 16;
+    const bw = objB.aabb?.w ?? 16, bh = objB.aabb?.h ?? 16;
+    return (
+      ax      < bx + bw &&
+      ax + aw > bx      &&
+      ay      < by + bh &&
+      ay + ah > by
+    );
+  }
+
+  releaseObject(obj) {
+    if (obj._released) return;
+    obj._released = true;
+
+    this.memory.encode(obj);
+
+    if (obj.element) {
+      obj.element.style.opacity    = '0';
+      obj.element.style.transition = 'opacity 0.5s';
+      const el = obj.element;
+      setTimeout(() => {
+        this.objectPool.release(el);
+        obj.element = null;
+      }, 500);
+    }
+  }
+
+  animate() {
+    this.perfMonitor.update();
+
+    // ── Step 1：物理計算 ─────────────────────────
+    this.objects.forEach(obj => {
+
+      if (obj.isSmoke || obj.isHeat || obj.isGas) {
+        obj.velocityY += obj.riseAcceleration ?? -0.1;
+        obj.velocityY  = Math.max(obj.velocityY, obj.terminalRiseVelocity ?? -5);
+
+        obj.velocityX = (obj.velocityX ?? 0)
+          * (1 - PHYSICS_CONSTANTS.DRAG_COEFFICIENT);
+
+        obj.x  = (obj.x ?? 0) + obj.velocityX;
+        obj.y += obj.velocityY;
+
+        if (obj.y > this.groundY) {
+          obj.y         = this.groundY;
+          obj.velocityY = Math.min(obj.velocityY, 0);
+        }
+        return;
+      }
+
+      if (obj.isMoon || obj.isMoonRay || obj.isSun) {
+        obj.x  = (obj.x ?? 0) + (obj.velocityX ?? 0);
+        obj.y += obj.velocityY;
+        return;
+      }
+
+      if (obj.fixed) return;
+
+      const mass = this.getMass(obj);
+
+      let totalForceY = 0;
+      if (this.gravity) totalForceY += this.gravityForce * mass;
+
+      if (obj.density !== undefined) {
+        totalForceY -= calculateBuoyancy(obj, this.getNearbyObjects(obj));
+      }
+
+      const dragY = -Math.sign(obj.velocityY)
+        * obj.velocityY * obj.velocityY
+        * PHYSICS_CONSTANTS.DRAG_COEFFICIENT;
+      totalForceY += dragY;
+
+      const dragX = -Math.sign(obj.velocityX ?? 0)
+        * (obj.velocityX ?? 0) * (obj.velocityX ?? 0)
+        * PHYSICS_CONSTANTS.DRAG_COEFFICIENT;
+      let totalForceX = dragX;
+
+      let dilationFactor = 1;
+      if (obj.applyTimeDilation && obj.speed !== undefined) {
+        const speedRatio = Math.min(obj.speed / PHYSICS_CONSTANTS.LIGHT_SPEED, 0.9999);
+        dilationFactor   = 1 / Math.sqrt(1 - speedRatio * speedRatio);
+      }
+
+      const accelY = (totalForceY / mass) / dilationFactor;
+      const accelX = (totalForceX / mass) / dilationFactor;
+
+      obj.velocityY    += accelY;
+      obj.velocityX     = (obj.velocityX ?? 0) + accelX;
+      obj.x             = (obj.x ?? 0) + obj.velocityX;
+      obj.y            += obj.velocityY;
+
+      if (obj.applyLengthContraction && obj.speed !== undefined) {
+        const speedRatio        = Math.min(obj.speed / PHYSICS_CONSTANTS.LIGHT_SPEED, 0.9999);
+        const contractionFactor = Math.sqrt(1 - speedRatio * speedRatio);
+        if (obj.element) {
+          obj.element.style.transform =
+            `translate(${obj.x}px, ${obj.y}px) scaleX(${contractionFactor})`;
+        }
+      }
+
+      if (obj.y > this.groundY) {
+        obj.y         = this.groundY;
+        obj.velocityY = -obj.velocityY * PHYSICS_CONSTANTS.GROUND_RESTITUTION;
+        if (Math.abs(obj.velocityY) < PHYSICS_CONSTANTS.GROUND_VELOCITY_THRESHOLD) {
+          obj.velocityY = 0;
+        }
+      }
+    });
+
+    // ── Step 2：量子態更新 ────────────────────────
+    this.objects.forEach(obj => {
+      if (!obj.isQuantum || obj.collapsed) return;
+      if (this.frameCount % (obj.switchInterval ?? 100) === 0) {
+        const idx    = Math.floor(Math.random() * obj.states.length);
+        obj.text     = obj.states[idx];
+        if (obj.element) obj.element.textContent = obj.text;
+
+        obj.semanticVector   = this.computeSemanticVector(obj.text);
+        obj.needsRecalculate = true;
+      }
+    });
+
+    // ── Step 3：粒子生命週期 ──────────────────────
+    this.objects.forEach(obj => {
+      if (!obj.isParticle) return;
+
+      if (obj._released) {
+        obj._fadeRemaining = (obj._fadeRemaining ?? 0) - 1;
+        return;
+      }
+
+      obj.lifetime = (obj.lifetime ?? 60) - 1;
+      if (obj.lifetime <= 0) {
+        this.releaseObject(obj);
+        obj._fadeRemaining = PHYSICS_CONSTANTS.PARTICLE_FADE_FRAMES;
+      } else if (obj.element) {
+        obj.element.style.opacity = String(obj.lifetime / 60);
+      }
+    });
+
+    // ── Step 4：熱力學更新 ────────────────────────
+    const heatVisited = new Set();
+
+    this.objects.forEach(obj => {
+      const actualTemp = this.temperature + (obj.tempOffset ?? 0);
+      const nearby     = this.getNearbyObjects(obj);
+
+      nearby.forEach(other => {
+        const pairKey = obj._id < other._id
+          ? `${obj._id}:${other._id}`
+          : `${other._id}:${obj._id}`;
+        if (heatVisited.has(pairKey)) return;
+        heatVisited.add(pairKey);
+
+        const otherTemp  = this.temperature + (other.tempOffset ?? 0);
+        const transfer   = (otherTemp - actualTemp)
+          * PHYSICS_CONSTANTS.HEAT_TRANSFER * 0.01;
+        obj.tempOffset   = (obj.tempOffset ?? 0) + transfer;
+        other.tempOffset = (other.tempOffset ?? 0) - transfer;
+      });
+
+      const updatedTemp = this.temperature + (obj.tempOffset ?? 0);
+      const prevPhase = obj.phase;
+      this.checkPhaseTransition(obj, updatedTemp);
+      if (obj.phase !== prevPhase) {
+        obj.needsRecalculate = true;
+      }
+    });
+
+    // ── Step 5：化學反應偵測（Mark-and-Sweep）──────
+    this.chemicalRules.detectAndReact(this.objects, this);
+
+    this.objects = this.objects.filter(o => {
+      if (o.toBeRemoved) return false;
+      if (o._released) {
+        if (o.isParticle && (o._fadeRemaining ?? 0) > 0) return true;
+        return false;
+      }
+      return true;
+    });
+
+    // ── Step 6：光場更新 ──────────────────────────
+    this.lightSystem.update(this.objects);
+
+    // ── Step 7：聲場更新（純視覺）────────────────
+    this.soundSystem.update(this.objects);
+
+    // ── Step 8：子系統 ───────────────────────────
+    if (this.frameCount % 30 === 0) {
+      this.resonance.scanResonance(this.objects);
+    }
+    this.resonance.update();
+    this.memory.decay();
+    if (this.evolutionEnabled && this.frameCount > 0
+        && this.frameCount % 300 === 0) {
+      const isProtected = o =>
+        o.fixed || o.isLightSource || o.isSoundSource || o.noEvolve;
+      const protectedObjs = this.objects.filter(isProtected);
+      const evolvable     = this.objects.filter(o => !isProtected(o));
+
+      this.environment.updateFromScene(this.objects);
+      const { kept, removed } = this.evolution.nextGeneration(
+        evolvable, this.environment, this
+      );
+      removed.forEach(obj => this.releaseObject(obj));
+
+      const existingIds = new Set(protectedObjs.map(o => o._id));
+      kept.forEach(obj => {
+        if (obj._id === undefined || existingIds.has(obj._id)) {
+          obj._id = this._nextId++;
+        }
+        existingIds.add(obj._id);
+      });
+
+      this.objects = [...protectedObjs, ...kept];
+    }
+    this.renderBuffer.commit();
+    if (this.frameCount % 10 === 0) {
+      this.vectorField.generateField(this.objects);
+    }
+    this.objects.forEach(obj => this.vectorField.applyField(obj));
+
+    // ── Step 9：Render Pass ───────────────────────
+    this.objects.forEach(obj => {
+      if (!obj.element || obj.fixed) return;
+      if (!obj.applyLengthContraction) {
+        obj.element.style.transform =
+          `translate(${obj.x ?? 0}px, ${obj.y ?? 0}px)`;
+      }
+    });
+
+    // ── Step 10：延遲物理重算 ─────────────────────
+    this.objects.forEach(obj => {
+      if (obj.needsRecalculate) {
+        this.recalculatePhysics(obj);
+        obj.needsRecalculate = false;
+      }
+    });
+
+    // ── Step 11：空間劃分更新 ─────────────────────
+    if (this.frameCount % 5 === 0) {
+      this.spatialGrid.rebuild(this.objects);
+    }
+
+    this.frameCount++;
+    requestAnimationFrame(() => this.animate());
+  }
+
+  checkPhaseTransition(obj, actualTemp) {
+    if (!obj.phase) return;
+
+    const H = PHYSICS_CONSTANTS.PHASE_HYSTERESIS;
+
+    if (obj.phase === 'solid' && obj.meltingPoint !== undefined) {
+      if (actualTemp > obj.meltingPoint + H) {
+        obj.phase = 'liquid';
+
+        const newDensity = obj.liquidDensity
+          ?? (obj.solidDensity ?? obj.density ?? 5) * 0.5;
+        obj.liquidDensity = obj.liquidDensity ?? newDensity;
+        obj.density = newDensity;
+
+        obj.text = obj.liquidText ?? obj.text.toLowerCase();
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    if (obj.phase === 'liquid' && obj.boilingPoint !== undefined) {
+      if (actualTemp > obj.boilingPoint + H) {
+        obj.phase              = 'gas';
+        obj.isSmoke            = true;
+        obj.velocityY          = -1.0;
+        obj.riseAcceleration   = -0.05;
+        obj.terminalRiseVelocity = -4;
+
+        const newGasDensity = obj.gasDensity
+          ?? (obj.liquidDensity ?? obj.density ?? 5) * 0.2;
+        obj.gasDensity = obj.gasDensity ?? newGasDensity;
+        obj.density = newGasDensity;
+
+        obj.text = obj.gasText
+          ?? obj.text.toUpperCase().split('').join(' ');
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    if (obj.phase === 'gas' && obj.boilingPoint !== undefined) {
+      if (actualTemp <= obj.boilingPoint - H) {
+        obj.phase            = 'liquid';
+        obj.isSmoke          = false;
+        obj.isHeat           = false;
+        obj.isGas            = false;
+        obj.riseAcceleration = undefined;
+        obj.terminalRiseVelocity = undefined;
+        obj.velocityY        = 0;
+
+        if (obj.liquidDensity !== undefined) {
+          obj.density = obj.liquidDensity;
+        }
+
+        obj.text = obj.liquidText ?? obj.text.toLowerCase().replace(/\s/g, '');
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    if (obj.phase === 'liquid' && obj.meltingPoint !== undefined) {
+      if (actualTemp <= obj.meltingPoint - H) {
+        obj.phase = 'solid';
+
+        obj.density = obj.solidDensity
+          ?? (obj.liquidDensity ?? obj.density ?? 2.5) * 2;
+
+        obj.text = obj.solidText ?? obj.text.toUpperCase();
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+  }
+
+  start() {
+    if (this._running) return;
+    this._running   = true;
+    this.frameCount = 0;
+    requestAnimationFrame(() => this.animate());
+  }
+}
+
+</script>
+<script>
+// ═══════════ 場景邏輯（demo 專用，非引擎的一部分）═══════════
+const ENGINE = new TextualPhysicsEngine();
+ENGINE.evolutionEnabled = false;
+
+const gy = ENGINE.groundY;
+const cx = window.innerWidth / 2;
+
+// FIRE 固定在地面（fixed 物體仍可參與化學反應）
+ENGINE.addObject({
+  text: 'FIRE', chemicalId: 'FIRE', fixed: true,
+  tempOffset: 200,
+  x: cx - 20, y: gy,
+  velocityX: 0, velocityY: 0,
+  fontSize: '26px', color: '#ff6600'
+});
+
+// WATER 從正上方落下
+ENGINE.addObject({
+  text: 'WATER', chemicalId: 'WATER',
+  density: 1.5, mass: 1.5,
+  x: cx - 25, y: 0,
+  velocityX: 0, velocityY: 0,
+  fontSize: '26px', color: '#4499ff'
+});
+
+ENGINE.start();
+</script>
+</body>
+</html>

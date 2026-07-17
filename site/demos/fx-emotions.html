@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+  演出層 POC：對話的「情緒物理」
+  定位：這【不是】TextualPhysicsEngine 的場景，而是給文字遊戲用的輕量「演出層」。
+       台詞固定，只在需要時對整句做逐字級的物理演出。
+
+  打開後預期看到：
+  1. 下方是視覺小說式對話框，上方六顆按鈕對應六種演出。
+  2. 「緊張」：每個字各自高頻小幅顫抖（振幅、頻率逐字隨機，像真的發抖）。
+  3. 「呼吸」：整句緩慢地放大縮小 + 字距開合，約 4 秒一個吸吐循環。
+  4. 「心電圖」：一道脈衝從左到右掃過台詞，經過的字被頂起成 R 波
+     （上衝尖峰 + 小幅回落），字色閃紅，約每 1.2 秒一跳；
+     台詞下方同步有一條用「─╱╲」字符畫的基線一起跳動。
+  5. 「寒冷」：字距收縮、色偏藍白，細碎顫抖中偶爾整句打一個大寒顫。
+  6. 「哽咽」：逐字浮現，遇到「⋯」明顯停頓，最後幾個字微微下沉、變暗。
+  7. 「怒吼」：字放大加粗、整句猛烈震動，驚嘆號比其他字抖得更兇。
+  8. 系統開啟「減少動態」（prefers-reduced-motion）時，所有動畫自動停用，
+     台詞直接完整顯示。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<title>演出層 POC：對話的情緒物理</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #101318;
+    color: #d6dbe6;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-end; overflow: hidden;
+  }
+
+  /* ── 演出選單 ── */
+  #menu {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    max-width: 90vw;
+  }
+  #menu button {
+    background: #1c212c; color: #c8cede; border: 1px solid #333a4a;
+    border-radius: 6px; padding: 8px 16px; font-size: 15px;
+    font-family: inherit; cursor: pointer;
+  }
+  #menu button:hover { background: #2a3040; }
+  #menu button.active { border-color: #7a89ad; color: #ffffff; }
+
+  #hint {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    color: #59617a; font-size: 13px; white-space: nowrap;
+  }
+
+  /* ── 對話框 ── */
+  #dialog {
+    width: min(760px, 92vw);
+    margin-bottom: 56px;
+    background: rgba(22, 26, 36, 0.94);
+    border: 1px solid #2c3345;
+    border-radius: 10px;
+    padding: 26px 34px 30px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  #speaker {
+    color: #8fa1c9; font-size: 14px; letter-spacing: 2px; margin-bottom: 10px;
+  }
+  #line {
+    font-size: 26px; line-height: 1.9; min-height: 2.2em;
+    letter-spacing: 1px;
+  }
+  #line .ch { display: inline-block; will-change: transform; }
+  /* 心電圖基線（純字符：─ ╱ ╲） */
+  #ekg-baseline {
+    font-family: monospace; font-size: 14px; line-height: 1;
+    color: #3d4austin; color: #3d4a3f; margin-top: 14px; height: 1em;
+    letter-spacing: 0; white-space: pre; overflow: hidden;
+    color: #4a7a5a;
+  }
+
+  /* ── 效果：緊張顫抖 ── */
+  @keyframes jitter {
+    0%   { transform: translate(0, 0); }
+    50%  { transform: translate(var(--jx), var(--jy)); }
+    100% { transform: translate(calc(var(--jx) * -0.6), calc(var(--jy) * -0.6)); }
+  }
+  .fx-tremble .ch {
+    animation: jitter var(--jd, 0.12s) infinite alternate linear;
+  }
+
+  /* ── 效果：寒冷 ── */
+  .fx-cold #line { letter-spacing: -1px; color: #bcd8ee; }
+  .fx-cold .ch { animation: jitter var(--jd, 0.09s) infinite alternate linear; }
+  @keyframes bigShiver {
+    0%, 88%, 100% { transform: translateX(0); }
+    90% { transform: translateX(-3px); }
+    93% { transform: translateX(3px); }
+    96% { transform: translateX(-2px); }
+  }
+  .fx-cold #dialog-inner { animation: bigShiver 2.6s infinite; }
+
+  /* ── 效果：怒吼 ── */
+  @keyframes rage {
+    0%   { transform: translate(0,0); }
+    25%  { transform: translate(-2px, 1px); }
+    50%  { transform: translate(2px, -1px); }
+    75%  { transform: translate(-1px, -2px); }
+    100% { transform: translate(1px, 2px); }
+  }
+  .fx-anger #line { font-weight: 900; color: #ffb3a0; font-size: 30px; }
+  .fx-anger .ch { animation: rage 0.08s infinite; }
+  .fx-anger .ch.bang { font-size: 1.25em; color: #ff6a4d;
+                       animation-duration: 0.05s; }
+
+  /* 哽咽的下沉字 */
+  .ch.droop { transform: translateY(4px); opacity: 0.55;
+              transition: transform 1.2s, opacity 1.2s; }
+
+  /* 逐字浮現用 */
+  .ch.hidden-ch { opacity: 0; }
+  .ch.shown-ch  { opacity: 1; transition: opacity 0.12s; }
+
+  /* 減少動態：全部停用 */
+  @media (prefers-reduced-motion: reduce) {
+    .ch, #dialog-inner { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="menu"></div>
+<div id="hint">演出層 POC——逐字級 CSS/JS 效果，不含物理引擎。台詞固定，只有「演法」在變。</div>
+
+<div id="dialog">
+  <div id="dialog-inner">
+    <div id="speaker">？？？</div>
+    <div id="line"></div>
+    <div id="ekg-baseline"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// 演出層核心：把台詞拆成逐字 <span class="ch">
+// ═══════════════════════════════════════════════
+const lineEl     = document.getElementById('line');
+const speakerEl  = document.getElementById('speaker');
+const baselineEl = document.getElementById('ekg-baseline');
+const dialogEl   = document.getElementById('dialog');
+
+let rafId = null;          // 目前效果的 rAF
+let timers = [];           // 目前效果的 setTimeout 們
+let currentFx = '';
+
+function wrapChars(text) {
+  lineEl.innerHTML = '';
+  return [...text].map(ch => {
+    const s = document.createElement('span');
+    s.className = 'ch';
+    s.textContent = ch;
+    if (ch === '！' || ch === '!') s.classList.add('bang');
+    lineEl.appendChild(s);
+    return s;
+  });
+}
+
+function cleanup() {
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  timers.forEach(t => clearTimeout(t));
+  timers = [];
+  dialogEl.className = '';
+  lineEl.style.cssText = '';
+  baselineEl.textContent = '';
+  currentFx = '';
+}
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 效果 1：緊張顫抖 —— 每個字自己的振幅與頻率
+// ═══════════════════════════════════════════════
+function fxTremble(chars, intensity = 1.6) {
+  dialogEl.classList.add('fx-tremble');
+  chars.forEach(s => {
+    s.style.setProperty('--jx', ((Math.random() - 0.5) * 2 * intensity).toFixed(2) + 'px');
+    s.style.setProperty('--jy', ((Math.random() - 0.5) * 2 * intensity).toFixed(2) + 'px');
+    s.style.setProperty('--jd', (0.08 + Math.random() * 0.08).toFixed(3) + 's');
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 效果 2：呼吸 —— 整句縮放 + 字距開合的正弦循環（約 4 秒一息）
+// ═══════════════════════════════════════════════
+function fxBreathe() {
+  if (reduced) return;
+  const t0 = performance.now();
+  function loop(now) {
+    const t = (now - t0) / 1000;
+    const b = Math.sin(t * Math.PI / 2);          // 4 秒週期
+    lineEl.style.transform = `scale(${(1 + b * 0.025).toFixed(4)})`;
+    lineEl.style.transformOrigin = 'center';
+    lineEl.style.letterSpacing = (1 + b * 1.5).toFixed(2) + 'px';
+    lineEl.style.opacity = (0.86 + b * 0.14).toFixed(3);
+    rafId = requestAnimationFrame(loop);
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+// 效果 3：心電圖 —— 脈衝掃過逐字 + 「─╱╲」字符基線同步跳動
+// ═══════════════════════════════════════════════
+function fxEKG(chars) {
+  if (reduced) return;
+  const N = chars.length;
+  const BEAT = 1.2;                  // 每 1.2 秒一跳
+  const t0 = performance.now();
+
+  function pulse(d) {                // d = 該字與脈衝中心的距離（字為單位）
+    const r = -22 * Math.exp(-(d * d) / 0.35);          // R 波：上衝
+    const s =   7 * Math.exp(-((d - 1.1) ** 2) / 0.5);  // S 波：回落
+    return r + s;
+  }
+
+  function loop(now) {
+    const t = (now - t0) / 1000;
+    const sweep = ((t % BEAT) / BEAT) * (N + 6) - 3;     // 掃描位置
+    let base = '';
+    for (let i = 0; i < N; i++) {
+      const y = pulse(i - sweep);
+      chars[i].style.transform = `translateY(${y.toFixed(1)}px)`;
+      const hot = Math.max(0, 1 - Math.abs(i - sweep) / 1.2);
+      chars[i].style.color = hot > 0.1
+        ? `rgb(${Math.round(214 + hot * 41)}, ${Math.round(219 - hot * 120)}, ${Math.round(230 - hot * 140)})`
+        : '';
+      base += y < -12 ? '╱╲' : (y > 3 ? '╲' : '──');    // 字符版基線
+    }
+    baselineEl.textContent = base;
+    rafId = requestAnimationFrame(loop);
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+// 效果 4：寒冷 —— 字距收縮＋細顫＋週期性大寒顫（CSS 為主）
+// ═══════════════════════════════════════════════
+function fxCold(chars) {
+  dialogEl.classList.add('fx-cold');
+  chars.forEach(s => {
+    s.style.setProperty('--jx', ((Math.random() - 0.5) * 1.2).toFixed(2) + 'px');
+    s.style.setProperty('--jy', ((Math.random() - 0.5) * 0.8).toFixed(2) + 'px');
+    s.style.setProperty('--jd', (0.06 + Math.random() * 0.05).toFixed(3) + 's');
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 效果 5：哽咽 —— 逐字浮現、「⋯」處長停頓、句尾字下沉變暗
+// ═══════════════════════════════════════════════
+function fxChoke(chars) {
+  chars.forEach(s => s.classList.add('hidden-ch'));
+  let delay = 200;
+  chars.forEach((s, i) => {
+    timers.push(setTimeout(() => {
+      s.classList.remove('hidden-ch');
+      s.classList.add('shown-ch');
+    }, reduced ? 0 : delay));
+    delay += (s.textContent === '⋯' || s.textContent === '…') ? 450
+           : (s.textContent === '，' || s.textContent === '、') ? 320
+           : 90 + Math.random() * 60;
+  });
+  // 最後三個字：微微下沉、變暗（話說不下去了）
+  timers.push(setTimeout(() => {
+    chars.slice(-3).forEach(s => s.classList.add('droop'));
+  }, reduced ? 0 : delay + 400));
+}
+
+// ═══════════════════════════════════════════════
+// 效果 6：怒吼 —— 放大加粗猛震，驚嘆號抖更兇（CSS 為主）
+// ═══════════════════════════════════════════════
+function fxAnger() {
+  dialogEl.classList.add('fx-anger');
+}
+
+// ═══════════════════════════════════════════════
+// 台詞表：台詞固定，只是「演法」不同
+// ═══════════════════════════════════════════════
+const SCENES = [
+  { label: '緊張',   speaker: '小雨',  text: '我、我沒有在怕……只是這裡有點冷而已。',
+    run: chars => fxTremble(chars) },
+  { label: '呼吸',   speaker: '小雨',  text: '深呼吸。吸——吐——。我還活著。',
+    run: (chars) => fxBreathe() },
+  { label: '心電圖', speaker: '（監視器）', text: '撲通。撲通。撲通。還在跳。',
+    run: chars => fxEKG(chars) },
+  { label: '寒冷',   speaker: '小雨',  text: '風，從門縫裡鑽進來了。',
+    run: chars => fxCold(chars) },
+  { label: '哽咽',   speaker: '阿澈',  text: '對不起⋯⋯我那時候⋯⋯應該留下來的。',
+    run: chars => fxChoke(chars) },
+  { label: '怒吼',   speaker: '阿澈',  text: '夠了！！給我閉嘴！！',
+    run: () => fxAnger() },
+];
+
+const menu = document.getElementById('menu');
+SCENES.forEach((sc, i) => {
+  const b = document.createElement('button');
+  b.textContent = sc.label;
+  b.addEventListener('click', () => {
+    cleanup();
+    [...menu.children].forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    speakerEl.textContent = sc.speaker;
+    const chars = wrapChars(sc.text);
+    sc.run(chars);
+  });
+  menu.appendChild(b);
+});
+
+// 預設播第一個
+menu.children[0].click();
+</script>
+</body>
+</html>

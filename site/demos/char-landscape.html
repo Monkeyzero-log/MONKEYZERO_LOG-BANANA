@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字符山水</title>
+<!--
+  ══════════════════════════════════════════════
+  字符山水 Mockup v0.1「會過日子的卷軸」
+  同一條字符渲染管線，材質即字義:
+  山用「山」堆、水用「～﹏」流、樹是「木」、亭是「亭」、
+  草是「艹」、雁陣排成「人」字（文學典故＝渲染技術）。
+
+  結構（後到前）:
+  星空 pre → 日/月 → 遠山 pre → 霧 → 中山 pre（亭）→ 霧
+  → 近山 pre（木）→ 水面 pre + 倒影 pre → 草 → 粒子（花瓣/螢火/雁）
+
+  打開後預期看到:
+  1. 五層視差:滑鼠移動，遠山動得慢、近山動得快。
+  2. 拖「時辰」滑桿（或開自動，約 150 秒一天）:
+     破曉橘 → 正午青 → 黃昏紫金 → 深夜墨藍，全程漸變;
+     「日」走完天弧換「月」，星子夜裡才醒、會眨。
+  3. 水面逐幀流動;日月在水上拖出一條會碎的倒影光帶。
+  4. 白天飄花瓣（✿）、入夜換螢火遊蕩、
+     黃昏前後有「人」字雁陣掠過、前排「艹」草隨風搖。
+  5. 系統開啟「減少動態」時:水面靜止、粒子與自動時辰停用。
+  ══════════════════════════════════════════════
+-->
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    transition:background 1s linear; }
+
+  pre.layer{ position:fixed; left:0; top:0; margin:0;
+    font-family:'Noto Sans Mono CJK TC','MingLiU','MS Gothic',monospace;
+    line-height:1.0; letter-spacing:0; will-change:transform,color,opacity;
+    pointer-events:none; }
+
+  #orb{ position:fixed; font-size:30px; pointer-events:none;
+    will-change:transform,color,text-shadow; z-index:3; }
+
+  .mist{ position:fixed; left:-20%; width:140%; height:9vh;
+    pointer-events:none; z-index:4;
+    background:linear-gradient(90deg, transparent,
+      rgba(233,228,214,.10) 20%, rgba(233,228,214,.16) 50%,
+      rgba(233,228,214,.10) 80%, transparent);
+    filter:blur(2px);
+    animation:mistDrift 46s linear infinite; }
+  #mist2{ animation-duration:67s; animation-direction:reverse; }
+  @keyframes mistDrift{ from{ transform:translateX(-6%);} to{ transform:translateX(6%);} }
+
+  #grass{ position:fixed; left:0; right:0; bottom:0; height:26px;
+    display:flex; justify-content:space-around; z-index:8;
+    pointer-events:none; overflow:hidden; }
+  #grass span{ display:inline-block; transform-origin:50% 100%;
+    font-size:16px; will-change:transform; }
+
+  .pt{ position:fixed; pointer-events:none; z-index:7;
+    will-change:transform,opacity; }
+
+  #ui{ position:fixed; bottom:34px; left:50%; transform:translateX(-50%);
+    z-index:20; display:flex; align-items:center; gap:12px;
+    background:rgba(10,12,18,.45); border:1px solid rgba(233,228,214,.14);
+    border-radius:999px; padding:8px 18px; backdrop-filter:blur(6px);
+    font:11px 'Courier New',monospace; letter-spacing:.14em; color:#c9cfdc; }
+  #ui input[type=range]{ width:min(260px,40vw); accent-color:#e8c9a0; }
+  #ui label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
+  #tRead{ min-width:52px; text-align:center; }
+</style>
+</head>
+<body>
+<pre class="layer" id="stars"></pre>
+<span id="orb">日</span>
+<pre class="layer" id="rFar"></pre>
+<div class="mist" id="mist1"></div>
+<pre class="layer" id="rMid"></pre>
+<div class="mist" id="mist2"></div>
+<pre class="layer" id="rNear"></pre>
+<pre class="layer" id="water"></pre>
+<pre class="layer" id="refl"></pre>
+<div id="grass"></div>
+<div id="ui">
+  <span>時辰</span>
+  <input type="range" id="tSlider" min="0" max="24" step="0.05" value="10">
+  <span id="tRead">10:00</span>
+  <label><input type="checkbox" id="autoChk" checked>自動</label>
+</div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ══ 網格 ══ */
+const CELL = 16;
+let W, H, waterRow;
+const $ = id => document.getElementById(id);
+const layers = ['stars','rFar','rMid','rNear','water','refl'].map($);
+function sizeGrid() {
+  W = Math.ceil(innerWidth / CELL) + 8;          // 多鋪一點給視差
+  H = Math.ceil(innerHeight / CELL);
+  waterRow = Math.floor(H * 0.78);
+  layers.forEach(p => p.style.fontSize = CELL + 'px');
+  buildStatic();
+}
+
+/* ══ 山稜線（層疊正弦）══ */
+function ridge(x, seed, base, amp) {
+  return Math.floor(base
+    + Math.sin(x * 0.11 + seed) * amp
+    + Math.sin(x * 0.045 + seed * 2.3) * amp * 1.6
+    + Math.sin(x * 0.23 + seed * 5.1) * amp * 0.5);
+}
+
+/* ══ 靜態層:星空與三重山（resize 時重建）══ */
+let starField = '', farStr = '', midStr = '', nearStr = '';
+function buildStatic() {
+  // 星空
+  let s = '';
+  for (let y = 0; y < Math.floor(H * 0.6); y++) {
+    for (let x = 0; x < W; x++)
+      s += (Math.sin(x * 12.9 + y * 78.2) * 43758 % 1) > 0.982 ? '・' : '　';
+    s += '\n';
+  }
+  starField = s;
+
+  const build = (seed, baseF, amp, deco) => {
+    let out = '';
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const r = ridge(x, seed, H * baseF, amp);
+        if (y >= waterRow) { out += '　'; continue; }         // 水域讓位
+        if (y > r) out += '山';
+        else if (y === r) out += (deco && deco(x, r)) || '　';
+        else out += '　';
+      }
+      out += '\n';
+    }
+    return out;
+  };
+  farStr = build(1.7, 0.40, 3.2, null);
+  midStr = build(4.2, 0.54, 4.2,
+    x => (x === Math.floor(W * 0.62) ? '亭' : null));         // 山腰一座亭
+  nearStr = build(8.9, 0.68, 5.0,
+    x => ((x * 7 + 3) % 11 === 0 ? '木' : null));             // 稜線上的樹
+  $('rFar').textContent = farStr;
+  $('rMid').textContent = midStr;
+  $('rNear').textContent = nearStr;
+  $('mist1').style.top = (H * 0.50 * CELL) + 'px';
+  $('mist2').style.top = (H * 0.64 * CELL) + 'px';
+}
+
+/* ══ 晝夜調色（關鍵時辰之間線性插值）══ */
+const PAL = [   // t, 天頂, 天際, 遠山, 中山, 近山, 水, 星光
+  [ 0.0, '#070a14','#0d1322','#1b2740','#141d31','#0d1524','#0e1826', 1.0],
+  [ 4.8, '#070a14','#101728','#1b2740','#141d31','#0d1524','#0e1826', 1.0],
+  [ 6.5, '#3a3d5c','#e8a87c','#5f6a8c','#4b5578','#333b58','#7a6a6e', 0.25],
+  [ 9.0, '#8fb8d4','#dce8e4','#9fb4c4','#6a8296','#3f5468','#7aa8b8', 0.0],
+  [15.5, '#84b0d0','#d8e6e0','#9ab0c0','#657d92','#3b5064','#74a2b4', 0.0],
+  [18.3, '#4a3555','#e0824a','#6a5a7c','#514668','#38304e','#8a6a62', 0.2],
+  [20.0, '#0a0f1e','#16203a','#20304c','#182339','#101a2b','#122031', 0.9],
+  [24.0, '#070a14','#0d1322','#1b2740','#141d31','#0d1524','#0e1826', 1.0],
+];
+function hexLerp(a, b, t) {
+  const pa = a.match(/\w\w/g).map(h => parseInt(h, 16));
+  const pb = b.match(/\w\w/g).map(h => parseInt(h, 16));
+  return 'rgb(' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t)).join(',') + ')';
+}
+function palette(t) {
+  let i = 0;
+  while (i < PAL.length - 2 && t > PAL[i + 1][0]) i++;
+  const A = PAL[i], B = PAL[i + 1];
+  const k = (t - A[0]) / (B[0] - A[0] || 1);
+  return {
+    skyT: hexLerp(A[1], B[1], k), skyB: hexLerp(A[2], B[2], k),
+    far: hexLerp(A[3], B[3], k), mid: hexLerp(A[4], B[4], k),
+    near: hexLerp(A[5], B[5], k), water: hexLerp(A[6], B[6], k),
+    star: A[7] + (B[7] - A[7]) * k,
+  };
+}
+
+/* ══ 時辰 ══ */
+let T = 10, auto = !reduced;
+$('autoChk').checked = auto;
+$('autoChk').onchange = e => auto = e.target.checked;
+$('tSlider').oninput = e => { T = Number(e.target.value); auto = false;
+  $('autoChk').checked = false; };
+
+/* ══ 滑鼠視差 ══ */
+let mx = 0;
+addEventListener('pointermove', e => mx = e.clientX / innerWidth * 2 - 1);
+
+/* ══ 粒子:花瓣 / 螢火 / 雁陣 ══ */
+const pts = [];
+function spawnPt(cfg) {
+  const s = document.createElement('span');
+  s.className = 'pt';
+  s.textContent = cfg.ch;
+  s.style.color = cfg.color;
+  s.style.fontSize = (cfg.size ?? 13) + 'px';
+  document.body.appendChild(s);
+  pts.push({ el: s, ...cfg });
+}
+setInterval(() => {                                   // 花瓣（白天）
+  if (reduced || T < 6.5 || T > 18 || pts.length > 90) return;
+  spawnPt({ kind: 'petal', ch: '✿', color: 'rgba(232,180,200,.8)',
+    x: Math.random() * innerWidth, y: -20,
+    vx: 0.3 + Math.random() * 0.4, vy: 0.5 + Math.random() * 0.5,
+    ph: Math.random() * 6, life: 900 });
+}, 700);
+setInterval(() => {                                   // 螢火（夜）
+  if (reduced || (T > 5.5 && T < 19.5) || pts.filter(p => p.kind === 'fly').length > 14) return;
+  spawnPt({ kind: 'fly', ch: '∙', color: '#ffd479', size: 11,
+    x: Math.random() * innerWidth, y: innerHeight * (0.55 + Math.random() * 0.3),
+    ph: Math.random() * 6, life: 1400 });
+}, 1200);
+let geeseCool = 0;
+function maybeGeese(now) {                            // 雁陣（晨昏）
+  if (reduced || now < geeseCool) return;
+  const dusk = (T > 16.5 && T < 19) || (T > 5.5 && T < 8);
+  if (!dusk || Math.random() < 0.995) return;
+  geeseCool = now + 25000;
+  const gy = innerHeight * (0.14 + Math.random() * 0.12);
+  const V = [[0,0],[-16,9],[16,9],[-32,18],[32,18],[-48,27],[48,27]];
+  V.forEach(([dx, dy]) =>
+    spawnPt({ kind: 'goose', ch: '人', color: 'rgba(60,60,80,.75)', size: 12,
+      x: -80 + dx, y: gy + dy, dx, dy, gx: -80, life: 1e9 }));
+}
+function tickPts(now) {
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    if (p.kind === 'petal') {
+      p.x += p.vx + Math.sin(now / 900 + p.ph) * 0.6;
+      p.y += p.vy;
+      p.el.style.transform =
+        `translate(${p.x}px,${p.y}px) rotate(${Math.sin(now/700+p.ph)*40}deg)`;
+      if (p.y > innerHeight * 0.8) p.life -= 14;
+      p.el.style.opacity = Math.min(1, p.life / 200);
+    } else if (p.kind === 'fly') {
+      p.x += Math.sin(now / 1300 + p.ph) * 0.7;
+      p.y += Math.cos(now / 1100 + p.ph * 1.3) * 0.5;
+      p.el.style.transform = `translate(${p.x}px,${p.y}px)`;
+      p.el.style.opacity =
+        (0.15 + 0.85 * Math.max(0, Math.sin(now / 600 + p.ph * 2))).toFixed(2);
+      p.life--;
+    } else if (p.kind === 'goose') {
+      p.gx += 0.9;
+      const flap = 0.75 + 0.25 * Math.sin(now / 240 + p.dx);
+      p.el.style.transform =
+        `translate(${p.gx + p.dx}px, ${p.y + Math.sin(now/1600)*6}px) scaleY(${flap.toFixed(2)})`;
+      if (p.gx > innerWidth + 100) p.life = 0;
+    }
+    p.life -= 1;
+    if (p.life <= 0) { p.el.remove(); pts.splice(i, 1); }
+  }
+}
+
+/* ══ 草 ══ */
+const grassEl = $('grass');
+const blades = [];
+for (let i = 0; i < 46; i++) {
+  const s = document.createElement('span');
+  s.textContent = '艹';
+  grassEl.appendChild(s);
+  blades.push({ el: s, ph: Math.random() * 6 });
+}
+
+/* ══ 主循環 ══ */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(50, now - last); last = now;
+  if (auto) {
+    T += dt / 150000 * 24;                            // 約 150 秒一天
+    if (T >= 24) T -= 24;
+    $('tSlider').value = T.toFixed(2);
+  }
+  const hh = Math.floor(T), mm = Math.floor((T - hh) * 60);
+  $('tRead').textContent =
+    String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+
+  const P = palette(T);
+  document.body.style.background =
+    `linear-gradient(180deg, ${P.skyT}, ${P.skyB} ${Math.floor(H*0.5*CELL)}px, ${P.water})`;
+  $('rFar').style.color = P.far;
+  $('rMid').style.color = P.mid;
+  $('rNear').style.color = P.near;
+  $('stars').style.color = 'rgba(233,228,214,' + (P.star * 0.8).toFixed(2) + ')';
+  if (Math.floor(now / 400) % 3 === 0 || !$('stars').textContent)
+    $('stars').textContent = starField;               // 微眨:週期性重貼
+
+  /* 視差 */
+  $('rFar').style.transform  = `translateX(${(-mx * 8 - CELL * 4).toFixed(1)}px)`;
+  $('rMid').style.transform  = `translateX(${(-mx * 20 - CELL * 4).toFixed(1)}px)`;
+  $('rNear').style.transform = `translateX(${(-mx * 38 - CELL * 4).toFixed(1)}px)`;
+
+  /* 日月弧線 */
+  const orb = $('orb');
+  const day = T >= 5.8 && T <= 18.2;
+  const tt = day ? (T - 5.8) / 12.4 : ((T > 18.2 ? T - 18.2 : T + 5.8) / 11.6);
+  const ox = tt * innerWidth;
+  const oy = innerHeight * 0.42 - Math.sin(tt * Math.PI) * innerHeight * 0.30;
+  orb.textContent = day ? '日' : '月';
+  orb.style.color = day ? '#e8b25a' : '#d8dce8';
+  orb.style.textShadow = day
+    ? '0 0 26px rgba(232,178,90,.7)' : '0 0 18px rgba(216,220,232,.5)';
+  orb.style.transform = `translate(${ox - 15}px, ${oy - 15}px)`;
+
+  /* 水面與倒影 */
+  if (!reduced || !$('water').textContent) {
+    const ph = reduced ? 0 : now / 480;
+    let wStr = '', rStr = '';
+    const orbCol = Math.floor(ox / CELL);
+    for (let y = waterRow; y < H; y++) {
+      const rw = y - waterRow;
+      for (let x = 0; x < W; x++) {
+        const v = Math.sin(x * 0.7 + ph + rw * 1.3) + Math.sin(x * 0.23 - ph * 0.7);
+        wStr += v > 0.5 ? '～' : (v < -0.9 ? '﹏' : '　');
+        const spread = 1.2 + rw * 0.55;
+        const lit = Math.abs(x - orbCol) < spread
+          && Math.sin(x * 3.1 + ph * 2.2 + rw * 2.7) > -0.1;
+        rStr += lit ? '～' : '　';
+      }
+      wStr += '\n'; rStr += '\n';
+    }
+    $('water').textContent = wStr;
+    $('refl').textContent = rStr;
+    $('water').style.top = $('refl').style.top = (waterRow * CELL) + 'px';
+    $('water').style.color = P.water;
+    $('refl').style.color = day ? 'rgba(240,196,120,.85)' : 'rgba(220,226,240,.75)';
+  }
+
+  /* 草搖 */
+  if (!reduced) blades.forEach((b, i) => {
+    b.el.style.transform =
+      `rotate(${(Math.sin(now / 1000 + b.ph) * 7).toFixed(1)}deg)`;
+    b.el.style.color = P.near;
+  });
+  else blades.forEach(b => b.el.style.color = P.near);
+
+  maybeGeese(now);
+  tickPts(now);
+  requestAnimationFrame(frame);
+}
+
+sizeGrid();
+addEventListener('resize', sizeGrid);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

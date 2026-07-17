@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<!--
+  詩的演出：「圓美」
+  定位：演出層應用於詩——主文直線捲動保持易讀，演出全部綁定語義。
+
+  設計對應（讀詩後的判斷，不是裝飾）：
+  ・詩的骨架是「閉不起來的圓」：開頭結尾同句，但大膽而堅定 → 顫抖而猶豫，
+    他們念道 → 你念道——批評的聲音內化了。
+  ・右側的圓由「·」符號組成，跟閱讀進度一筆一筆畫，永遠停在 93%，缺口不合。
+  ・聲音的字體學：草稿紙私語＝小字淡紫微顫；「「雙括號」」＝疊影回聲；
+    筆尖影子呼喊＝粗體重陰影；擦子細屑＝碎小字。
+  ・結尾「你對自己竊竊私語」的引文，樣式與草稿紙私語【完全相同】——
+    讀者不用被告知，眼睛自己看見聲音搬家了。
+  ・自我示範的字：「重疊」真的疊影、「太濃」真的濃、「太淡」真的淡、
+    「太尖」真的斜、「很窄」字距收緊、「太寬」字距拉開。
+
+  打開後預期看到：
+  1. 標題「圓美」，提示往下捲動。詩句隨捲動逐行浮現（讀者控制節奏）。
+  2. 右上方的符號圓隨閱讀進度描繪；讀到「讓圈旋轉吧」開始旋轉；
+     讀到「一個缺口要顯露出來了！」缺口兩端閃紅一下。
+  3. 「還不夠圓！還不夠美！」浮出兩層漸淡回聲；「反覆循環」四字原地緩轉。
+  4. 讀到「你再次畫了一個圈」：圓被擦掉、顫抖著重畫；該段詩句整行微顫。
+  5. 最後一行後浮現開頭第一句的殘影與「↺ 回到起點」——按下回頂端，
+     圓歸零重畫第一筆。詩是圓的。
+  6. 系統開啟「減少動態」時：顫抖、旋轉、回聲停用，僅保留逐行浮現與圓的描繪。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圓美</title>
+<style>
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: #0d0f14; color: #d6dbe6;
+    font-family: "Noto Serif TC", "Noto Sans TC", "Microsoft JhengHei", serif;
+  }
+
+  /* ── 符號圓（舞台道具）── */
+  #circle-stage {
+    position: fixed; z-index: 5; pointer-events: none;
+    right: 7vw; top: 20vh; width: 0; height: 0;
+  }
+  #circle-stage span {
+    position: absolute; left: 0; top: 0;
+    font-family: monospace; font-size: 15px; color: #b9c2d6;
+    opacity: 0; transition: opacity 0.5s;
+    will-change: transform, opacity;
+  }
+  @media (max-width: 760px) {
+    #circle-stage { right: 50%; top: 12vh; }
+  }
+
+  /* ── 詩文 ── */
+  #poem {
+    max-width: 620px; margin: 0 auto;
+    padding: 38vh 24px 10vh;
+  }
+  @media (min-width: 761px) { #poem { margin-left: 12vw; } }
+
+  #title {
+    font-size: 44px; letter-spacing: 22px; color: #e8ecf5;
+    margin-bottom: 6px;
+  }
+  #title-sub { color: #59617a; font-size: 13px; letter-spacing: 4px;
+               margin-bottom: 26vh; }
+
+  .line {
+    font-size: 20px; line-height: 2.15; margin: 2.2em 0;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity 1s ease, transform 1s ease;
+  }
+  .line.shown { opacity: 1; transform: translateY(0); }
+  .line .ch { display: inline-block; }
+
+  .indent { margin-left: 3em; }
+
+  /* ── 聲音的字體學 ── */
+  .v-whisper {                     /* 草稿紙的竊竊私語（結尾自語沿用同款）*/
+    font-size: 0.72em; color: #9b8fb0; letter-spacing: 2px;
+  }
+  .v-chant  { color: #d9c07a; }    /* 念道 */
+  .v-shout {                       /* 筆尖影子的呼喊 */
+    font-weight: 800; color: #e8b8a8;
+    text-shadow: 4px 5px 7px rgba(0,0,0,0.95);
+  }
+  .v-dust   { font-size: 0.66em; color: #8a9a8f; letter-spacing: 1px; }
+  .v-end    { color: #b9c2d6; }    /* 線的盡頭 */
+
+  /* ── 自我示範的字 ── */
+  .firm    { font-weight: 800; color: #ffffff; }
+  .overlap { text-shadow: 0.14em 0 rgba(214,219,230,0.5); }   /* 重疊 */
+  .dense   { font-weight: 900; color: #f2f5ff; }              /* 太濃 */
+  .faint   { opacity: 0.3; }                                  /* 太淡 */
+  .sharp   { display: inline-block; transform: skewX(-14deg); } /* 太尖 */
+  .wide    { letter-spacing: 0.55em; }                        /* 太寬 */
+  .narrow  { letter-spacing: -0.12em; }                       /* 很窄 */
+
+  /* ── 顫抖（第二次作畫）── */
+  @keyframes jit {
+    0%   { transform: translate(0, 0); }
+    50%  { transform: translate(var(--jx), var(--jy)); }
+    100% { transform: translate(calc(var(--jx) * -0.6), calc(var(--jy) * -0.6)); }
+  }
+  .tremble .ch { animation: jit var(--jd, 0.12s) infinite alternate linear; }
+
+  /* ── 反覆循環 ── */
+  @keyframes spinch { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spinch 5s linear infinite; }
+
+  /* ── 回聲副本 ── */
+  .echo-copy {
+    position: absolute; left: 0; top: 0; white-space: nowrap;
+    pointer-events: none; will-change: transform, opacity;
+  }
+
+  /* ── 結尾 ── */
+  #ending { margin-top: 5em; opacity: 0; transition: opacity 2s; }
+  #ending.shown { opacity: 1; }
+  #ending .ghost { color: #d6dbe6; opacity: 0.3; font-size: 19px; }
+  #ending .note  { color: #59617a; font-size: 13px; letter-spacing: 3px;
+                   margin-top: 2em; }
+  #ending button {
+    margin-top: 1.4em; background: none; color: #8fa1c9;
+    border: 1px solid #333a4a; border-radius: 999px;
+    padding: 8px 22px; font-family: inherit; font-size: 15px;
+    letter-spacing: 3px; cursor: pointer;
+  }
+  #ending button:hover { color: #fff; border-color: #7a89ad; }
+
+  #scroll-hint {
+    color: #444c60; font-size: 13px; letter-spacing: 6px;
+    animation: hintFloat 2.4s ease-in-out infinite;
+  }
+  @keyframes hintFloat { 50% { transform: translateY(6px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tremble .ch, .spin, #scroll-hint { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="circle-stage"></div>
+
+<div id="poem">
+  <div id="title">圓美</div>
+  <div id="title-sub">—— 一首閉不起來的詩</div>
+  <div id="scroll-hint">往下捲動 ▿</div>
+  <!-- 詩句由 JS 生成 -->
+  <div id="lines"></div>
+  <div id="ending">
+    <div class="ghost">你畫了一個圈，一條圓的曲線，大膽而堅定。</div>
+    <div class="note">詩是圓的。它也還差一寸。</div>
+    <button id="btn-loop">↺ 回到起點</button>
+  </div>
+</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 詩句資料：seg = 段落（c = 樣式類），fx = 行級效果，on = 圓的觸發
+// ═══════════════════════════════════════════════
+const LINES = [
+  { seg: [ {t:'你畫了一個圈，一條圓的曲線，'}, {t:'大膽而堅定', c:'firm'}, {t:'。'} ] },
+
+  { seg: [ {t:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜的瞬間，線條將重新對齊。'} ] },
+
+  { seg: [ {t:'然而草稿紙上有聲音在竊竊私語，'},
+           {t:'「你的圈有缺憾、缺少圓的優雅﹐還不足以稱作完美。」', c:'v-whisper'} ] },
+
+  { seg: [ {t:'「來、轉動你的手」', c:'v-chant'}, {t:'他們念道'} ] },
+
+  { seg: [ {t:'「「讓我們重新調整你的藝術」」', c:'v-chant'} ],
+    cls: 'indent', fx: 'echo-soft' },
+
+  { seg: [ {t:'讓圈旋轉吧、我的朋友。'} ], on: 'rotate' },
+
+  { seg: [ {t:'「不要', c:'v-chant'}, {t:'重疊', c:'v-chant overlap'},
+           {t:'、不要', c:'v-chant'}, {t:'太濃', c:'v-chant dense'},
+           {t:'、也不要', c:'v-chant'}, {t:'太淡', c:'v-chant faint'},
+           {t:'。」', c:'v-chant'} ] },
+
+  { seg: [ {t:'你的線'}, {t:'太尖', c:'sharp'}, {t:'了，還需要另一部分補充。'} ] },
+
+  { seg: [ {t:'「不要畫得', c:'v-chant'}, {t:'那麼寬', c:'v-chant wide'},
+           {t:'、一個缺口要顯露出來了！」', c:'v-chant'} ], on: 'gap-flash' },
+
+  { seg: [ {t:'友善的提醒，每一條曲線都是圓的組成部分，每一個彎經過都深思熟慮。'} ] },
+
+  { seg: [ {t:'筆尖的影子呼喊：'},
+           {t:'「夥計，你的圈留在原地', c:'v-shout'}, {t:'很窄', c:'v-shout narrow'},
+           {t:'、現在追逐又', c:'v-shout'}, {t:'太寬', c:'v-shout wide'},
+           {t:'！」', c:'v-shout'} ] },
+
+  { seg: [ {t:'「但你的圈還沒有圍成圓，還有機會調整﹐搭檔。只需要再一次微調、一次轉折就好。」', c:'v-dust'},
+           {t:'擦子的細屑一旁細語。'} ] },
+
+  { seg: [ {t:'圈的起點傳來的聲音又在回響，'},
+           {t:'「還不夠圓！還不夠美！你的圈還不夠圓美！」', c:'v-chant', echo: true} ] },
+
+  { seg: [ {t:'每一次嚴謹的探索都形成新的悖論，'},
+           {t:'「很快就會到達目的地了!」', c:'v-end'},
+           {t:'線的盡頭如此說著，'},
+           {t:'反覆循環', spinChars: true}, {t:'。'} ] },
+
+  // ── 第二次作畫：同句異演 ──
+  { seg: [ {t:'你再次畫了一個圈，一條圓的曲線，', charFx:{amp:0.5}},
+           {t:'顫抖而猶豫', charFx:{amp:1.5}}, {t:'。', charFx:{amp:0.5}} ],
+    cls: 'tremble', on: 'redraw' },
+
+  { seg: [ {t:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜時，線條將重新對齊。',
+            charFx:{amp:0.4}} ], cls: 'tremble' },
+
+  // 聲音內化：引文樣式與草稿紙私語【完全相同】
+  { seg: [ {t:'然而你對自己竊竊私語：'},
+           {t:'「我的圈有缺憾、仍欠缺圓的優雅﹐還不足以稱作完美。」', c:'v-whisper'} ] },
+
+  // 合唱變獨白：雙括號沒有了
+  { seg: [ {t:'「來，轉動我的手」', c:'v-chant'}, {t:'你念道，'},
+           {t:'「讓我再調整我的藝術。」', c:'v-chant'} ] },
+
+  { seg: [ {t:'讓圈繼續旋轉吧﹑我的朋友。'} ] },
+
+  { seg: [ {t:'畢竟還不夠圓、不夠美，你的圈還不到'}, {t:'圓美', c:'firm'}, {t:'。'} ],
+    on: 'final' },
+];
+
+// ═══════════════════════════════════════════════
+// 生成詩句 DOM
+// ═══════════════════════════════════════════════
+const linesRoot = document.getElementById('lines');
+const lineEls = LINES.map((L, idx) => {
+  const div = document.createElement('div');
+  div.className = 'line' + (L.cls ? ' ' + L.cls : '');
+  div.style.position = 'relative';
+  L.seg.forEach(sg => {
+    const span = document.createElement('span');
+    if (sg.c) span.className = sg.c;
+    if (sg.echo) span.dataset.echo = '1';
+    if (sg.charFx || sg.spinChars || (L.cls || '').includes('tremble')) {
+      // 逐字包裝（顫抖 / 旋轉需要）
+      [...sg.t].forEach((ch, i) => {
+        const c = document.createElement('span');
+        c.className = 'ch';
+        c.textContent = ch;
+        if (sg.spinChars && !reduced) {
+          c.classList.add('spin');
+          c.style.animationDelay = (i * 0.6) + 's';
+        }
+        const amp = sg.charFx?.amp ?? 0.5;
+        if (!reduced) {
+          c.style.setProperty('--jx', ((Math.random() - 0.5) * 2 * amp).toFixed(2) + 'px');
+          c.style.setProperty('--jy', ((Math.random() - 0.5) * 2 * amp).toFixed(2) + 'px');
+          c.style.setProperty('--jd', (0.09 + Math.random() * 0.07).toFixed(3) + 's');
+        }
+        span.appendChild(c);
+      });
+    } else {
+      span.textContent = sg.t;
+    }
+    div.appendChild(span);
+  });
+  div._data = L;
+  div._idx = idx;
+  linesRoot.appendChild(div);
+  return div;
+});
+
+// ═══════════════════════════════════════════════
+// 符號圓：永遠差一寸
+// ═══════════════════════════════════════════════
+const stage = document.getElementById('circle-stage');
+const N = 64, MAX_FRAC = 0.93;                 // 缺口＝那一寸
+const RADIUS = Math.min(innerWidth, innerHeight) < 760 ? 62 : 92;
+const dots = [];
+for (let i = 0; i < N; i++) {
+  const s = document.createElement('span');
+  s.textContent = '·';
+  stage.appendChild(s);
+  dots.push(s);
+}
+
+const C = {
+  drawn: 0, target: 0,        // 已描繪比例（0~MAX_FRAC）
+  rot: 0, rotSpeed: 0,        // 旋轉
+  wobble: false,              // 第二次作畫會抖
+  flash: 0                    // 缺口閃紅倒數
+};
+
+// 第一次作畫：行 0~5 對應描繪進度；第二次：行 14~19
+function progressTarget(revealIdx) {
+  if (revealIdx <= 5)  return MAX_FRAC * (revealIdx + 1) / 6;
+  if (revealIdx < 14)  return MAX_FRAC;
+  return MAX_FRAC * (revealIdx - 13) / 6;
+}
+
+function circleLoop(now) {
+  C.drawn += (C.target - C.drawn) * 0.03;
+  C.rot   += C.rotSpeed;
+  if (C.flash > 0) C.flash--;
+
+  const lit = Math.floor(N * C.drawn);
+  const t = now / 1000;
+  for (let i = 0; i < N; i++) {
+    const frac = i / N;
+    const a = -Math.PI / 2 + frac * Math.PI * 2 + C.rot;
+    const wob = (C.wobble && !reduced)
+      ? Math.sin(t * 3 + i * 1.7) * 2.2 : 0;
+    const r = RADIUS + wob;
+    dots[i].style.transform =
+      `translate(${Math.cos(a) * r - 4}px, ${Math.sin(a) * r - 9}px)`;
+
+    const visible = frac < C.drawn && frac < MAX_FRAC;
+    dots[i].style.opacity = visible ? '0.9' : '0';
+
+    // 頭尾兩端：缺口的邊緣
+    const isHead = visible && i === lit - 1;
+    const isTail = visible && i === 0;
+    dots[i].style.color =
+      (C.flash > 0 && (isHead || isTail)) ? '#ff6a4d'
+      : isHead ? '#ffffff' : '#b9c2d6';
+    dots[i].style.fontSize = isHead ? '19px' : '15px';
+  }
+  requestAnimationFrame(circleLoop);
+}
+requestAnimationFrame(circleLoop);
+
+// ═══════════════════════════════════════════════
+// 行級特效
+// ═══════════════════════════════════════════════
+function playEcho(span, times = 2) {           // 回響：漸淡副本上飄
+  if (reduced) return;
+  for (let k = 1; k <= times; k++) {
+    setTimeout(() => {
+      const copy = span.cloneNode(true);
+      copy.className = 'echo-copy ' + span.className;
+      copy.style.left = span.offsetLeft + 'px';
+      copy.style.top  = span.offsetTop + 'px';
+      copy.style.opacity = String(0.4 / k);
+      copy.style.transition = 'transform 2.2s ease-out, opacity 2.2s ease-out';
+      span.parentElement.appendChild(copy);
+      requestAnimationFrame(() => {
+        copy.style.transform = `translateY(${-18 * k}px)`;
+        copy.style.opacity = '0';
+      });
+      setTimeout(() => copy.remove(), 2400);
+    }, 500 * k);
+  }
+}
+
+function playSoftEcho(lineDiv) {               // 「「雙括號」」：疊影
+  if (reduced) return;
+  const copy = lineDiv.cloneNode(true);
+  copy.classList.add('echo-copy');
+  copy.style.filter = 'blur(1.5px)';
+  copy.style.opacity = '0.35';
+  copy.style.transform = 'translate(3px, 3px)';
+  lineDiv.appendChild(copy);
+}
+
+// ═══════════════════════════════════════════════
+// 捲動顯影 + 圓的觸發
+// ═══════════════════════════════════════════════
+let maxRevealed = -1;
+const ending = document.getElementById('ending');
+
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    const div = en.target;
+    if (div.classList.contains('shown')) return;
+    div.classList.add('shown');
+    io.unobserve(div);
+
+    const idx = div._idx, L = div._data;
+    if (idx > maxRevealed) {
+      maxRevealed = idx;
+      C.target = progressTarget(idx);
+    }
+
+    switch (L.on) {
+      case 'rotate':    C.rotSpeed = reduced ? 0 : 0.004; break;
+      case 'gap-flash': C.flash = 90; break;
+      case 'redraw':                              // 擦掉重畫，這次會抖
+        C.drawn = 0; C.target = progressTarget(idx);
+        C.wobble = true; C.rotSpeed = 0;
+        break;
+      case 'final':
+        C.rotSpeed = reduced ? 0 : 0.002;
+        setTimeout(() => ending.classList.add('shown'), 1800);
+        break;
+    }
+    if (L.fx === 'echo-soft') setTimeout(() => playSoftEcho(div), 700);
+    div.querySelectorAll('[data-echo]').forEach(sp => {
+      setTimeout(() => playEcho(sp), 800);
+    });
+  });
+}, { threshold: 0.55 });
+
+lineEls.forEach(el => io.observe(el));
+
+// 詩是圓的：回到起點 = 圓歸零，重畫第一筆
+document.getElementById('btn-loop').addEventListener('click', () => {
+  C.drawn = 0; C.target = MAX_FRAC * 1 / 6;
+  C.wobble = false; C.rotSpeed = 0; C.rot = 0;
+  scrollTo({ top: 0, behavior: 'smooth' });
+});
+</script>
+</body>
+</html>

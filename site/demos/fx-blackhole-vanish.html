@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<!--
+  演出層 POC 3：符號黑洞・台詞的六種死法
+  定位：純 CSS/JS 逐字演出，不含 TextualPhysicsEngine。
+       黑洞完全由字符構成（Codex 13.3 事件視界是 🔴，這裡用演出層實現概念）。
+
+  世界觀對應：
+  ・碎落＝「台詞消散時碎成標點落下」（符號物性表：。、＝水滴/塵埃）
+  ・溶解＝Codex 5.2「OPEN → OP~E~N → OP___」的字面實現
+  ・句點化＝Codex 1.3 Level 0 消失（Z→∞，變成句點）
+  ・黑洞吞噬＝Codex 13.3 事件視界的演出版（紅移 → 拉伸旋入 → 消失）
+
+  打開後預期看到：
+  1. 畫面右上方懸浮一顆「用符號組成」的黑洞：
+     近黑的「●」核心、白熱的內光環、三層以不同速度反向旋轉的
+     「∙ ◦ ·」字符環（壓扁成吸積盤），每隔一會有塵埃「·」
+     從外緣生成、螺旋墜入中心消失。
+  2. 下方對話框＋六顆按鈕，每顆播一句台詞，停一拍後上演一種消失：
+     ・碎落——每個字變成「、」「。」後受重力墜落旋轉，散出對話框外
+     ・蒸發——逐字變淡上飄（字距感拉開），像 S T E A M
+     ・燃燒——火從左掃到右：字燒紅 → 化成灰點「﹒」→ 搖曳飄落
+     ・溶解——字先變「～」再變「＿」最後淡去（隨機順序，像被水蝕）
+     ・句點化——整句所有字向中心收縮聚攏，塌縮成一顆「.」，停一拍後熄滅
+     ・黑洞吞噬——每個字被拽向黑洞：沿螺旋軌道旋入、越近越紅（紅移）、
+       拉長（義大利麵化）、縮小，最後在視界邊緣熄滅
+  3. 再按同一顆按鈕可重播。系統開啟「減少動態」時，一律簡化為淡出。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<title>演出層 POC 3：符號黑洞・台詞的六種死法</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #0b0d12; color: #d6dbe6;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  }
+
+  /* ── 黑洞（全部是字符）── */
+  #hole { position: fixed; z-index: 5; pointer-events: none; }
+  #hole .ring { position: absolute; left: 0; top: 0; will-change: transform; }
+  #hole .ring span, #hole .dust {
+    position: absolute; left: 0; top: 0; font-family: monospace;
+    will-change: transform;
+  }
+  #hole #core {
+    position: absolute; transform: translate(-50%, -50%);
+    font-size: 46px; color: #05070a;
+    text-shadow: 0 0 22px rgba(255, 150, 80, 0.30);
+  }
+
+  /* ── 對話框 ── */
+  #menu {
+    position: fixed; top: 20px; left: 24px; z-index: 20;
+    display: flex; gap: 8px; flex-wrap: wrap; max-width: 60vw;
+  }
+  #menu button {
+    background: #1c212c; color: #c8cede; border: 1px solid #333a4a;
+    border-radius: 6px; padding: 7px 14px; font-size: 14px;
+    font-family: inherit; cursor: pointer;
+  }
+  #menu button:hover  { background: #2a3040; }
+  #menu button.active { border-color: #7a89ad; color: #fff; }
+
+  #dialog {
+    position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%);
+    width: min(720px, 90vw);
+    background: rgba(22, 26, 36, 0.94);
+    border: 1px solid #2c3345; border-radius: 10px;
+    padding: 24px 32px 28px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    overflow: visible; z-index: 10;
+  }
+  #speaker { color: #8fa1c9; font-size: 14px; letter-spacing: 2px; margin-bottom: 10px; }
+  #line { font-size: 25px; line-height: 1.9; min-height: 1.9em; letter-spacing: 1px; }
+  #line .ch { display: inline-block; will-change: transform, opacity; }
+
+  #hint {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    color: #444c60; font-size: 12px; z-index: 10;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #line .ch { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="hole"><span id="core">●</span></div>
+<div id="menu"></div>
+<div id="dialog">
+  <div id="speaker">？？？</div>
+  <div id="line"></div>
+</div>
+<div id="hint">按上方按鈕播放台詞——然後看它怎麼死。</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ═══════════════════════════════════════════════
+// 黑洞：字符環 + 吸積塵埃
+// ═══════════════════════════════════════════════
+const hole = document.getElementById('hole');
+let holeX = innerWidth * 0.74, holeY = innerHeight * 0.30;
+const DISK_SQUASH = 0.5;                 // 吸積盤壓扁比
+
+function placeHole() {
+  holeX = innerWidth * 0.74; holeY = innerHeight * 0.30;
+  hole.style.left = holeX + 'px';
+  hole.style.top  = holeY + 'px';
+}
+placeHole();
+addEventListener('resize', placeHole);
+
+const RINGS = [
+  { r: 30, n: 14, ch: '∙', color: '#ffe7c9', speed:  1.4, squash: 1 },          // 光子環（正圓、白熱）
+  { r: 52, n: 20, ch: '∙', color: '#ffb37a', speed: -0.8, squash: DISK_SQUASH },
+  { r: 76, n: 24, ch: '◦', color: '#a86a4f', speed:  0.45, squash: DISK_SQUASH },
+  { r: 102, n: 28, ch: '·', color: '#5a4a4a', speed: -0.25, squash: DISK_SQUASH },
+];
+const ringEls = RINGS.map(cfg => {
+  const g = document.createElement('div');
+  g.className = 'ring';
+  for (let i = 0; i < cfg.n; i++) {
+    const s = document.createElement('span');
+    s.textContent = cfg.ch;
+    s.style.color = cfg.color;
+    s.style.fontSize = '13px';
+    s._a = (i / cfg.n) * Math.PI * 2;
+    g.appendChild(s);
+  }
+  hole.appendChild(g);
+  return { g, cfg, rot: Math.random() * 6 };
+});
+
+// 吸積塵埃：外緣生成 → 螺旋墜入
+const dusts = [];
+function spawnDust() {
+  const s = document.createElement('span');
+  s.className = 'dust';
+  s.textContent = '·';
+  s.style.color = '#c9a68a';
+  s.style.fontSize = '12px';
+  hole.appendChild(s);
+  dusts.push({ s, a: Math.random() * Math.PI * 2, r: 130, life: 1 });
+}
+if (!reduced) setInterval(spawnDust, 800);
+
+function holeLoop() {
+  // 環旋轉：逐字符定位（含盤面壓扁）
+  ringEls.forEach(R => {
+    R.rot += R.cfg.speed * 0.02;
+    [...R.g.children].forEach(s => {
+      const a = s._a + R.rot;
+      const x = Math.cos(a) * R.cfg.r;
+      const y = Math.sin(a) * R.cfg.r * R.cfg.squash;
+      s.style.transform = `translate(${x - 4}px, ${y - 8}px)`;
+    });
+  });
+  // 塵埃螺旋
+  for (let i = dusts.length - 1; i >= 0; i--) {
+    const d = dusts[i];
+    d.r -= 0.9 + (130 - d.r) * 0.012;     // 越近墜得越快
+    d.a += 0.05 + (130 - d.r) * 0.0012;
+    d.life = d.r / 130;
+    d.s.style.transform =
+      `translate(${Math.cos(d.a) * d.r - 4}px, ${Math.sin(d.a) * d.r * DISK_SQUASH - 8}px)`;
+    d.s.style.opacity = String(Math.min(1, d.life * 1.4));
+    if (d.r < 16) { d.s.remove(); dusts.splice(i, 1); }
+  }
+  requestAnimationFrame(holeLoop);
+}
+if (!reduced) requestAnimationFrame(holeLoop);
+
+// ═══════════════════════════════════════════════
+// 演出層核心（同 POC 1）
+// ═══════════════════════════════════════════════
+const lineEl    = document.getElementById('line');
+const speakerEl = document.getElementById('speaker');
+let rafId = null, timers = [];
+
+function wrapChars(text) {
+  lineEl.innerHTML = '';
+  return [...text].map(ch => {
+    const s = document.createElement('span');
+    s.className = 'ch';
+    s.textContent = ch;
+    lineEl.appendChild(s);
+    return s;
+  });
+}
+function cleanup() {
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  timers.forEach(t => clearTimeout(t));
+  timers = [];
+}
+function after(ms, fn) { timers.push(setTimeout(fn, ms)); }
+function fadeAll(chars) {           // reduced-motion 的統一降級
+  chars.forEach(s => { s.style.transition = 'opacity 0.8s'; s.style.opacity = '0'; });
+}
+
+// ═══════════════════════════════════════════════
+// 死法 1：碎落 —— 字碎成標點，受重力墜落
+// ═══════════════════════════════════════════════
+function fxShatter(chars) {
+  if (reduced) return fadeAll(chars);
+  const bodies = [];
+  chars.forEach((s, i) => after(i * 45, () => {
+    s.textContent = Math.random() < 0.5 ? '、' : '。';
+    s.style.color = '#7a8296';
+    bodies.push({ s, x: 0, y: 0, vx: (Math.random() - 0.5) * 2.4,
+                  vy: -1 - Math.random() * 1.5, rot: 0, vr: (Math.random() - 0.5) * 16 });
+  }));
+  function fall() {
+    let alive = false;
+    bodies.forEach(b => {
+      b.vy += 0.45; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+      b.s.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rot}deg)`;
+      if (b.y < 300) alive = true; else b.s.style.opacity = '0';
+    });
+    if (alive || bodies.length < chars.length) rafId = requestAnimationFrame(fall);
+  }
+  rafId = requestAnimationFrame(fall);
+}
+
+// ═══════════════════════════════════════════════
+// 死法 2：蒸發 —— 逐字變淡上飄
+// ═══════════════════════════════════════════════
+function fxEvaporate(chars) {
+  if (reduced) return fadeAll(chars);
+  chars.forEach((s, i) => after(i * 70, () => {
+    s.style.transition = 'transform 1.6s ease-out, opacity 1.6s ease-out, color 1.6s';
+    s.style.transform =
+      `translate(${(Math.random() - 0.5) * 24}px, ${-50 - Math.random() * 30}px) scale(1.15)`;
+    s.style.color = '#eaf2ff';
+    s.style.opacity = '0';
+  }));
+}
+
+// ═══════════════════════════════════════════════
+// 死法 3：燃燒 —— 火從左掃到右，燒紅 → 化灰 → 飄落
+// ═══════════════════════════════════════════════
+function fxBurn(chars) {
+  if (reduced) return fadeAll(chars);
+  chars.forEach((s, i) => {
+    after(i * 110, () => {                      // 燒紅
+      s.style.transition = 'color 0.25s, transform 0.25s';
+      s.style.color = '#ff6a3d';
+      s.style.transform = 'scale(1.12)';
+    });
+    after(i * 110 + 300, () => {                // 化灰、搖曳飄落
+      s.textContent = '﹒';
+      s.style.color = '#5a5a60';
+      s.style.transition = 'transform 1.8s ease-in, opacity 1.8s';
+      s.style.transform =
+        `translate(${(Math.random() - 0.5) * 40}px, ${70 + Math.random() * 40}px) rotate(${(Math.random() - 0.5) * 120}deg)`;
+      s.style.opacity = '0';
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 死法 4：溶解 —— 字 → ～ → ＿ → 消失（Codex 5.2）
+// ═══════════════════════════════════════════════
+function fxDissolve(chars) {
+  if (reduced) return fadeAll(chars);
+  const order = [...chars].sort(() => Math.random() - 0.5);
+  order.forEach((s, i) => {
+    after(i * 90,        () => { s.textContent = '～'; s.style.color = '#3d6a8f'; });
+    after(i * 90 + 450,  () => { s.textContent = '＿'; s.style.color = '#4a5468';
+                                 s.style.transition = 'opacity 0.8s'; });
+    after(i * 90 + 900,  () => { s.style.opacity = '0'; });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 死法 5：句點化 —— Level 0：整句塌縮成一顆「.」
+// ═══════════════════════════════════════════════
+function fxPeriod(chars) {
+  if (reduced) return fadeAll(chars);
+  const lineRect = lineEl.getBoundingClientRect();
+  const cx = lineRect.left + lineRect.width / 2;
+  const cy = lineRect.top + lineRect.height / 2;
+  chars.forEach(s => {
+    const r = s.getBoundingClientRect();
+    const dx = cx - (r.left + r.width / 2);
+    const dy = cy - (r.top + r.height / 2);
+    s.style.transition = 'transform 0.9s cubic-bezier(.6,0,1,.6), opacity 0.9s';
+    s.style.transform = `translate(${dx}px, ${dy}px) scale(0.08)`;
+  });
+  after(950, () => {
+    chars.forEach(s => s.style.opacity = '0');
+    const dot = document.createElement('span');
+    dot.className = 'ch';
+    dot.textContent = '.';
+    dot.style.cssText = `position:absolute; left:50%; top:50%;
+      transform:translate(-50%,-50%); color:#d6dbe6; transition:opacity 1.4s;`;
+    lineEl.style.position = 'relative';
+    lineEl.appendChild(dot);
+    after(900, () => dot.style.opacity = '0');
+  });
+}
+
+// ═══════════════════════════════════════════════
+// 死法 6：黑洞吞噬 —— 螺旋旋入 + 紅移 + 拉伸（Codex 13.3 演出版）
+// ═══════════════════════════════════════════════
+function lerpColor(c1, c2, t) {
+  const a = c1.match(/\w\w/g).map(h => parseInt(h, 16));
+  const b = c2.match(/\w\w/g).map(h => parseInt(h, 16));
+  return 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',') + ')';
+}
+
+function fxBlackhole(chars) {
+  if (reduced) return fadeAll(chars);
+  const bodies = chars.map((s, i) => {
+    const r = s.getBoundingClientRect();
+    const x0 = r.left + r.width / 2, y0 = r.top + r.height / 2;
+    const dx = x0 - holeX, dy = y0 - holeY;
+    return {
+      s, x0, y0,
+      r0: Math.sqrt(dx * dx + dy * dy),
+      a0: Math.atan2(dy, dx),
+      delay: i * 0.05 + Math.random() * 0.15,
+      done: false
+    };
+  });
+  const DUR = 2.0;
+  const t0 = performance.now();
+  function pull(now) {
+    const tSec = (now - t0) / 1000;
+    let alive = false;
+    bodies.forEach(b => {
+      if (b.done) return;
+      const p = Math.min(1, Math.max(0, (tSec - b.delay) / DUR));
+      if (p < 1) alive = true; else { b.done = true; b.s.style.opacity = '0'; return; }
+      const ease = p * p;                              // 越近墜得越快
+      const r = b.r0 * (1 - ease) + 14 * ease;         // 收向視界邊緣
+      const a = b.a0 + p * p * 7;                      // 螺旋角速度遞增
+      const px = holeX + Math.cos(a) * r;
+      const py = holeY + Math.sin(a) * r * (1 - (1 - DISK_SQUASH) * p);  // 漸入盤面
+      const rotDeg = a * 180 / Math.PI + 90;
+      const stretch = 1 + p * 1.6;                     // 義大利麵化：沿軌道拉長
+      const shrink  = 1 - p * 0.9;
+      b.s.style.transform =
+        `translate(${px - b.x0}px, ${py - b.y0}px) rotate(${rotDeg}deg) scale(${stretch * shrink}, ${shrink})`;
+      // 紅移：原色 → 紅 → 暗紅 → 熄
+      b.s.style.color = p < 0.55
+        ? lerpColor('d6dbe6', 'ff5544', p / 0.55)
+        : lerpColor('ff5544', '3a0e0a', (p - 0.55) / 0.45);
+      b.s.style.opacity = String(p > 0.85 ? (1 - p) / 0.15 : 1);
+    });
+    if (alive) rafId = requestAnimationFrame(pull);
+  }
+  rafId = requestAnimationFrame(pull);
+}
+
+// ═══════════════════════════════════════════════
+// 台詞表：先亮相，停一拍，再上演死法
+// ═══════════════════════════════════════════════
+const SCENES = [
+  { label: '碎落',     speaker: '小雨', text: '再見了。就到這裡吧。',        fx: fxShatter },
+  { label: '蒸發',     speaker: '小雨', text: '就當作，我從來沒說過。',      fx: fxEvaporate },
+  { label: '燃燒',     speaker: '阿澈', text: '這封信，燒了吧。',            fx: fxBurn },
+  { label: '溶解',     speaker: '？？', text: '記憶開始模糊了⋯⋯',           fx: fxDissolve },
+  { label: '句點化',   speaker: '小雨', text: '晚安。做個好夢。',            fx: fxPeriod },
+  { label: '黑洞吞噬', speaker: '？？', text: '在這裡，連話語都逃不出去。',  fx: fxBlackhole },
+];
+
+const menu = document.getElementById('menu');
+SCENES.forEach(sc => {
+  const b = document.createElement('button');
+  b.textContent = sc.label;
+  b.addEventListener('click', () => {
+    cleanup();
+    [...menu.children].forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    speakerEl.textContent = sc.speaker;
+    const chars = wrapChars(sc.text);
+    after(900, () => sc.fx(chars));      // 亮相一拍，再開始消失
+  });
+  menu.appendChild(b);
+});
+menu.children[0].click();
+</script>
+</body>
+</html>

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三框戲劇學 Mockup · 框的生老病死</title>
+<!--
+  ══════════════════════════════════════════════
+  三框戲劇學 Mockup v0.1（三框排版 v0.1 的續作）
+  命題:「位置即語言」的下一句——「布局即劇情」。
+       框不是固定舞台設備:它有誕生、死亡、遺缺、失語、
+       分裂、合併、幽靈態、易位、靜場。框的數量本身是台詞。
+
+  打開後預期看到（點擊/空白鍵推進）:
+  1.  開場只有中框——世界先存在（1框）。
+  2.  主角第一次開口，上框被「生」出來滑入（2框）。
+  3.  他者的聲音進場，下框誕生（3框到齊）。
+  4.  分裂:上框裂成左右兩半——雙面間諜的兩張臉，
+      左半對校長說話、右半對黑魔王說話。
+  5.  合併:兩半收回一框，但框在微顫。
+  6.  死亡:載著那道聲音的下框整個墜出畫面底部。
+  7.  遺缺:原位留下一道虛線空槽，一直空著。
+  8.  靜場:全框調暗，只剩心電圖在走（BPM 掉到 30）。
+  9.  失語:主角的框暫時收合——畫面上沒有他說話的位置；
+      再開口時框重新展開。
+  10. 幽靈態:死去的框以半透明、斜體浮回原位（畫像）。
+  11. 易位:上下框交換位置——「上·主角」的牌子沉到下方，
+      他成了別人故事裡的一道聲部。
+  12. 終幕收回 1 框（環形結構），↺ 重演。
+  13. 右上角有布局讀數（框:中 / 上·中 / 上·中·下…）隨拍更新。
+
+  文本:佔位示意（延伸〈麵包屑〉場景設定的橋接句，非原作正文），
+       僅供排版與框事件驗證，正式文本請替換 SCRIPT。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --night-0:#0c0a12; --night-1:#151126;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --warm:#ffb347; --mind:#b9a3e0;
+    --glass:rgba(16,13,28,.8); --line:rgba(147,160,191,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:
+      radial-gradient(1.2px 1.2px at 24% 16%, rgba(233,228,214,.3), transparent),
+      radial-gradient(1px 1px at 74% 8%, rgba(233,228,214,.25), transparent),
+      radial-gradient(90% 60% at 50% 112%, rgba(64,44,20,.25), transparent 70%),
+      linear-gradient(180deg,var(--night-0),var(--night-1));
+    user-select:none;
+  }
+
+  #app{
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; padding:12px 10px 14px; gap:10px;
+  }
+  #head{
+    width:min(94vw,700px); display:flex; justify-content:space-between;
+    font:10px 'Courier New',monospace; letter-spacing:.22em; color:var(--faint);
+  }
+
+  /* ── 框:有生命週期的舞台單元 ── */
+  .zone{
+    width:min(94vw,700px); position:relative;
+    background:var(--glass); border:1px solid var(--line); border-radius:12px;
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    padding:12px 20px 14px;
+    opacity:.5;
+    max-height:260px; overflow:hidden;
+    transition:opacity .5s, border-color .5s,
+               max-height .7s ease, padding .7s ease,
+               margin .7s ease, border-width .7s, transform 1.2s cubic-bezier(.5,0,.8,.4);
+  }
+  .zone.active{opacity:1; border-color:rgba(233,228,214,.32)}
+
+  .zone.closed{               /* 失語/未誕生:收合 */
+    max-height:0; opacity:0; padding-top:0; padding-bottom:0;
+    border-width:0; margin:0; pointer-events:none;
+  }
+  .zone.dying{                /* 死亡:墜出畫面 */
+    transform:translateY(120vh) rotate(5deg); opacity:0;
+  }
+  .zone.slot{                 /* 遺缺:空槽 */
+    max-height:22px; padding:2px 20px; opacity:.28;
+    border-style:dashed; background:transparent;
+  }
+  .zone.slot .who,.zone.slot .txt,.zone.slot .splitbox{visibility:hidden}
+  .zone.ghost{                /* 幽靈態:畫像 */
+    opacity:.42; border-style:dashed;
+  }
+  .zone.ghost .txt{font-style:italic; color:#cfc4e6}
+  .dimmed .zone{opacity:.22}  /* 靜場 */
+
+  .zlabel{
+    position:absolute; top:9px; right:13px;
+    font:9.5px 'Courier New',monospace; letter-spacing:.24em; color:var(--faint);
+  }
+  .who{
+    font:11.5px 'Courier New',monospace; letter-spacing:.22em;
+    min-height:13px; margin-bottom:8px;
+  }
+  .txt{font-size:16.5px; line-height:1.95; letter-spacing:.04em}
+  .txt span{display:inline-block; white-space:pre}
+
+  #zTop{min-height:100px}
+  #zMid{flex:1; min-height:140px}
+  #zMid .txt{color:rgba(233,228,214,.88)}
+  #zBot{min-height:110px}
+  .reg-mind .txt{font-style:italic; color:#cfc4e6; font-size:15.5px}
+  .reg-sys  .txt{font-family:'Courier New',monospace; font-size:13.5px;
+                 letter-spacing:.1em; color:var(--muted)}
+
+  /* ── 分裂:一框兩張臉 ── */
+  .splitbox{display:none; gap:14px}
+  #zTop.split .splitbox{display:flex}
+  #zTop.split > .who, #zTop.split > .txt{display:none}
+  .half{flex:1; min-width:0; padding-top:2px}
+  .half + .half{border-left:1px dashed var(--line); padding-left:14px}
+  .half .txt{font-size:15.5px}
+
+  #ecg{display:block; width:min(94vw,700px); height:20px; opacity:.7; margin:-4px 0}
+  #ecg polyline{fill:none; stroke:var(--cold); stroke-width:1}
+
+  .breathe{animation:breathe 4.6s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.4px)}}
+  .tremor{animation:tremor .16s steps(2) infinite}
+  @keyframes tremor{0%{transform:translate(0,0)}50%{transform:translate(.4px,-.3px)}100%{transform:translate(-.3px,.2px)}}
+  .fx-t{animation:jit .22s steps(2) infinite}
+  @keyframes jit{0%{transform:translate(0,0)}33%{transform:translate(.7px,-.6px)}66%{transform:translate(-.6px,.5px)}100%{transform:translate(.4px,.3px)}}
+  .fx-c{color:var(--cold)}
+  .fx-f{font-weight:700; color:#f2f5fa}
+
+  #foot{
+    width:min(94vw,700px); display:flex; justify-content:space-between; align-items:center;
+    font:10.5px 'Courier New',monospace; letter-spacing:.16em; color:var(--faint);
+    min-height:24px;
+  }
+  #next{animation:blink 1.6s ease-in-out infinite; opacity:0}
+  #next.show{opacity:1}
+  @keyframes blink{0%,100%{opacity:.2}50%{opacity:.85}}
+  #btnReplay{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnReplay:hover{color:var(--warm); border-color:var(--warm)}
+  #btnReplay.show{display:inline-block}
+
+  @media (max-width:640px){
+    .txt{font-size:15px; line-height:1.85}
+    .zone{padding:10px 14px 12px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .breathe,.tremor,.fx-t{animation:none}
+    .zone{transition:opacity .3s}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head">
+    <span>ZONE DRAMATURGY MOCKUP</span><span id="layoutRead">框:—</span>
+  </div>
+
+  <div class="zone closed" id="zTop">
+    <span class="zlabel">上 · 主角</span>
+    <div class="who" id="topWho"></div>
+    <div class="txt" id="topTxt"></div>
+    <div class="splitbox">
+      <div class="half">
+        <div class="who" id="tlWho"></div>
+        <div class="txt" id="tlTxt"></div>
+      </div>
+      <div class="half">
+        <div class="who" id="trWho"></div>
+        <div class="txt" id="trTxt"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zone" id="zMid">
+    <span class="zlabel">中 · 世界</span>
+    <div class="who" id="midWho"></div>
+    <div class="txt" id="midTxt"></div>
+  </div>
+
+  <svg id="ecg" preserveAspectRatio="none"><polyline id="ecgLine"/></svg>
+
+  <div class="zone closed" id="zBot">
+    <span class="zlabel">下 · 聲部</span>
+    <div class="who" id="botWho"></div>
+    <div class="txt" id="botTxt"></div>
+  </div>
+
+  <div id="foot">
+    <span id="hintTip">點擊推進 · 這次看的不是字，是框</span>
+    <span id="next">▼</span>
+    <button id="btnReplay">↺ 重演</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════
+   劇本（佔位示意文本——延伸場景橋接句，非原作正文）
+   stage:該拍開始前執行的框事件
+   z:目標框 t/m/b/tl/tr（tl,tr = 分裂後的左右半框）
+   ══════════════════════════════════════════════ */
+const SCRIPT = [
+  // 1框:世界先存在
+  { stage:[], z:'m', who:'旁白', bpm:56,
+    text:'深夜。校長室的門開著，像在等一個人。' },
+
+  // 誕生:主角開口，上框才存在
+  { stage:['open t'], z:'t', who:'斯內普', bpm:66,
+    text:'「你叫我來。」' },
+
+  { z:'m', who:'旁白', bpm:70,
+    text:'老人望著窗外的天文塔，很久沒有說話。' },
+
+  // 誕生:他者進場，下框到齊（3框）
+  { stage:['open b'], z:'b', reg:'other', who:'鄧不利多', bpm:74,
+    text:'「西弗勒斯。答應我的那件事。」' },
+
+  { z:'b', reg:'mind', who:'心聲', bpm:88,
+    text:'{c}又是這件事。永遠是這件事。{/c}' },
+
+  // 分裂:雙面間諜的兩張臉
+  { stage:['split t'], z:'tl', who:'對校長', bpm:78,
+    text:'「我記得。」' },
+  { z:'tr', who:'對黑魔王', bpm:78,
+    text:'「遵命。」' },
+
+  // 合併:兩張臉收回一張，框在顫
+  { stage:['merge t'], z:'t', who:'斯內普', bpm:92, tremor:true,
+    text:'「⋯⋯到時候，我的手{f}不會抖{/f}。」' },
+
+  { z:'m', who:'旁白', bpm:96,
+    text:'那一夜的天文塔，綠光是唯一的光。' },
+
+  // 死亡:載著那道聲音的框墜出畫面
+  { z:'b', reg:'other', who:'鄧不利多', bpm:60,
+    text:'「晚安，西弗勒斯。」' },
+  { stage:['die b'], z:'m', who:'旁白', bpm:48,
+    text:'然後，那個位置空了。' },
+
+  // 遺缺 + 靜場:空槽留著，全場調暗，只剩心跳
+  { stage:['slot b','dim'], z:'m', who:'旁白', bpm:30,
+    text:'之後的一整年，沒有人跟他說晚安。' },
+
+  // 失語:主角的框收合——畫面上沒有他說話的位置
+  { stage:['undim','close t'], z:'m', who:'旁白', bpm:44,
+    text:'走廊上，有孩子在他背後喊劊子手。他沒有回頭。' },
+
+  // 再開口:框重新展開，只擠得出三個字
+  { stage:['open t'], z:'t', who:'斯內普', bpm:50,
+    text:'「⋯⋯扣十分。」' },
+
+  // 幽靈態:死去的框以畫像的身分浮回
+  { stage:['ghost b'], z:'b', reg:'other', who:'牆上的那一個', bpm:46,
+    text:'「你做得很好，孩子。」' },
+
+  { z:'b', reg:'mind', who:'心聲', bpm:80,
+    text:'{c}別用那種語氣。你已經是一幅畫了。{/c}' },
+
+  // 易位:上下框交換——「上·主角」的牌子沉到下面
+  { stage:['swap'], z:'b', who:'斯內普', bpm:52,
+    text:'「⋯⋯晚安，校長。」' },
+
+  { z:'t', reg:'other', who:'牆上的那一個', bpm:46,
+    text:'「校長室，現在是{f}你的{/f}了。」' },
+
+  // 環形收束:回到 1 框
+  { stage:['close t','close b'], z:'m', who:'旁白', bpm:38, end:true,
+    text:'燈熄了。門關上了。像從來沒有開過。' },
+];
+
+/* ══ 標記解析（沿用三框 v0.1 的 {c}{t}{f} 語法）══ */
+function parseLine(text){
+  const out = []; let i = 0;
+  const tagMap = {t:'fx-t', c:'fx-c', f:'fx-f'};
+  const stack = [];
+  while (i < text.length){
+    const tm = /^\{(\/?)([tcf])\}/.exec(text.slice(i));
+    if (tm){ if (tm[1]) stack.pop(); else stack.push(tagMap[tm[2]]); i += tm[0].length; continue; }
+    out.push({ch:text[i], cls:stack.join(' ')});
+    i++;
+  }
+  return out;
+}
+function pauseAfter(ch, mech){
+  const P = {'，':170,'、':120,'。':330,'？':300,'！':300,'⋯':260,'—':180};
+  const p = P[ch] ?? 0;
+  return mech ? (p > 0 ? 120 : 0) : p;
+}
+const VOICE = {
+  protag:{base:52, whoColor:'var(--warm)',  mech:false},
+  other: {base:74, whoColor:'var(--cold)',  mech:true },
+  mind:  {base:58, whoColor:'var(--mind)',  mech:false},
+  sys:   {base:16, whoColor:'var(--faint)', mech:false},
+  narr:  {base:38, whoColor:'var(--faint)', mech:false},
+};
+function voiceOf(L){
+  if (L.z === 't' || L.z === 'tl' || L.z === 'tr')
+    return L.reg ?? 'protag';
+  if (L.z === 'm') return 'narr';
+  return L.reg ?? 'other';
+}
+
+/* ══ DOM ══ */
+const $ = id => document.getElementById(id);
+const app = $('app');
+const Z = {t:$('zTop'), m:$('zMid'), b:$('zBot')};
+const WHO = {t:$('topWho'), m:$('midWho'), b:$('botWho'), tl:$('tlWho'), tr:$('trWho')};
+const TXT = {t:$('topTxt'), m:$('midTxt'), b:$('botTxt'), tl:$('tlTxt'), tr:$('trTxt')};
+const zoneOf = k => (k === 'tl' || k === 'tr') ? Z.t : Z[k];
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let idx = 0, typing = false, skipFlag = false, ended = false, busy = false;
+let targetBpm = 56;
+
+/* ══ 框事件（布局即劇情的動詞表）══ */
+function wait2(ms){ return new Promise(r => setTimeout(r, reduceMotion ? 60 : ms)); }
+
+async function stageDo(cmd){
+  const [verb, key] = cmd.split(' ');
+  const z = Z[key];
+  switch (verb){
+    case 'open':                                 // 誕生 / 失語後重開
+      z.classList.remove('closed','slot','ghost','dying');
+      await wait2(720); break;
+    case 'close':                                // 失語 / 收場
+      z.classList.remove('slot','ghost');
+      z.classList.add('closed');
+      await wait2(720); break;
+    case 'die':                                  // 死亡:墜出畫面
+      z.classList.add('dying');
+      await wait2(1250);
+      z.style.transition = 'none';
+      z.classList.remove('dying');
+      z.classList.add('closed');
+      void z.offsetWidth;
+      z.style.transition = '';
+      await wait2(80); break;
+    case 'slot':                                 // 遺缺:留一道空槽
+      z.classList.remove('closed');
+      z.classList.add('slot');
+      z.querySelector('.zlabel').textContent =
+        (key === 'b' ? '下' : key === 't' ? '上' : '中') + ' · （空）';
+      await wait2(720); break;
+    case 'ghost':                                // 幽靈態:畫像
+      z.classList.remove('closed','slot');
+      z.classList.add('ghost');
+      z.querySelector('.zlabel').textContent =
+        (key === 'b' ? '下' : '上') + ' · 畫像';
+      await wait2(720); break;
+    case 'split':                                // 分裂:一框兩張臉
+      z.classList.add('split');
+      TXT.tl.innerHTML = ''; TXT.tr.innerHTML = '';
+      WHO.tl.textContent = ''; WHO.tr.textContent = '';
+      await wait2(450); break;
+    case 'merge':                                // 合併
+      z.classList.remove('split');
+      await wait2(450); break;
+    case 'dim':  app.classList.add('dimmed');  await wait2(650); break;
+    case 'undim':app.classList.remove('dimmed'); await wait2(400); break;
+    case 'swap': await flipSwap(); break;        // 易位
+  }
+  updateLayoutRead();
+}
+
+/* 易位:FLIP——量位置、換 DOM、反向補償、放手歸位 */
+async function flipSwap(){
+  const rT = Z.t.getBoundingClientRect();
+  const rB = Z.b.getBoundingClientRect();
+  const ecg = $('ecg'), foot = $('foot');
+  app.insertBefore(Z.b, Z.m);                   // 下框升到上
+  app.insertBefore(Z.t, foot);                  // 上框沉到下（ecg 仍夾在中與下之間）
+  app.insertBefore(ecg, Z.t);
+  const nT = Z.t.getBoundingClientRect();
+  const nB = Z.b.getBoundingClientRect();
+  if (!reduceMotion){
+    Z.t.style.transition = 'none'; Z.b.style.transition = 'none';
+    Z.t.style.transform = `translateY(${rT.top - nT.top}px)`;
+    Z.b.style.transform = `translateY(${rB.top - nB.top}px)`;
+    void Z.t.offsetWidth;
+    Z.t.style.transition = 'transform 1.1s ease'; Z.b.style.transition = 'transform 1.1s ease';
+    Z.t.style.transform = ''; Z.b.style.transform = '';
+    await wait2(1150);
+    Z.t.style.transition = ''; Z.b.style.transition = '';
+  }
+}
+
+/* 布局讀數 */
+function updateLayoutRead(){
+  const order = [...app.children].filter(el => el.classList?.contains('zone'));
+  const names = order.map(el => {
+    if (el.classList.contains('closed')) return null;
+    if (el === Z.t) return el.classList.contains('ghost') ? '上(魂)' : '上';
+    if (el === Z.m) return '中';
+    return el.classList.contains('slot') ? '下(空)'
+         : el.classList.contains('ghost') ? '下(魂)' : '下';
+  }).filter(Boolean);
+  $('layoutRead').textContent = '框:' + (names.join('·') || '—');
+}
+
+/* ══ 指揮棒 + 打字 ══ */
+function conduct(zKey){
+  const zone = zoneOf(zKey);
+  for (const k in Z) Z[k].classList.toggle('active', Z[k] === zone);
+}
+async function playLine(L){
+  typing = true; skipFlag = false;
+  $('next').classList.remove('show');
+  conduct(L.z);
+  targetBpm = L.bpm ?? targetBpm;
+
+  const v = VOICE[voiceOf(L)];
+  const whoEl = WHO[L.z], txtEl = TXT[L.z];
+  whoEl.textContent = L.who ?? '';
+  whoEl.style.color = v.whoColor;
+
+  const zoneEl = zoneOf(L.z);
+  if (L.z === 'b'){
+    zoneEl.classList.remove('reg-mind','reg-sys');
+    if (L.reg === 'mind') zoneEl.classList.add('reg-mind');
+    if (L.reg === 'sys')  zoneEl.classList.add('reg-sys');
+  }
+  txtEl.classList.toggle('tremor', !!L.tremor && !reduceMotion);
+  txtEl.innerHTML = '';
+
+  const seq = parseLine(L.text);
+  for (const item of seq){
+    const sp = document.createElement('span');
+    sp.textContent = item.ch;
+    if (item.cls){
+      sp.className = item.cls;
+      if (item.cls.includes('fx-t') && !reduceMotion){
+        sp.style.animationDuration = (0.18 + Math.random()*0.12).toFixed(2) + 's';
+        sp.style.animationDelay = (-Math.random()*0.2).toFixed(2) + 's';
+      }
+    }
+    txtEl.appendChild(sp);
+    if (!skipFlag){
+      const cjk = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(item.ch);
+      await wait((cjk ? v.base : v.base * 0.55) + pauseAfter(item.ch, v.mech));
+    }
+  }
+  typing = false;
+  if (!L.end) $('next').classList.add('show');
+}
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(){
+      if (skipFlag || performance.now() - t0 >= ms) return res();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+
+/* ══ 推進 ══ */
+async function advance(){
+  if (typing){ skipFlag = true; return; }
+  if (busy) return;
+  if (idx >= SCRIPT.length){ finale(); return; }
+  const L = SCRIPT[idx++];
+  busy = true;
+  for (const cmd of (L.stage ?? [])) await stageDo(cmd);
+  busy = false;
+  await playLine(L);
+  if (L.end) finale();
+}
+function finale(){
+  if (ended) return;
+  ended = true;
+  $('btnReplay').classList.add('show');
+  $('hintTip').textContent = '框的生老病死走完一輪——布局即劇情';
+}
+
+/* ══ 心電圖（沿用 v0.1）══ */
+const ecgLine = $('ecgLine');
+let bpm = 56, pts = [], lastBeat = 0;
+function ecgLoop(now){
+  const el = $('ecg');
+  const wEl = el.clientWidth || 600, hEl = 20;
+  el.setAttribute('viewBox', `0 0 ${wEl} ${hEl}`);
+  bpm += (targetBpm - bpm) * 0.02;
+  const interval = 60000 / bpm;
+  let y = hEl * 0.6;
+  if (!reduceMotion){
+    if (now - lastBeat > interval) lastBeat = now;
+    const q = (now - lastBeat) / interval;
+    if (q < 0.06) y -= 9 * Math.sin(q/0.06 * Math.PI);
+    else if (q < 0.12) y += 3 * Math.sin((q-0.06)/0.06 * Math.PI);
+    else if (q > 0.3 && q < 0.42) y -= 2.2 * Math.sin((q-0.3)/0.12*Math.PI);
+  }
+  pts.push(y);
+  const maxPts = Math.floor(wEl / 2);
+  if (pts.length > maxPts) pts = pts.slice(-maxPts);
+  ecgLine.setAttribute('points', pts.map((p,i) => `${i*2},${p.toFixed(1)}`).join(' '));
+  requestAnimationFrame(ecgLoop);
+}
+
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#btnReplay')) return;
+  if (!ended) advance();
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && !ended){ e.preventDefault(); advance(); }
+});
+$('btnReplay').onclick = () => location.reload();
+
+updateLayoutRead();
+advance();
+requestAnimationFrame(ecgLoop);
+</script>
+</body>
+</html>
