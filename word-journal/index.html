@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文集</title>
+
+<!--
+  ================================================================
+  文集 · 首頁（封面＋目次）
+  ----------------------------------------------------------------
+  新增一篇文章的步驟：
+  1. 複製 pieces/_template-piece.html，改名（例：pieces/2026-08_title.html）
+  2. 照檔內註解填標題、日期、字數與正文（同人篇保留聲明欄）
+  3. 到所屬的部（original / fanwork / research.html）篇目加一列
+  4. git add . → commit → push
+  ================================================================
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<header class="cover">
+  <h1 class="cover-title">文集</h1>
+  <div class="rule" style="--cell:14"><span class="tag">20 × 20</span></div>
+  <p class="cover-meta">
+    文字的原創、同人與研究之記錄<br>
+    <b>猩其一</b>　GORILLAONE　·　2026 —
+  </p>
+</header>
+
+<main class="page">
+
+  <!-- ============ 目次 ============ -->
+  <nav class="toc reveal" aria-label="目次">
+    <p class="sec-label">CONTENTS</p>
+    <h2>目次</h2>
+
+    <a class="toc-row" href="original.html">
+      <span class="toc-no">卷　一</span><span class="toc-name">原創</span>
+      <span class="toc-lead"></span><span class="toc-meta">2026.08 —</span>
+    </a>
+    <a class="toc-row" href="fanwork.html">
+      <span class="toc-no">卷　二</span><span class="toc-name">同人</span>
+      <span class="toc-lead"></span><span class="toc-meta">不定期</span>
+    </a>
+    <a class="toc-row" href="research.html">
+      <span class="toc-no">研　究</span><span class="toc-name">文字研究</span>
+      <span class="toc-lead"></span><span class="toc-meta">不定期</span>
+    </a>
+  </nav>
+
+  <!-- ============ 卷末 ============ -->
+  <footer class="colophon reveal">
+    <p class="fin">終</p>
+    <p class="colophon-meta">
+      本冊自二〇二六年八月起記錄<br>
+      文字　猩其一 GORILLAONE　／　繪圖　猴零士 MONKEYZERO<br>
+      姊妹冊　<a href="../art-journal/">習作輯（繪圖）</a><br>
+      手工排版．未使用模板<br>
+      NOTO SERIF TC · IBM PLEX MONO
+    </p>
+  </footer>
+
+</main>
+
+<script src="script.js" defer></script>
+</body>
+</html>
