@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心跳</title>
+<link id="fav" rel="icon" href="">
+<!--
+  破框術小樣 5 ·〈心跳圖示 ＋ 偽死機〉
+  裝置一：分頁欄的小圖示是一顆會跳的心（canvas→favicon）。
+          切去別的分頁，眼角還看得到它在跳。劇情越緊，跳越快。
+  裝置二：偽死機。故事走到那一刻——頁面「當掉」：
+          畫面凍結閃爍，跳出一個（假的）系統錯誤視窗，
+          錯誤訊息本身就是台詞：「錯誤：找不到心跳（0x00）」。
+          而分頁欄那顆心——停了。兩個裝置在同一拍合體。
+  ⚠ 文本為原創佔位。桌面瀏覽器體驗最完整（手機看不到 favicon）。
+  操作：點擊推進。
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--blood:#d9534f;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  #verse{
+    position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);
+    width:min(90vw,520px);text-align:center;
+  }
+  .pline{font-size:16px;line-height:2;letter-spacing:.06em;margin-top:10px;
+    transition:opacity .8s}
+  .pline.old{opacity:.35} .pline.older{opacity:.12}
+  .pline span{display:inline-block;white-space:pre-wrap}
+  #hint{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+    font:10.5px 'Courier New',monospace;letter-spacing:.16em;color:var(--faint);
+    text-align:center;width:92vw;line-height:1.9;
+  }
+  #next{position:fixed;right:24px;bottom:22px;color:var(--faint);
+    font:11px monospace;animation:blink 1.6s infinite;opacity:0}
+  #next.show{opacity:1}
+  @keyframes blink{0%,100%{opacity:.2}50%{opacity:.85}}
+
+  /* 偽死機 */
+  body.frozen #verse,body.frozen #hint{filter:grayscale(.6) brightness(.7)}
+  body.frozen{cursor:wait}
+  #glitch{position:fixed;inset:0;z-index:40;pointer-events:none;display:none}
+  body.frozen #glitch{display:block;animation:gl .18s steps(2) infinite}
+  @keyframes gl{
+    0%{background:transparent}
+    50%{background:repeating-linear-gradient(0deg,transparent 0 6px,rgba(147,160,191,.05) 6px 7px)}
+  }
+  #errbox{
+    position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);
+    z-index:50;width:300px;display:none;
+    background:#d8d5cc;color:#222;border-radius:6px;
+    box-shadow:0 16px 50px rgba(0,0,0,.6);
+    font-family:-apple-system,'Segoe UI','Microsoft JhengHei',sans-serif;
+  }
+  #errbox.show{display:block}
+  #errbox .tbar{
+    background:linear-gradient(180deg,#b9b5a8,#a5a094);
+    padding:5px 10px;font-size:11px;font-weight:600;color:#333;
+    border-radius:6px 6px 0 0;letter-spacing:.05em;
+  }
+  #errbox .ebody{padding:16px 16px 14px;font-size:12.5px;line-height:1.7}
+  #errbox .ebody b{color:#8a1f1c}
+  #errbox .ebtn{
+    display:block;margin:0 auto 14px;cursor:pointer;
+    font:12px inherit;padding:5px 26px;border:1px solid #777;
+    border-radius:3px;background:#e8e5dc;
+  }
+  #errbox .ebtn:active{background:#ccc9be}
+</style>
+</head>
+<body>
+<div id="verse"></div>
+<div id="glitch"></div>
+<div id="errbox">
+  <div class="tbar">系統錯誤</div>
+  <div class="ebody">程式「他」已停止回應。<br><b>錯誤：找不到心跳（代碼 0x00）</b><br><br>是否等待它恢復？</div>
+  <button class="ebtn" id="errok">等待</button>
+</div>
+<div id="hint">先做一件事：切去別的分頁，回頭看一眼<b>這個分頁的小圖示</b>。<br>然後回來，點擊推進。</div>
+<div id="next">▼</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ══ 裝置一：favicon 心跳 ══ */
+const cv = document.createElement('canvas');
+cv.width = 32; cv.height = 32;
+const cx = cv.getContext('2d');
+let bpm = 62, beating = true, lastBeat = 0;
+function drawHeart(scale, color){
+  cx.clearRect(0, 0, 32, 32);
+  cx.save();
+  cx.translate(16, 17); cx.scale(scale, scale);
+  cx.fillStyle = color;
+  cx.beginPath();
+  cx.moveTo(0, 8);
+  cx.bezierCurveTo(-11, -1, -8, -11, 0, -5);
+  cx.bezierCurveTo(8, -11, 11, -1, 0, 8);
+  cx.fill();
+  cx.restore();
+  $('fav').href = cv.toDataURL('image/png');
+}
+let favT = 0;
+function favLoop(now){
+  if (now - favT > 100){                     // 節流 ~10fps
+    favT = now;
+    if (beating){
+      const interval = 60000 / bpm;
+      const q = ((now - lastBeat) % interval) / interval;
+      if (now - lastBeat > interval) lastBeat = now;
+      const s = q < .14 ? 1 + Math.sin(q/.14 * Math.PI) * .28 : 1;
+      drawHeart(s, '#d9534f');
+    } else {
+      drawHeart(1, '#586074');               // 停了。灰的。
+    }
+  }
+  requestAnimationFrame(favLoop);
+}
+requestAnimationFrame(favLoop);
+
+/* ══ 文本（⚠ 佔位） ══ */
+const LINES = [
+ {x:'醫院走廊的燈，一格一格亮著。', bpm:62},
+ {x:'你在手術室外面，坐了四個小時。', bpm:70},
+ {x:'門開了一條縫。有人跑了出來，又跑回去。', bpm:86},
+ {x:'儀器的聲音，隔著門，越來越急。', bpm:112},
+ {x:'然後——', bpm:128, crash:true},
+ {x:'⋯⋯儀器重新響起來的時候，你才發現自己一直沒有呼吸。', bpm:46},
+ {x:'很慢。但是在跳。', bpm:54, end:true}
+];
+
+const verse = $('verse');
+let idx = 0, typing = false, skipFlag = false, ended = false, frozen = false;
+const P = {'，':170,'。':340,'——':240,'⋯':240};
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(){
+      if (skipFlag || performance.now() - t0 >= ms) return res();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+function trim(){
+  [...verse.children].forEach(el => {
+    if (el.classList.contains('old')){ el.classList.remove('old'); el.classList.add('older'); }
+    else if (!el.classList.contains('older')) el.classList.add('old');
+  });
+  while (verse.children.length > 3) verse.removeChild(verse.firstChild);
+}
+async function playLine(b){
+  typing = true; skipFlag = false;
+  $('next').classList.remove('show');
+  trim();
+  bpm = b.bpm;
+  const div = document.createElement('div');
+  div.className = 'pline';
+  verse.appendChild(div);
+  for (const ch of b.x){
+    const sp = document.createElement('span');
+    sp.textContent = ch; div.appendChild(sp);
+    if (!skipFlag) await wait(50 + (P[ch] ?? 0));
+  }
+  typing = false;
+  if (b.crash){ crash(); return; }
+  if (!b.end) $('next').classList.add('show');
+}
+/* ══ 裝置二：偽死機（心跳同步停止） ══ */
+async function crash(){
+  frozen = true;
+  await wait(900);
+  beating = false;                            // 分頁欄那顆心——停了
+  document.body.classList.add('frozen');
+  document.title = '（沒有回應）心跳';
+  await wait(1700);
+  $('errbox').classList.add('show');
+}
+$('errok').addEventListener('click', e => {
+  e.stopPropagation();
+  $('errbox').classList.remove('show');
+  document.body.classList.remove('frozen');
+  document.title = '心跳';
+  frozen = false;
+  beating = true; lastBeat = performance.now();
+  advance();
+});
+function advance(){
+  if (ended || frozen) return;
+  if (typing){ skipFlag = true; return; }
+  if (idx >= LINES.length) return;
+  const b = LINES[idx++];
+  playLine(b).then(() => {
+    if (b.end){
+      ended = true;
+      $('hint').innerHTML = '（再看一眼分頁欄。它跳得很慢，但是在跳。）';
+    }
+  });
+}
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#errbox')) return;
+  advance();
+});
+$('hint').addEventListener('pointerdown', () => {}, {passive:true});
+</script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麵包屑 · 對話演出器原型 v0.1</title>
+<!--
+  ══════════════════════════════════════════════
+  對話演出器 Dialogue Performer · 原型 v0.1
+  文本節選：Sheep〈麵包屑 / Breadcrumbs〉第六節
+  依據：Geometric Performance Codex v0.3（六旗鈕）
+  架構驗證：台詞演出「不需要」完整物理引擎——
+            逐字 span ＋ 輕量效果即可。
+  ── 標記速查（寫劇本用）──
+  {t}…{/t}   抖（張力：顫抖）
+  {c}…{/c}   冷（體溫：轉冷）
+  {w}…{/w}   暖（體溫：轉暖）
+  {f}…{/f}   定（死寂：全場唯一不動的字）
+  {q:甲|乙}  量子疊加（／的實裝），懸停坍縮
+  角色簽名：who:'d' 鄧不利多（暖・會呼吸・語速優雅）
+            who:'s' 斯內普（冷・從不呼吸・節拍機械）
+            who:'n' 旁白（中性）
+            tremor:true 該句帶微顫（簽名破裂）
+            bpm:數字   該句的心電圖心率
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --night-0:#0c0a12; --night-1:#161226;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --warm:#ffb347;
+    --d-name:#ffb347; --s-name:#9fb4d8; --n-name:#8a879c;
+    --glass:rgba(16,13,28,.82); --line:rgba(147,160,191,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:
+      radial-gradient(1.2px 1.2px at 22% 18%, rgba(233,228,214,.35), transparent),
+      radial-gradient(1px 1px at 71% 9%,  rgba(233,228,214,.3),  transparent),
+      radial-gradient(1.4px 1.4px at 86% 41%, rgba(233,228,214,.22), transparent),
+      radial-gradient(90% 60% at 50% 110%, rgba(64,44,20,.28), transparent 70%),
+      linear-gradient(180deg, var(--night-0), var(--night-1));
+    cursor:default; user-select:none;
+  }
+  #stage{position:fixed; inset:0;}
+
+  /* 標題與語言切換 */
+  #top{
+    position:fixed; top:18px; left:22px; z-index:30;
+  }
+  #top .eyebrow{font-size:10px;letter-spacing:.3em;color:var(--faint);
+    font-family:'Courier New',monospace; text-transform:uppercase; margin-bottom:5px}
+  #top h1{margin:0;font-size:18px;font-weight:600;letter-spacing:.18em;color:var(--paper)}
+  #top .src{margin-top:4px;font-size:10.5px;color:var(--faint);letter-spacing:.08em}
+  #langBar{position:fixed; top:20px; right:22px; z-index:30; display:flex; gap:6px}
+  #langBar button{
+    cursor:pointer; font-family:'Courier New',monospace; font-size:11px;
+    letter-spacing:.1em; color:var(--muted); background:transparent;
+    border:1px solid var(--line); border-radius:6px; padding:5px 11px;
+    transition:.2s;
+  }
+  #langBar button:hover{color:var(--warm);border-color:var(--warm)}
+  #langBar button.on{color:var(--paper);border-color:var(--muted)}
+
+  /* 對話面板 */
+  #panel{
+    position:fixed; left:50%; bottom:56px; transform:translateX(-50%);
+    width:min(92vw,660px); z-index:20;
+    background:var(--glass); border:1px solid var(--line); border-radius:14px;
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    padding:18px 26px 22px;
+  }
+  #who{
+    font-size:12px; letter-spacing:.22em; margin-bottom:10px;
+    font-family:'Courier New',monospace; min-height:14px;
+  }
+  #textwrap{min-height:84px}
+  #text{
+    font-size:17.5px; line-height:2.0; letter-spacing:.04em;
+    transform-origin:50% 100%;
+  }
+  #text.inner{font-style:italic; opacity:.86}
+  #next{
+    position:absolute; right:18px; bottom:12px; font-size:11px;
+    color:var(--faint); font-family:'Courier New',monospace;
+    animation:blink 1.6s ease-in-out infinite; opacity:0; pointer-events:none;
+  }
+  #next.show{opacity:1}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 心電圖（面板下緣的情緒儀表） */
+  #ecg{display:block; width:100%; height:26px; margin-top:10px; opacity:.75}
+  #ecg polyline{fill:none; stroke:var(--cold); stroke-width:1.1}
+
+  /* 呼吸（角色簽名：整句微微脹縮）*/
+  .breathe-slow{animation:breathe 4.6s ease-in-out infinite}
+  .breathe-faint{animation:breathe 6.5s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{transform:translateY(0) scale(1)}
+    50%{transform:translateY(-1.6px) scale(1.005)}
+  }
+  /* 簽名破裂：整句極輕微顫 */
+  .tremor{animation:tremor .16s steps(2) infinite}
+  @keyframes tremor{
+    0%{transform:translate(0,0)} 50%{transform:translate(.4px,-.3px)} 100%{transform:translate(-.3px,.2px)}
+  }
+
+  /* 逐字效果 */
+  #text span{display:inline-block; white-space:pre}
+  .fx-t{animation:jit .22s steps(2) infinite}
+  @keyframes jit{
+    0%{transform:translate(0,0)} 33%{transform:translate(.7px,-.6px)}
+    66%{transform:translate(-.6px,.5px)} 100%{transform:translate(.4px,.3px)}
+  }
+  .fx-c{color:var(--cold)}
+  .fx-w{color:var(--warm)}
+  .fx-f{font-weight:700; color:#f2f5fa}
+  .fx-f.settle{animation:settle .9s cubic-bezier(.2,.9,.3,1) 1}
+  @keyframes settle{
+    0%{transform:translateY(-5px); text-shadow:0 0 10px rgba(159,216,255,.8)}
+    100%{transform:translateY(0); text-shadow:none}
+  }
+  .fx-q{
+    color:#c9a7ff; border-bottom:1px dotted rgba(201,167,255,.5);
+    text-align:center; cursor:help;
+  }
+
+  /* 選項 */
+  #choices{
+    position:fixed; left:50%; bottom:238px; transform:translateX(-50%);
+    display:none; gap:26px; z-index:25;
+  }
+  #choices.show{display:flex}
+  .choice{
+    cursor:pointer; font:inherit; font-size:15.5px; letter-spacing:.1em;
+    color:var(--paper); background:var(--glass);
+    border:1px solid var(--line); border-radius:10px; padding:12px 26px;
+    backdrop-filter:blur(10px); transition:border-color .25s, color .25s;
+    will-change:transform;
+  }
+  .choice:hover{border-color:var(--warm)}
+  .choice.cold-still{color:var(--cold)}
+  .choice.cold-still:hover{border-color:var(--cold)}
+  .choice.apop{
+    animation:apop .8s cubic-bezier(.5,0,.8,.4) forwards; pointer-events:none;
+  }
+  @keyframes apop{
+    to{transform:scale(.15); opacity:0; filter:blur(2px)}
+  }
+  .dot{
+    position:fixed; z-index:5; color:var(--faint); font-size:10px;
+    pointer-events:none; opacity:.85;
+  }
+
+  /* 終幕 */
+  #fin{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+    z-index:30; display:none; gap:10px;
+  }
+  #fin.show{display:flex}
+  #fin button{
+    cursor:pointer; font-family:'Courier New',monospace; font-size:11px;
+    letter-spacing:.14em; color:var(--muted); background:transparent;
+    border:1px solid var(--line); border-radius:6px; padding:6px 14px; transition:.2s;
+  }
+  #fin button:hover{color:var(--warm); border-color:var(--warm)}
+
+  #hintTip{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+    font-size:10.5px; letter-spacing:.14em; color:var(--faint);
+    font-family:'Courier New',monospace; z-index:15;
+    transition:opacity .8s; white-space:nowrap;
+  }
+
+  @media (max-width:640px){
+    #text{font-size:15.5px; line-height:1.9}
+    #panel{bottom:44px; padding:14px 18px 18px}
+    #choices{bottom:218px; gap:14px}
+    #hintTip{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .breathe-slow,.breathe-faint,.tremor,.fx-t{animation:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<div id="top">
+  <div class="eyebrow">Dialogue Performer · Prototype v0.1</div>
+  <h1>麵包屑</h1>
+  <div class="src">文本節選：Sheep〈麵包屑 / Breadcrumbs〉· 第六節</div>
+</div>
+
+<div id="langBar">
+  <button id="langZh" class="on">中</button>
+  <button id="langEn">EN</button>
+</div>
+
+<div id="choices"></div>
+
+<div id="panel">
+  <div id="who"></div>
+  <div id="textwrap"><div id="text"></div></div>
+  <div id="next">▼</div>
+  <svg id="ecg" preserveAspectRatio="none"><polyline id="ecgLine"/></svg>
+</div>
+
+<div id="hintTip">點擊繼續 · 懸停紫字使其坍縮</div>
+
+<div id="fin">
+  <button id="btnReplay">↺ 重演</button>
+</div>
+
+<script>
+'use strict';
+/* ══════════ 劇本（含演出標記） ══════════
+   注意：分支橋接句（branch 行）為 demo 佔位文字，
+   非原文——正式使用時由作者親自改寫。 */
+
+const SCRIPT_ZH = [
+  {who:'n', bpm:60, text:'世人以為，那是長者的{q:慈愛|馴化}。'},
+  {who:'n', bpm:64, text:'今天會議結束後，斯內普又是最後一個離開。他走到門口，停下，回過頭。那雙黑眼睛，又盯過來了。'},
+  {who:'d', bpm:66, name:'鄧不利多', text:'「辛苦了，西弗勒斯。」'},
+  {who:'n', bpm:84, text:'他的右手藏在袖子裡。{c}黑色的詛咒，已經爬到手腕了。{/c}'},
+  {who:'s', bpm:88, name:'斯內普', text:'「請放心，校長。到時候，我的手{f}不會抖{/f}。」'},
+  {who:'n', bpm:90, text:'語氣很平靜。卻像把一把{c}冰刀{/c}，插在桌上。'},
+  {who:'d', bpm:92, name:'鄧不利多', tremor:true, text:'「我知道，西弗勒斯。去休息吧。」他用左手，遞過去一顆檸檬雪寶。'},
+  {choice:[
+    {label:'接過去。', key:'take', pull:true},
+    {label:'沒接。',  key:'refuse', still:true}
+  ]},
+  {branch:'take',   who:'n', bpm:88, text:'斯內普接過糖，放進口袋。像過去十幾年一樣——這場戲，還沒散。'},
+  {branch:'refuse', who:'n', bpm:88, text:'斯內普看了那顆糖一眼。{c}沒接。{/c}只是轉身離開。'},
+  {who:'n', bpm:96, text:'門關上後。鄧不利多盯著手裡那顆糖。{t}左手的手指，在發抖。{/t}'},
+  {who:'d', bpm:40, name:'鄧不利多', tremor:true, inner:true, text:'時間不多了。'},
+  {branch:'refuse', who:'n', bpm:44, end:true, text:'——十幾年來，這是西弗勒斯第一次，沒有接他的糖。'},
+  {branch:'take',   who:'n', bpm:44, end:true, text:'——糖在口袋裡。這場戲，還得演下去。'}
+];
+
+const SCRIPT_EN = [
+  {who:'n', bpm:60, text:'The world takes it for {q:tenderness|conditioning}, precisely calculated.'},
+  {who:'n', bpm:64, text:'Today, when the meeting ended, Snape was the last to leave again. He reached the door, stopped, and turned.'},
+  {who:'d', bpm:66, name:'DUMBLEDORE', text:'"You\u2019ve worked hard, Severus."'},
+  {who:'n', bpm:84, text:'His right hand was concealed in his sleeve. {c}The black curse had crept as far as the wrist.{/c}'},
+  {who:'s', bpm:88, name:'SNAPE', text:'"Have no fear, Headmaster. When the time comes, my hand {f}will not shake{/f}."'},
+  {who:'n', bpm:90, text:'His voice was perfectly calm. It landed like {c}an ice-cold blade{/c} set down upon the table.'},
+  {who:'d', bpm:92, name:'DUMBLEDORE', tremor:true, text:'"I know, Severus. Go and rest." He held out a lemon drop with his left hand.'},
+  {choice:[
+    {label:'Take it.', key:'take', pull:true},
+    {label:'Refuse.',  key:'refuse', still:true}
+  ]},
+  {branch:'take',   who:'n', bpm:88, text:'Snape took the sweet. Slipped it into his pocket \u2014 the way he had for over a decade. The theatre was not over yet.'},
+  {branch:'refuse', who:'n', bpm:88, text:'Snape looked at the sweet. {c}Did not take it.{/c} Only turned, and left.'},
+  {who:'n', bpm:96, text:'The door closed. Dumbledore stared at the sweet in his palm. {t}His left hand was trembling.{/t}'},
+  {who:'d', bpm:40, name:'DUMBLEDORE', tremor:true, inner:true, text:'There was not much time left.'},
+  {branch:'refuse', who:'n', bpm:44, end:true, text:'\u2014 The first time, in over a decade, that Severus had refused his sweet.'},
+  {branch:'take',   who:'n', bpm:44, end:true, text:'\u2014 The sweet sat in his pocket. The play went on.'}
+];
+
+/* ══════════ 標記解析器 ══════════
+   把一行文字拆成 [{ch, cls}] 逐字序列；量子段落單獨處理 */
+function parseLine(text){
+  const out = [];
+  let i = 0;
+  const tagMap = {t:'fx-t', c:'fx-c', w:'fx-w', f:'fx-f'};
+  const stack = [];
+  while (i < text.length){
+    // 量子 {q:A|B}
+    const qm = /^\{q:([^|}]+)\|([^}]+)\}/.exec(text.slice(i));
+    if (qm){ out.push({quantum:[qm[1], qm[2]]}); i += qm[0].length; continue; }
+    // 開閉標記
+    const tm = /^\{(\/?)([tcwf])\}/.exec(text.slice(i));
+    if (tm){
+      if (tm[1]) stack.pop(); else stack.push(tagMap[tm[2]]);
+      i += tm[0].length; continue;
+    }
+    out.push({ch:text[i], cls:stack.join(' ')});
+    i++;
+  }
+  return out;
+}
+
+/* ══════════ 角色物理簽名 ══════════ */
+const SIG = {
+  d: {base:52, color:'var(--d-name)', breathe:'breathe-slow', mech:false},
+  s: {base:74, color:'var(--s-name)', breathe:'',            mech:true },
+  n: {base:38, color:'var(--n-name)', breathe:'breathe-faint',mech:false}
+};
+/* 打字機節拍：標點＝樂譜 */
+function pauseAfter(ch, mech){
+  const P = {'，':170,'、':120,'。':330,'？':300,'！':300,
+             '⋯':260,'…':260,'—':200,'\u2014':200,
+             ',':140,'.':300,'?':280,'!':280,';':200,':':180};
+  const p = P[ch] ?? 0;
+  if (mech) return p > 0 ? 130 : 0;   // 斯內普：節拍機械均一
+  return p;
+}
+
+/* ══════════ 演出器主體 ══════════ */
+const $ = id => document.getElementById(id);
+const whoEl = $('who'), textEl = $('text'), nextEl = $('next');
+const choicesEl = $('choices'), stage = $('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let script = SCRIPT_ZH, lang = 'zh';
+let idx = 0, typing = false, skipFlag = false, branchKey = null, ended = false;
+let targetBpm = 60;
+
+const NAME = {zh:{n:'', d:'鄧不利多', s:'斯內普'}, en:{n:'', d:'DUMBLEDORE', s:'SNAPE'}};
+
+function setWho(line){
+  const nm = line.name ?? NAME[lang][line.who] ?? '';
+  whoEl.textContent = nm;
+  whoEl.style.color = SIG[line.who].color;
+}
+
+async function playLine(line){
+  typing = true; skipFlag = false;
+  nextEl.classList.remove('show');
+  setWho(line);
+  targetBpm = line.bpm ?? targetBpm;
+
+  textEl.className = '';
+  if (!reduceMotion && SIG[line.who].breathe) textEl.classList.add(SIG[line.who].breathe);
+  if (!reduceMotion && line.tremor) textEl.classList.add('tremor');
+  if (line.inner) textEl.classList.add('inner');
+  textEl.innerHTML = '';
+
+  const seq = parseLine(line.text);
+  const sig = SIG[line.who];
+  const frozen = [];
+
+  for (const item of seq){
+    if (item.quantum){
+      textEl.appendChild(makeQuantum(item.quantum));
+      if (!skipFlag) await wait(300);
+      continue;
+    }
+    const sp = document.createElement('span');
+    sp.textContent = item.ch;
+    if (item.cls){
+      sp.className = item.cls;
+      if (item.cls.includes('fx-t') && !reduceMotion){
+        sp.style.animationDuration = (0.18 + Math.random()*0.12).toFixed(2) + 's';
+        sp.style.animationDelay = (-Math.random()*0.2).toFixed(2) + 's';
+      }
+      if (item.cls.includes('fx-f')) frozen.push(sp);
+    }
+    textEl.appendChild(sp);
+    if (!skipFlag){
+      const cjk = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(item.ch);
+      await wait((cjk ? sig.base : sig.base * 0.55) + pauseAfter(item.ch, sig.mech));
+    }
+  }
+  // 「定」字的落刀：全句完成後，一次沉降
+  if (frozen.length && !reduceMotion){
+    frozen.forEach(sp => sp.classList.add('settle'));
+  }
+  typing = false;
+  if (!line.end) nextEl.classList.add('show');
+}
+
+function makeQuantum(states){
+  const sp = document.createElement('span');
+  sp.className = 'fx-q';
+  sp.textContent = states[0];
+  // 固定寬度避免抖版
+  const ruler = document.createElement('span');
+  ruler.style.cssText = 'visibility:hidden;position:absolute;white-space:pre;font:inherit';
+  document.body.appendChild(ruler);
+  let w = 0;
+  for (const s of states){ ruler.textContent = s; w = Math.max(w, ruler.offsetWidth); }
+  ruler.remove();
+  sp.style.minWidth = w + 'px';
+  let k = 0, paused = false;
+  const t = setInterval(() => {
+    if (!paused){ k = 1 - k; sp.textContent = states[k]; }
+  }, 700);
+  sp.addEventListener('mouseenter', () => { paused = true;  sp.style.color = '#efe6ff'; });
+  sp.addEventListener('mouseleave', () => { paused = false; sp.style.color = ''; });
+  sp.addEventListener('touchstart', () => { paused = !paused; }, {passive:true});
+  sp._timer = t;
+  return sp;
+}
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(){
+      if (skipFlag || performance.now() - t0 >= ms) return res();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+
+/* ── 選項演出：趨性 ＋ 未選者凋亡 ── */
+function showChoices(opts){
+  choicesEl.innerHTML = '';
+  const btns = opts.map(o => {
+    const b = document.createElement('button');
+    b.className = 'choice' + (o.still ? ' cold-still' : '');
+    b.textContent = o.label;
+    b._opt = o;
+    choicesEl.appendChild(b);
+    return b;
+  });
+  choicesEl.classList.add('show');
+
+  // 趨性：pull 選項（十幾年的習慣）微微傾向游標
+  function onMove(e){
+    for (const b of btns){
+      if (!b._opt.pull || b.classList.contains('apop')) continue;
+      const r = b.getBoundingClientRect();
+      const cx = r.left + r.width/2, cy = r.top + r.height/2;
+      const dx = e.clientX - cx, dy = e.clientY - cy;
+      const d = Math.hypot(dx, dy);
+      if (d < 200 && !reduceMotion){
+        const k = (1 - d/200) * 7;
+        b.style.transform = `translate(${(dx/d*k).toFixed(1)}px, ${(dy/d*k).toFixed(1)}px)`;
+      } else b.style.transform = '';
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+
+  btns.forEach(b => b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    document.removeEventListener('mousemove', onMove);
+    branchKey = b._opt.key;
+    for (const other of btns){
+      if (other === b) continue;
+      // 未選者：凋亡，留下遺忘之點
+      const r = other.getBoundingClientRect();
+      other.classList.add('apop');
+      setTimeout(() => {
+        const dot = document.createElement('span');
+        dot.className = 'dot'; dot.textContent = '·';
+        dot.style.left = (r.left + r.width/2) + 'px';
+        dot.style.top  = (r.top + r.height/2) + 'px';
+        stage.appendChild(dot);
+      }, 750);
+    }
+    b.style.borderColor = 'var(--warm)';
+    setTimeout(() => {
+      choicesEl.classList.remove('show');
+      choicesEl.innerHTML = '';
+      advance();
+    }, 950);
+  }));
+}
+
+/* ── 劇本推進 ── */
+function nextPlayable(){
+  while (idx < script.length){
+    const L = script[idx];
+    if (L.branch && L.branch !== branchKey){ idx++; continue; }
+    return L;
+  }
+  return null;
+}
+function advance(){
+  if (typing){ skipFlag = true; return; }
+  const L = nextPlayable();
+  if (!L){ finale(); return; }
+  idx++;
+  if (L.choice){ showChoices(L.choice); return; }
+  playLine(L).then(() => { if (L.end) finale(); });
+}
+function finale(){
+  if (ended) return;
+  ended = true;
+  $('fin').classList.add('show');
+  $('hintTip').style.opacity = '0';
+}
+
+/* ── 心電圖：情緒儀表 ── */
+const ecg = $('ecg'), ecgLine = $('ecgLine');
+let bpm = 60, pts = [], phase = 0, lastBeat = 0;
+function ecgLoop(now){
+  const wEl = ecg.clientWidth || 600, hEl = 26;
+  ecg.setAttribute('viewBox', `0 0 ${wEl} ${hEl}`);
+  bpm += (targetBpm - bpm) * 0.02;
+  const interval = 60000 / bpm;
+  let y = hEl * 0.62;
+  if (!reduceMotion){
+    const tb = now - lastBeat;
+    if (tb > interval) lastBeat = now;
+    const q = (now - lastBeat) / interval;   // 0~1 心跳相位
+    if (q < 0.06) y -= 12 * Math.sin(q/0.06 * Math.PI);            // R 尖峰
+    else if (q < 0.12) y += 4 * Math.sin((q-0.06)/0.06 * Math.PI); // S 谷
+    else if (q > 0.3 && q < 0.42) y -= 3 * Math.sin((q-0.3)/0.12*Math.PI); // T 波
+  }
+  pts.push(y);
+  const maxPts = Math.floor(wEl / 2);
+  if (pts.length > maxPts) pts = pts.slice(-maxPts);
+  ecgLine.setAttribute('points', pts.map((p,i) => `${i*2},${p.toFixed(1)}`).join(' '));
+  requestAnimationFrame(ecgLoop);
+}
+
+/* ── 全域接線 ── */
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#langBar') || e.target.closest('#fin') ||
+      e.target.closest('.choice')  || e.target.closest('.fx-q')) return;
+  if (!ended) advance();
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && !ended){ e.preventDefault(); advance(); }
+});
+
+function restart(newLang){
+  if (newLang) lang = newLang;
+  script = (lang === 'zh') ? SCRIPT_ZH : SCRIPT_EN;
+  $('langZh').classList.toggle('on', lang === 'zh');
+  $('langEn').classList.toggle('on', lang === 'en');
+  idx = 0; branchKey = null; ended = false; typing = false; skipFlag = false;
+  targetBpm = 60;
+  $('fin').classList.remove('show');
+  $('hintTip').style.opacity = '1';
+  choicesEl.classList.remove('show'); choicesEl.innerHTML = '';
+  document.querySelectorAll('.dot').forEach(d => d.remove());
+  whoEl.textContent = ''; textEl.innerHTML = '';
+  advance();
+}
+$('langZh').onclick = () => restart('zh');
+$('langEn').onclick = () => restart('en');
+$('btnReplay').onclick = () => restart();
+
+restart();
+requestAnimationFrame(ecgLoop);
+</script>
+</body>
+</html>

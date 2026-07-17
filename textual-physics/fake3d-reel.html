@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>偽3D 測試卷</title>
+<!--
+  ══════════════════════════════════════════════
+  幾何劇場 · 偽3D 測試卷 v0.1
+  本質：紙片戲法——一切仍是平面，用 CSS 透視騙過眼睛。
+  六招：
+    01 放倒地板（2D 舞台當場變 Mode-7 縱深舞台）
+    02 深度站位＋景深（近大遠小、遠處模糊）
+    03 走進深處（角色走向地平線）
+    04 滑鼠立體感（西洋鏡：場景隨游標微傾）
+    05 星戰字幕（文字滾向地平線——章節開場用）
+    06 翻面（卡牌/檔案/書頁的背面）＋立體字
+  零 WebGL、零函式庫，全部 CSS transform。
+  ⚠ 文本佔位。點擊開始 → 自動播放；點擊＝暫停。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--warm:#ffb347;--cold:#9fd8ff;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  #cover{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;cursor:pointer;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));transition:opacity 1.4s}
+  #cover.gone{opacity:0;pointer-events:none}
+  #cover h1{margin:0;font-size:27px;font-weight:600;letter-spacing:.3em;text-indent:.3em}
+  #cover .sub{font:11px 'Courier New',monospace;letter-spacing:.26em;color:var(--faint)}
+  #cover .go{font-size:12px;color:var(--muted);letter-spacing:.2em;animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 觀景窗：透視在這一層 */
+  #frame{
+    position:fixed;left:50%;top:43%;transform:translate(-50%,-50%);
+    width:min(94vw,640px);aspect-ratio:16/10;
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    perspective:820px;
+  }
+  #shot{position:absolute;top:10px;left:14px;z-index:40;
+    font:10px 'Courier New',monospace;letter-spacing:.26em;color:var(--faint);
+    transition:opacity .5s}
+
+  /* 場景（西洋鏡傾斜作用在這層） */
+  #scene{
+    position:absolute;inset:0;transform-style:preserve-3d;
+    transition:transform .9s cubic-bezier(.35,.1,.25,1);
+  }
+  /* 地板：可放倒的網格 */
+  #floor{
+    position:absolute;left:50%;top:58%;width:160%;height:150%;
+    transform:translate(-50%,-50%) rotateX(0deg);
+    transform-origin:50% 50%;
+    transition:transform 2.6s cubic-bezier(.4,.05,.2,1), opacity 1s;
+    background:
+      radial-gradient(60% 50% at 50% 40%, rgba(159,216,255,.05), transparent 70%),
+      repeating-linear-gradient(0deg, transparent 0 44px, rgba(147,160,191,.14) 44px 45px),
+      repeating-linear-gradient(90deg, transparent 0 44px, rgba(147,160,191,.14) 44px 45px);
+  }
+  #frame.tilted #floor{transform:translate(-50%,-50%) rotateX(66deg)}
+
+  /* 角色：billboard（永遠面對觀眾），深度＝位置＋縮放＋景深 */
+  .actor{
+    position:absolute;z-index:20;text-align:center;
+    transform:translate(-50%,-100%) scale(var(--s,1));
+    transition:left 3s ease-in-out, top 3s ease-in-out,
+               transform 3s ease-in-out, filter 3s, opacity 2s;
+    filter:blur(var(--bl,0px)) brightness(var(--br,1));
+  }
+  .actor .sym{display:block;font-size:30px;line-height:1;animation:brth 3.8s ease-in-out infinite}
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  .actor .nm{font:9px 'Courier New',monospace;letter-spacing:.18em;color:var(--faint)}
+  .actor .shadow{
+    display:block;width:26px;height:7px;margin:2px auto 0;border-radius:50%;
+    background:radial-gradient(closest-side, rgba(0,0,0,.5), transparent);
+  }
+
+  /* 星戰字幕 */
+  #crawlWrap{
+    position:absolute;inset:0;z-index:25;perspective:420px;overflow:hidden;
+    display:none;
+  }
+  #crawlWrap.on{display:block}
+  #crawl{
+    position:absolute;left:50%;bottom:-10%;width:76%;
+    transform:translateX(-50%) rotateX(38deg);
+    transform-origin:50% 100%;
+    text-align:center;font-size:16px;line-height:2.2;letter-spacing:.1em;
+    color:var(--warm);
+  }
+  #crawl.roll{animation:crawlUp 14s linear forwards}
+  @keyframes crawlUp{
+    0%{transform:translateX(-50%) rotateX(38deg) translateY(60%);opacity:1}
+    85%{opacity:1}
+    100%{transform:translateX(-50%) rotateX(38deg) translateY(-160%);opacity:0}
+  }
+
+  /* 翻面卡牌 */
+  #cardWrap{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:170px;height:230px;z-index:30;perspective:900px;display:none;
+  }
+  #cardWrap.on{display:block}
+  #card{
+    position:absolute;inset:0;transform-style:preserve-3d;
+    transition:transform 1.6s cubic-bezier(.4,.1,.25,1);
+  }
+  #card.flip{transform:rotateY(180deg)}
+  .face{
+    position:absolute;inset:0;backface-visibility:hidden;
+    border:1px solid var(--line);border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  }
+  .face.front{background:linear-gradient(160deg,#181327,#1d1530)}
+  .face.front .big{font-size:44px}
+  .face.front .lb{font:9px 'Courier New',monospace;letter-spacing:.2em;color:var(--faint)}
+  .face.back{
+    background:linear-gradient(160deg,#241a1a,#1c1216);
+    transform:rotateY(180deg);
+    font-size:13px;letter-spacing:.1em;line-height:2;text-align:center;color:var(--paper);
+  }
+  .face.back .secret{color:#e08f8f;font-size:11px;letter-spacing:.3em}
+
+  /* 立體字 */
+  #deep{
+    position:absolute;left:50%;top:46%;z-index:30;display:none;
+    transform:translate(-50%,-50%);
+    font-size:64px;font-weight:700;letter-spacing:.2em;text-indent:.2em;
+    color:var(--paper);
+    text-shadow:
+      1px 1px 0 #5b6784,2px 2px 0 #545f7c,3px 3px 0 #4d5874,
+      4px 4px 0 #46516c,5px 5px 0 #3f4a64,6px 6px 0 #38435c,
+      8px 8px 14px rgba(0,0,0,.6);
+    animation:wob 5s ease-in-out infinite;
+  }
+  #deep.on{display:block}
+  @keyframes wob{0%,100%{transform:translate(-50%,-50%) rotateY(-7deg) rotateX(3deg)}
+    50%{transform:translate(-50%,-50%) rotateY(7deg) rotateX(-3deg)}}
+
+  #cap{
+    position:fixed;left:50%;bottom:52px;transform:translateX(-50%);
+    width:min(92vw,600px);text-align:center;font-size:13.5px;
+    letter-spacing:.1em;color:var(--muted);min-height:40px;transition:opacity .8s;
+  }
+  #foot{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    font:10px 'Courier New',monospace;letter-spacing:.2em;color:var(--faint);
+    display:flex;gap:20px;align-items:center;z-index:30}
+  #btnReplay{display:none;cursor:pointer;font:inherit;color:var(--muted);
+    background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 12px}
+  #btnReplay.show{display:inline-block}
+  @media (prefers-reduced-motion:reduce){
+    .actor .sym{animation:none} #deep{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>偽3D 測試卷</h1>
+  <div class="sub">GEOMETRIC THEATRE · FAKE-3D REEL</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="frame">
+  <div id="scene">
+    <div id="floor"></div>
+  </div>
+  <div id="crawlWrap"><div id="crawl">很久很久以前，<br>在一塊平面的宇宙裡，<br>幾何體們相信——<br>世界只有 X 和 Y。<br><br>直到有一天，<br>地板傾斜了。</div></div>
+  <div id="cardWrap"><div id="card">
+    <div class="face front"><span class="big">◈</span><span class="lb">檔案 · 正面</span></div>
+    <div class="face back"><span class="secret">—— 機 密 ——</span>背面才是<br>真正的內容。</div>
+  </div></div>
+  <div id="deep">深</div>
+  <div id="shot"></div>
+</div>
+
+<div id="cap"></div>
+<div id="foot">
+  <span id="tip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重演</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const scene = $('scene'), frame = $('frame');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let paused = false, ended = false;
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+async function cap(t, hold){
+  const c = $('cap'); c.style.opacity = 0;
+  await wait(320);
+  c.textContent = t; c.style.opacity = 1;
+  await wait(hold ?? (800 + t.length * 60));
+}
+function shot(t){
+  const s = $('shot'); s.style.opacity = 0;
+  setTimeout(() => { s.textContent = t; s.style.opacity = 1; }, 400);
+}
+
+/* 角色：billboard——深度＝top（越高越遠）＋縮放＋模糊亮度 */
+function makeActor(sym, nm, color){
+  const a = document.createElement('div');
+  a.className = 'actor';
+  a.innerHTML = `<span class="sym" style="color:${color}">${sym}</span><span class="nm">${nm}</span><span class="shadow"></span>`;
+  scene.appendChild(a);
+  return a;
+}
+/* depth 0=最近 1=最遠 */
+function placeDepth(a, x, depth, dur){
+  if (dur !== undefined) a.style.transitionDuration = `${dur}ms,${dur}ms,${dur}ms,${dur}ms,1s`;
+  a.style.left = x + '%';
+  a.style.top = (78 - depth * 42) + '%';
+  a.style.setProperty('--s', (1.5 - depth * 1.05).toFixed(2));
+  a.style.setProperty('--bl', (depth * 1.6).toFixed(2) + 'px');
+  a.style.setProperty('--br', (1 - depth * .35).toFixed(2));
+  a.style.zIndex = String(30 - Math.round(depth * 10));
+}
+
+async function run(){
+  await wait(400);
+  const yuan = makeActor('○', '小圓', '#e9e4d6');
+  const star = makeActor('☆', '星星', 'var(--warm)');
+  const grid = makeActor('□', '白格', '#c9ccd6');
+  // 平面模式：像原本的幾何劇場
+  [yuan, star, grid].forEach(a => { a.style.setProperty('--s', 1); });
+  yuan.style.left = '30%'; yuan.style.top = '62%';
+  star.style.left = '66%'; star.style.top = '44%';
+  grid.style.left = '48%'; grid.style.top = '76%';
+
+  shot('01 · 放倒地板 MODE-7');
+  await cap('這是你熟悉的平面舞台。');
+  await cap('現在——把它放倒。', 1400);
+  frame.classList.add('tilted');
+  placeDepth(yuan, 34, 0.08, 2600);
+  placeDepth(star, 64, 0.78, 2600);
+  placeDepth(grid, 50, 0.42, 2600);
+  await wait(2900);
+  await cap('同一批紙片演員，站進了縱深裡。');
+
+  shot('02 · 景深 DEPTH OF FIELD');
+  await cap('近大遠小之外——遠的，還會糊。星星在景深外。', 2800);
+  await wait(600);
+
+  shot('03 · 走進深處 INTO THE DEEP');
+  await cap('小圓，走向地平線。');
+  placeDepth(yuan, 58, 0.85, 4200);
+  await wait(4500);
+  await cap('離開＝變小、變糊、變暗。三件事一起發生，眼睛就信了。', 2600);
+
+  shot('04 · 西洋鏡 DIORAMA');
+  await cap('換你——動動滑鼠（手機：手指拖動畫面）。', 1200);
+  let tiltOn = true;
+  const onMove = e => {
+    if (!tiltOn || reduceMotion) return;
+    const p = e.touches ? e.touches[0] : e;
+    const nx = (p.clientX / innerWidth - .5) * 2;
+    const ny = (p.clientY / innerHeight - .5) * 2;
+    scene.style.transition = 'transform .25s ease-out';
+    scene.style.transform = `rotateY(${(nx*7).toFixed(1)}deg) rotateX(${(-ny*4).toFixed(1)}deg)`;
+  };
+  addEventListener('pointermove', onMove);
+  addEventListener('touchmove', onMove, {passive:true});
+  await wait(6500);
+  tiltOn = false;
+  scene.style.transition = 'transform 1.2s ease';
+  scene.style.transform = '';
+  await cap('整個場景是一座西洋鏡——傾斜幾度，立體感就醒了。', 2400);
+
+  shot('05 · 星戰字幕 CRAWL');
+  await cap('章節開場，可以這樣滾向地平線——', 1400);
+  $('crawlWrap').classList.add('on');
+  $('crawl').classList.add('roll');
+  await wait(reduceMotion ? 2000 : 12500);
+  $('crawlWrap').classList.remove('on');
+
+  shot('06 · 翻面 FLIP ＋ 立體字');
+  await cap('卡牌、檔案、書頁——平面有背面。');
+  $('cardWrap').classList.add('on');
+  await wait(1400);
+  $('card').classList.add('flip');
+  await wait(2600);
+  $('cardWrap').classList.remove('on');
+  $('deep').classList.add('on');
+  await cap('連字本身，都能長出厚度。', 2600);
+  $('deep').classList.remove('on');
+
+  shot('FIN');
+  await cap('全部都是紙片。全部都是戲法。零 WebGL。', 3000);
+  ended = true;
+  $('tip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(run, 1000);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay') || ended) return;
+  paused = !paused;
+  $('tip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

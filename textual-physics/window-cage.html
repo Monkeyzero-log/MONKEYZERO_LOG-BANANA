@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>視窗即牢籠</title>
+<!--
+  破框術小樣 3 ·〈視窗即牢籠〉
+  用法：桌面瀏覽器打開，然後——慢慢把視窗拉小。
+        牆會逼近。他會退到中央、開始顫抖、蹲下來抱住自己。
+        再拉大：他不會立刻好起來（創傷有延遲）。
+  ⚠ 桌面限定（手機無法縮放視窗，會顯示說明）。
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--cold:#9fd8ff;--alert:#e08f8f;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  .wall{position:fixed;z-index:5;pointer-events:none;opacity:var(--w,0);transition:opacity .6s}
+  #wL{left:0;top:0;bottom:0;width:26px;background:linear-gradient(90deg,rgba(159,216,255,.28),transparent)}
+  #wR{right:0;top:0;bottom:0;width:26px;background:linear-gradient(-90deg,rgba(159,216,255,.28),transparent)}
+  #wT{top:0;left:0;right:0;height:26px;background:linear-gradient(180deg,rgba(159,216,255,.28),transparent)}
+  #wB{bottom:0;left:0;right:0;height:26px;background:linear-gradient(0deg,rgba(159,216,255,.28),transparent)}
+  #actor{
+    position:fixed;left:50%;top:48%;z-index:10;
+    transform:translate(-50%,-50%);
+    transition:left 3.5s ease-in-out, top 3.5s ease-in-out;
+  }
+  #sym{
+    display:inline-block;font-size:40px;
+    transition:transform 1.6s cubic-bezier(.4,.1,.3,1), color 2s, font-size 1.6s;
+    animation:brth var(--bd,4s) ease-in-out infinite;
+  }
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  #actor.trem #sym{animation:trm .13s steps(2) infinite}
+  @keyframes trm{0%{transform:translate(0,0)}50%{transform:translate(1.4px,-1px)}100%{transform:translate(-1px,.8px)}}
+  #actor.curl #sym{font-size:22px;color:var(--faint);animation:trm .11s steps(2) infinite}
+  #cap{
+    position:fixed;left:50%;bottom:56px;transform:translateX(-50%);
+    width:92vw;text-align:center;font-size:14px;letter-spacing:.08em;
+    color:var(--muted);transition:opacity .8s;line-height:1.9;
+  }
+  #size{
+    position:fixed;top:14px;right:16px;
+    font:10px 'Courier New',monospace;letter-spacing:.18em;color:var(--faint);
+  }
+  #foot{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+    font:10px 'Courier New',monospace;letter-spacing:.2em;color:var(--faint)}
+  @media (prefers-reduced-motion:reduce){#sym,#actor.trem #sym,#actor.curl #sym{animation:none}}
+</style>
+</head>
+<body>
+<div id="wL" class="wall"></div><div id="wR" class="wall"></div>
+<div id="wT" class="wall"></div><div id="wB" class="wall"></div>
+<div id="actor"><span id="sym">○</span></div>
+<div id="cap"></div>
+<div id="size"></div>
+<div id="foot">破框術 · 視窗即牢籠</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const actor = $('actor'), sym = $('sym'), cap = $('cap');
+let state = '', trauma = 0, wanderT = null;
+
+/* 手機提示 */
+const isMobile = matchMedia('(pointer:coarse)').matches && innerWidth < 820;
+if (isMobile){
+  cap.textContent = '這件作品需要桌面瀏覽器——用滑鼠慢慢縮小視窗，牆才會動。';
+}else{
+  cap.textContent = '他住在你的視窗裡。試著——慢慢把視窗拉小。';
+}
+
+/* 閒逛（只在寬敞時） */
+function wander(){
+  clearTimeout(wanderT);
+  if (state !== 'free') return;
+  actor.style.left = (30 + Math.random()*40) + '%';
+  actor.style.top  = (34 + Math.random()*28) + '%';
+  wanderT = setTimeout(wander, 4200 + Math.random()*2600);
+}
+
+function setCaption(t){ if (cap.textContent !== t){ cap.style.opacity = 0;
+  setTimeout(() => { cap.textContent = t; cap.style.opacity = 1; }, 420); } }
+
+function update(){
+  const m = Math.min(innerWidth, innerHeight);
+  $('size').textContent = innerWidth + ' × ' + innerHeight;
+  const wallOp = Math.max(0, Math.min(1, (760 - m) / 400));
+  document.querySelectorAll('.wall').forEach(w => w.style.setProperty('--w', wallOp.toFixed(2)));
+
+  let next;
+  if (m > 700) next = 'free';
+  else if (m > 470) next = 'tight';
+  else if (m > 320) next = 'squeezed';
+  else next = 'curl';
+
+  if (next !== state){
+    state = next;
+    actor.classList.remove('trem','curl');
+    if (state === 'free'){
+      if (trauma > 0){
+        // 創傷延遲：牆退了，呼吸還快，過幾秒才平復
+        sym.style.setProperty('--bd', '1.4s');
+        setCaption('牆退開了。他還在喘。');
+        setTimeout(() => { if (state === 'free'){
+          sym.style.setProperty('--bd', '4s');
+          setCaption('⋯⋯慢慢好了。他假裝什麼都沒發生過。');
+          wander();
+        }}, 4200);
+      } else {
+        sym.style.setProperty('--bd', '4s');
+        wander();
+      }
+    }
+    if (state === 'tight'){
+      trauma = 1;
+      clearTimeout(wanderT);
+      actor.style.left = '50%'; actor.style.top = '48%';
+      sym.style.setProperty('--bd', '2s');
+      setCaption('牆在動。他退到了正中央。');
+    }
+    if (state === 'squeezed'){
+      trauma = 1;
+      actor.classList.add('trem');
+      sym.style.setProperty('--bd', '0.9s');
+      setCaption('太窄了。');
+    }
+    if (state === 'curl'){
+      trauma = 1;
+      actor.classList.add('curl');
+      setCaption('他蹲下來，抱住自己。別把窗戶關小——他還在裡面。');
+    }
+  }
+}
+addEventListener('resize', update);
+update();
+if (!isMobile) setTimeout(wander, 2500);
+</script>
+</body>
+</html>

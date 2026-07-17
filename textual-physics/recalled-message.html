@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>已撤回</title>
+<!--
+  ══════════════════════════════════════════════
+  偽裝術小樣 no.1 ·〈已撤回〉
+  裝置：頁面偽裝成一份「通訊記錄還原」證物。
+        關鍵訊息出現約 1.4 秒——你來不及讀完，但你看見了——
+        然後被撤回。「對方正在輸入⋯」的出現與消失＝猶豫本身。
+  結尾：既然這是鑑識還原，被撤回的訊息會被還原——
+        讀者得到報償，鉤子閉合。
+  ⚠ 對話內容為原創佔位示意，待作者重寫。
+  操作：點擊開始 → 自動播放；播放中點擊＝暫停。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#0b0a10; --bg1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --alert:#e08f8f;
+    --sheet:#131020; --bubL:#1e2333; --bubR:#243447;
+    --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  #cover{
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    transition:opacity 1.4s; cursor:pointer;
+    font-family:Georgia,'Noto Serif TC',serif;
+  }
+  #cover.gone{opacity:0; pointer-events:none}
+  #cover h1{margin:0; font-size:30px; font-weight:600; letter-spacing:.34em; text-indent:.34em}
+  #cover .sub{font:11px 'Courier New',monospace; letter-spacing:.28em; color:var(--faint)}
+  #cover .go{font-size:12px; color:var(--muted); letter-spacing:.2em; animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 證物框（手機記錄的鑑識視圖） */
+  #phone{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(92vw,400px); height:min(84vh,620px);
+    background:var(--sheet); border:1px solid var(--line); border-radius:16px;
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  #phead{
+    padding:12px 16px 10px; border-bottom:1px solid var(--line);
+    font:10.5px 'Courier New',monospace; letter-spacing:.18em; color:var(--faint);
+    display:flex; justify-content:space-between;
+  }
+  #plog{
+    flex:1; overflow-y:auto; padding:16px 14px 20px;
+    display:flex; flex-direction:column; gap:9px;
+    scroll-behavior:smooth;
+  }
+  .msg{
+    max-width:76%; padding:8px 13px; border-radius:14px;
+    font-size:14.5px; line-height:1.55; letter-spacing:.02em;
+    opacity:0; transform:translateY(8px);
+    transition:opacity .35s, transform .35s;
+    position:relative;
+  }
+  .msg.on{opacity:1; transform:translateY(0)}
+  .msg.L{align-self:flex-start; background:var(--bubL); border-bottom-left-radius:4px}
+  .msg.R{align-self:flex-end;   background:var(--bubR); border-bottom-right-radius:4px}
+  .msg .nm{
+    display:block; font-size:10px; letter-spacing:.16em; color:var(--faint); margin-bottom:3px;
+  }
+  .msg.recalling{animation:recallFx .55s ease forwards}
+  @keyframes recallFx{
+    0%{filter:blur(0)} 60%{filter:blur(3px); opacity:.5}
+    100%{filter:blur(6px); opacity:0}
+  }
+  .msg.recalled{
+    background:transparent; border:1px dashed var(--line);
+    color:var(--faint); font-size:12px; font-style:italic;
+  }
+  .msg.restored{border:1px dashed rgba(224,143,143,.5)}
+  .msg.restored .rst{color:var(--alert); font-style:normal; font-size:13.5px; display:block; margin-top:4px}
+  .msg.restored .tag{font-size:9.5px; letter-spacing:.18em; color:var(--alert); opacity:.8}
+  .sys{
+    align-self:center; font-size:10.5px; letter-spacing:.14em; color:var(--faint);
+    opacity:0; transition:opacity .5s; padding:2px 0;
+  }
+  .sys.on{opacity:.9}
+  /* 對方正在輸入⋯ */
+  #typing{
+    align-self:flex-start; padding:9px 14px; border-radius:14px;
+    background:var(--bubL); border-bottom-left-radius:4px;
+    display:none; gap:4px; align-items:center;
+  }
+  #typing.on{display:flex}
+  #typing i{
+    width:5px; height:5px; border-radius:50%; background:var(--muted);
+    animation:tdot 1.1s ease-in-out infinite;
+  }
+  #typing i:nth-child(2){animation-delay:.18s}
+  #typing i:nth-child(3){animation-delay:.36s}
+  @keyframes tdot{0%,100%{opacity:.25; transform:translateY(0)}50%{opacity:1; transform:translateY(-2.5px)}}
+
+  #foot{
+    position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:20px; z-index:20;
+  }
+  #btnReplay{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnReplay.show{display:inline-block}
+  @media (max-width:640px){ #phone{height:78vh} }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>已撤回</h1>
+  <div class="sub">偽裝術 · 你來不及讀完，但你看見了</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="phone">
+  <div id="phead"><span>通訊記錄還原</span><span>證物 #7</span></div>
+  <div id="plog"></div>
+</div>
+
+<div id="foot">
+  <span id="pauseTip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重看</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const log = $('plog');
+let paused = false, ended = false;
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+
+/* ══ 對話節拍（⚠ 原創佔位內容，待作者重寫） ══
+   side: L/R ｜ recall: 顯示 visMs 後撤回 ｜ hesitate: 輸入中出現又消失 n 次 */
+const CHAT = [
+ {side:'L', who:'阿哲', text:'睡了嗎'},
+ {side:'R', who:'小維', text:'還沒。怎麼了'},
+ {side:'L', who:'阿哲', text:'今天的事，你跟誰說了嗎'},
+ {side:'R', who:'小維', text:'沒有。你不是叫我別說'},
+ {side:'L', who:'阿哲', text:'嗯。'},
+ {hesitate:1},
+ {side:'L', who:'阿哲', text:'其實倉庫裡那個不是我放的，是', recall:true, visMs:1500},
+ {side:'R', who:'小維', text:'？'},
+ {side:'R', who:'小維', text:'你剛剛說什麼'},
+ {side:'L', who:'阿哲', text:'沒事。打錯了'},
+ {side:'R', who:'小維', text:'我看到了'},
+ {side:'L', who:'阿哲', text:'你什麼都沒看到。'},
+ {hesitate:2},
+ {side:'L', who:'阿哲', text:'答應我，明天別去上班', recall:true, visMs:1300},
+ {side:'L', who:'阿哲', text:'晚安'},
+ {sys:'「小維」已離線'},
+ {sys:'—— 此後再無登入記錄 ——', last:true}
+];
+
+const recalledBubbles = [];   // 供結尾還原
+
+function scrollDown(){ log.scrollTop = log.scrollHeight; }
+
+function bubble(b){
+  const d = document.createElement('div');
+  d.className = 'msg ' + b.side;
+  const nm = document.createElement('span');
+  nm.className = 'nm'; nm.textContent = b.who;
+  const tx = document.createElement('span');
+  tx.textContent = b.text;
+  d.append(nm, tx);
+  log.appendChild(d);
+  requestAnimationFrame(() => { d.classList.add('on'); scrollDown(); });
+  return d;
+}
+
+async function showTyping(ms){
+  let t = $('typing');
+  if (!t){
+    t = document.createElement('div');
+    t.id = 'typing';
+    t.innerHTML = '<i></i><i></i><i></i>';
+  }
+  log.appendChild(t);            // 移到最底
+  t.classList.add('on'); scrollDown();
+  await wait(ms);
+  t.classList.remove('on');
+}
+
+async function run(){
+  await wait(800);
+  for (const b of CHAT){
+    if (b.sys){
+      const s = document.createElement('div');
+      s.className = 'sys'; s.textContent = b.sys;
+      log.appendChild(s);
+      requestAnimationFrame(() => { s.classList.add('on'); scrollDown(); });
+      await wait(b.last ? 2600 : 1600);
+      continue;
+    }
+    if (b.hesitate){
+      // 對方正在輸入⋯出現又消失＝猶豫本身
+      for (let i = 0; i < b.hesitate; i++){
+        await showTyping(1400 + Math.random()*800);
+        await wait(900 + Math.random()*500);
+      }
+      continue;
+    }
+    if (b.side === 'L') await showTyping(700 + b.text.length * 55);
+    const d = bubble(b);
+    if (b.recall){
+      await wait(b.visMs);       // 你來不及讀完，但你看見了
+      d.classList.add('recalling');
+      await wait(560);
+      d.className = 'msg ' + b.side + ' recalled on';
+      d.innerHTML = '⊘ 已撤回一則訊息';
+      d._orig = b;
+      recalledBubbles.push(d);
+      scrollDown();
+      await wait(1100);
+    } else {
+      await wait(700 + b.text.length * 60);
+    }
+  }
+
+  /* 鑑識還原：既然這是證物，被撤回的會被還原 */
+  await wait(1800);
+  const s = document.createElement('div');
+  s.className = 'sys'; s.textContent = '⟲ 執行深度還原⋯';
+  log.appendChild(s);
+  requestAnimationFrame(() => { s.classList.add('on'); scrollDown(); });
+  await wait(2000);
+  for (const d of recalledBubbles){
+    d.classList.add('restored');
+    d.innerHTML = '<span class="tag">已還原</span><span class="rst">' +
+      d._orig.who + '：' + d._orig.text + '</span>';
+    scrollDown();
+    await wait(1700);
+  }
+  ended = true;
+  $('pauseTip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(run, 1100);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay') || ended) return;
+  paused = !paused;
+  $('pauseTip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

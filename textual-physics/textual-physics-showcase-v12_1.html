@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字物理學 · 展示場 v12.1</title>
+<style>
+  /* ============ 夜空舞台 ============ */
+  :root{
+    --night-0:#0b1020; --night-1:#131b33;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#7fd4ff; --warm:#ffb347; --hot:#ff6a3d;
+    --glass:rgba(13,18,36,.72); --line:rgba(147,160,191,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; cursor:crosshair;
+    color:var(--paper);
+    font-family:'Courier New', monospace;
+    background:
+      radial-gradient(1.5px 1.5px at 18% 22%, rgba(233,228,214,.5), transparent 100%),
+      radial-gradient(1px 1px at 63% 12%, rgba(233,228,214,.4), transparent 100%),
+      radial-gradient(1.2px 1.2px at 82% 34%, rgba(233,228,214,.35), transparent 100%),
+      radial-gradient(1px 1px at 38% 8%,  rgba(233,228,214,.3), transparent 100%),
+      radial-gradient(1px 1px at 92% 62%, rgba(233,228,214,.25), transparent 100%),
+      linear-gradient(180deg, var(--night-0) 0%, var(--night-1) 100%);
+  }
+
+  /* 情緒濾鏡（世界溫度的可視化，由場景邏輯著色） */
+  #mood{
+    position:fixed; inset:0; z-index:500; pointer-events:none;
+    transition:background 1.2s ease;
+  }
+
+  /* 地面帶（引擎 groundY = 視窗高 - 50） */
+  #ground{
+    position:fixed; left:0; right:0; bottom:0; height:50px; z-index:400;
+    background:linear-gradient(180deg, rgba(147,160,191,.10), rgba(11,16,32,.0) 70%);
+    border-top:1px solid rgba(147,160,191,.28);
+  }
+
+  /* ============ UI 玻璃層 ============ */
+  .ui{position:fixed; z-index:2000; cursor:default}
+  .panel{
+    background:var(--glass); border:1px solid var(--line);
+    border-radius:12px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  }
+
+  #title{ top:18px; left:20px; padding:14px 18px; max-width:340px; }
+  #title .eyebrow{
+    font-size:10px; letter-spacing:.28em; color:var(--faint);
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  #title h1{
+    margin:0 0 6px; font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    font-weight:600; font-size:22px; letter-spacing:.12em; color:var(--paper);
+  }
+  #title p{ margin:0; font-size:11.5px; line-height:1.7; color:var(--muted); }
+
+  #hud{
+    top:18px; right:20px; padding:10px 14px;
+    font-size:11px; letter-spacing:.08em; color:var(--muted);
+    text-align:right; line-height:1.8; min-width:150px;
+  }
+  #hud b{color:var(--paper); font-weight:normal}
+
+  /* 底部控制列 */
+  #bar{
+    left:50%; bottom:64px; transform:translateX(-50%);
+    padding:10px 12px; display:flex; flex-wrap:wrap; gap:8px;
+    justify-content:center; max-width:min(92vw,760px);
+  }
+  #bar button{
+    cursor:pointer; font:inherit; font-size:12.5px; letter-spacing:.06em;
+    color:var(--paper); background:transparent;
+    border:1px solid var(--line); border-radius:8px; padding:7px 13px;
+    transition:border-color .2s, color .2s, background .2s;
+  }
+  #bar button:hover{ border-color:var(--warm); color:var(--warm); }
+  #bar button:focus-visible{ outline:2px solid var(--warm); outline-offset:2px; }
+  #bar button[aria-pressed="true"]{
+    border-color:var(--hot); color:var(--hot); background:rgba(255,106,61,.08);
+  }
+  #hint{
+    left:50%; bottom:24px; transform:translateX(-50%);
+    font-size:11px; color:var(--faint); letter-spacing:.1em;
+    background:none; border:none; white-space:nowrap;
+    opacity:0; transition:opacity 1.2s ease;
+  }
+
+  /* 世界溫度推桿（簽名元素） */
+  #dial{
+    right:22px; top:50%; transform:translateY(-50%);
+    padding:14px 10px; display:flex; flex-direction:column;
+    align-items:center; gap:8px; width:52px;
+  }
+  #dial .cap{ font-size:10px; letter-spacing:.2em; color:var(--muted); writing-mode:vertical-rl; }
+  #dial .end{ font-size:12px; }
+  #dial .end.hotc{ color:var(--hot) } #dial .end.coldc{ color:var(--cold) }
+  #tempSlider{
+    -webkit-appearance:none; appearance:none;
+    width:170px; height:4px; transform:rotate(-90deg);
+    margin:83px 0; background:linear-gradient(90deg,var(--cold),var(--paper) 45%,var(--hot));
+    border-radius:2px; outline:none; cursor:pointer;
+  }
+  #tempSlider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--paper); border:2px solid var(--night-0);
+    box-shadow:0 0 8px rgba(233,228,214,.6);
+  }
+  #tempSlider::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--paper); border:2px solid var(--night-0);
+  }
+  #tempVal{ font-size:11px; color:var(--paper); letter-spacing:.05em }
+
+  /* 手機：溫度推桿轉水平、控制列貼底 */
+  @media (max-width:720px){
+    #title{max-width:250px; padding:11px 13px}
+    #title h1{font-size:17px}
+    #dial{
+      right:auto; top:auto; transform:none;
+      left:50%; bottom:118px; transform:translateX(-50%);
+      flex-direction:row; width:auto; padding:8px 14px;
+    }
+    #dial .cap{display:none}
+    #tempSlider{transform:none; margin:0; width:min(58vw,240px)}
+    #bar{bottom:58px}
+    #hint{display:none}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    #mood{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="mood"></div>
+<div id="ground"></div>
+
+<div id="title" class="ui panel">
+  <div class="eyebrow">Textual Physics Engine · v12.1 Showcase</div>
+  <h1>文字物理學 · 展示場</h1>
+  <p>一顆會呼吸的宇宙——重力、浮力、相變、化學、爆炸、光影、聲場、量子，全部由文字與幾何體演出。</p>
+</div>
+
+<div id="hud" class="ui panel">
+  <div>世界溫度 <b id="hudTemp">25°C</b></div>
+  <div>物體 <b id="hudCount">0</b> · <b id="hudFps">—</b> fps</div>
+</div>
+
+<div id="dial" class="ui panel" title="世界溫度">
+  <span class="end hotc">熱</span>
+  <input id="tempSlider" type="range" min="-30" max="150" step="1" value="25"
+         aria-label="世界溫度">
+  <span class="end coldc">冷</span>
+  <span id="tempVal">25°</span>
+</div>
+
+<div id="bar" class="ui panel">
+  <button id="btnStone">落石</button>
+  <button id="btnIce">冰塊</button>
+  <button id="btnFire">生火</button>
+  <button id="btnWater">加水</button>
+  <button id="btnBubble">氣泡</button>
+  <button id="btnMeteor">流星</button>
+  <button id="btnBomb">炸彈</button>
+  <button id="btnEvo" aria-pressed="false">天擇：關</button>
+  <button id="btnClear">清場</button>
+</div>
+<div id="hint" class="ui">點擊夜空落石 · 滑過紫色量子體使其坍縮 · 拉高溫度，看冰的一生</div>
+
+<script>
+const PHYSICS_CONSTANTS = {
+  // 相對論
+  LIGHT_SPEED: 60,              // 光速 = 最高幀率（fps）
+
+  // 量子力學（🔴 皆為預留常數，引擎目前未使用，見 12.2）
+  PLANCK_CONSTANT: 0.1,         // ℏ（px·chars）
+  UNCERTAINTY_PRODUCT: 0.05,    // ℏ/2（= PLANCK_CONSTANT / 2）
+
+  // 流體力學
+  BUOYANCY_FACTOR: 0.5,
+  WATER_DENSITY: 3,
+  AIR_DENSITY: 0.3,
+
+  // 熱力學
+  ENTROPY_RATE: 0.01,           // 🔴 預留常數，引擎目前未使用
+  HEAT_TRANSFER: 0.2,
+  DEFAULT_TEMPERATURE: 25,      // °C
+  PHASE_HYSTERESIS: 1,          // v12.0：相變遲滯緩衝帶（°C），見 10.3
+
+  // 動力學
+  DRAG_COEFFICIENT: 0.02,       // 空氣阻力係數
+                                // 普通物體：二次阻力（v² × 係數）
+                                // 氣體：線性衰減（每幀 × (1 - 係數)）
+  GROUND_RESTITUTION: 0.3,      // 地面恢復係數
+  GROUND_VELOCITY_THRESHOLD: 0.5,
+  DEFAULT_MASS: 1,              // v11.5：預設質量（力除以質量用）
+
+  // 粒子
+  PARTICLE_FADE_FRAMES: 30,     // v11.9：粒子 _released 後保留的淡出幀數
+
+  // 光學與聲學
+  LIGHT_DECAY: 0.01,            // 光亮度衰減係數
+  SOUND_DECAY: 0.05,            // 聲波視覺衰減係數
+
+  // 空間劃分
+  SPATIAL_GRID_THRESHOLD: 30,   // v11.4：SpatialGrid 啟用閾值
+
+  // 傳送（🔴 皆為預留常數，引擎目前未使用）
+  WORMHOLE_ENERGY: 1,
+  TUNNEL_PROBABILITY: 0.1
+};
+
+
+// 模板 A：重物
+const STONE = {
+  text: 'STONE', density: 10, mass: 10,
+  velocityX: 0, velocityY: 0
+};
+// 猴子注意：手動設了 density 和 mass，
+//           addObject 會自動標記 _autoDensity=false、_autoMass=false，
+//           recalculatePhysics() 不會覆寫它們。
+
+// 模板 B：氣泡
+const BUBBLE = {
+  text: '○', density: 0.1, mass: 0.5,
+  velocityX: 0, velocityY: 0, opacity: 0.5
+};
+
+// 模板 C：煙霧
+const SMOKE = {
+  text: '▒', isSmoke: true,
+  velocityX: 0, velocityY: -1.0,
+  riseAcceleration: -0.05,
+  terminalRiseVelocity: -4
+};
+
+// 模板 D：月亮
+// 猴子注意：月亮沒有邊界檢查，會飛出畫面。見第 2.7 節。
+const MOON = {
+  text: 'MOON', isMoon: true,
+  velocityX: 0, velocityY: -0.4
+};
+
+// 模板 E：量子疊加態
+// 猴子注意：預設坍縮是可逆的（mouseleave 恢復），見第 12.1 節。
+// v12.0 注意：量子物體通常會綁 hover 事件，設 noEvolve: true 豁免進化，
+//            外部引用才不會被進化的淺拷貝弄斷（見 24.5）。
+const QUANTUM = {
+  text: 'WAVE', isQuantum: true, noEvolve: true,
+  states: ['WAVE', 'PARTICLE'],
+  switchInterval: 100,
+  collapsed: false
+};
+
+// 模板 F：相對論物體
+const RELATIVISTIC = {
+  text: 'FAST', mass: 1,
+  speed: 50,
+  velocityX: 50, velocityY: 0,
+  applyTimeDilation: true,
+  applyLengthContraction: true
+};
+
+// 模板 G：可相變物體
+// v11.7：建議手動設定三態密度。addObject 會根據 phase 自動快照對應態密度，
+//        但其他態的快照只能靠手動。
+const ICE_OBJ = {
+  text: 'ICE', phase: 'solid',
+  tempOffset: -10,
+  meltingPoint: 0, boilingPoint: 100,
+  liquidText: 'water', gasText: 'S T E A M',
+  solidText: 'ICE',
+  solidDensity: 8,
+  liquidDensity: 4,
+  gasDensity: 0.5,
+  density: 8, mass: 8,
+  velocityX: 0, velocityY: 0
+};
+
+// 模板 G2：以液態出生的可相變物體（v11.7 範例）
+const WATER_OBJ = {
+  text: 'water', phase: 'liquid',
+  tempOffset: 0,
+  meltingPoint: 0, boilingPoint: 100,
+  solidText: 'ICE', gasText: 'S T E A M',
+  liquidText: 'water',
+  solidDensity: 8,
+  liquidDensity: 4,
+  gasDensity: 0.5,
+  density: 4, mass: 4,
+  velocityX: 0, velocityY: 0
+};
+// 猴子注意：以液態出生的物體，addObject 會快照 liquidDensity，
+//           但 solidDensity 和 gasDensity 不會自動快照（因為不是該態出生）。
+//           所以要手動設 solidDensity 和 gasDensity，否則相變時會用 fallback 值。
+//           gasDensity 的值怎麼選？看你的物理直覺。
+//           ICE 的例子：固態 8、液態 4、氣態 0.5，大致是密度遞減。
+//           沒有標準答案，但建議氣態密度 < AIR_DENSITY（0.3）附近，
+//           這樣才會因為浮力往上飄。設太高的話「蒸氣」會往下沉。
+
+// 模板 H：化學反應物體
+const FIRE_OBJ = {
+  text: 'FIRE', chemicalId: 'FIRE',
+  tempOffset: 200, density: 0.3, mass: 0.3,
+  velocityX: 0, velocityY: 0
+};
+
+// 模板 I：光源
+const SUN = {
+  text: '★ SUN', isSun: true, isLightSource: true, fixed: true,
+  lightRadius: 300,
+  lightIntensity: 1.0,
+  velocityX: 0, velocityY: 0
+};
+
+// 模板 J：聲源
+const BELL = {
+  text: '🔔 BELL', isSoundSource: true,
+  soundVolume: 1.0,
+  soundRadius: 200,
+  velocityX: 0, velocityY: 0
+};
+
+
+// ══════════════════════════════════════════════════
+// TextualPhysicsEngine — v12.0
+// v11.5：F=ma、雙向相變、熱傳導守恆、浮力統一、物件池競態、向量場優化
+// v11.6：_id、_autoDensity/_autoMass、solidDensity 快照、氣體地面夾持
+// v11.7：三態密度快照、天體 velocityX、reproduce _id 去重、共鳴清理、粒子統一釋放
+// v11.8：氣體水平阻力、_id 去重改用 kept 自身、releaseObject 冪等防護、
+//       固→液 fallback 改用 solidDensity
+// v11.9：液→固/液→氣 fallback 統一用快照值、粒子邊飛邊淡、
+//       化學反應統一走 releaseObject、reproduce 子代獨立 DOM、
+//       mutate 總是回傳拷貝、reproduce 不經 addObject 避免重複 push
+// v12.0：浮力方向修正（Y 軸向下為正）、進化豁免 + frameCount>0 +
+//       evolutionEnabled 開關、addObject 座標/速度正規化、相變遲滯、
+//       量子切換同步 aabb/semanticVector、共鳴 NaN 防護、
+//       記憶系統接線（releaseObject→encode）、filter 所有權、groundY resize
+// v12.1：addObject 初始 transform（fixed 物體站對位置）、
+//       releaseObject 還池斷引用（粒子淡出競態）、光源全滅卸妝、
+//       start() 防重複啟動、優勢字符濾空白
+// ══════════════════════════════════════════════════
+
+class TextualPhysicsEngine {
+
+  constructor() {
+    this.gravity       = true;
+    this.gravityForce  = 0.5;
+    this.objects       = [];
+    this.frameCount    = 0;
+    this.groundY       = window.innerHeight - 50;
+    this.temperature   = PHYSICS_CONSTANTS.DEFAULT_TEMPERATURE;
+    this._nextId       = 0;
+    this.evolutionEnabled = true;  // v12.0：進化總開關（false = 場景永遠不變異）
+
+    // v12.0：視窗縮放時，地面跟著搬家
+    // 猴子解釋：以前 groundY 只在出生時量一次，
+    //           視窗變小之後地板還留在老位置，
+    //           物體懸空站在一塊看不見的舊地板上。
+    window.addEventListener('resize', () => {
+      this.groundY = window.innerHeight - 50;
+    });
+
+    // 子系統
+    this.perfMonitor    = new PerformanceMonitor();
+    this.renderBuffer   = new RenderBufferSystem(this.perfMonitor);
+    this.resonance      = new TextResonance(0.85);
+    this.memory         = new TextMemory(10);
+    this.evolution      = new TextEvolution(0.01, 0.5);
+    this.vectorField    = new SemanticVectorField();
+    this.spatialGrid    = new SpatialGrid(100);
+    this.chemicalRules  = new ChemicalReactionSystem();
+    this.objectPool     = new ObjectPool(50);
+    this.lightSystem    = new LightFieldSystem();
+    this.soundSystem    = new SoundFieldSystem();
+
+    this.environment = {
+      dominantKeywords: [],
+      updateFromScene(objects) {
+        const freq = {};
+        objects.forEach(obj => {
+          if (!obj.text) return;
+          for (const c of obj.text.toUpperCase()) {
+            // v12.1：空白不參選優勢字符
+            // 猴子解釋：場上有 'S T E A M' 這種字時，空格數量爆多，
+            //           「空格」會當選 dominantKeywords——
+            //           任何有空格的文字適應度都莫名變高，天擇被灌票。
+            if (/\s/.test(c)) continue;
+            freq[c] = (freq[c] || 0) + 1;
+          }
+        });
+        this.dominantKeywords = Object.entries(freq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([c]) => c);
+      }
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  // getMass()
+  // ──────────────────────────────────────────────
+  getMass(obj) {
+    return obj.mass ?? PHYSICS_CONSTANTS.DEFAULT_MASS;
+  }
+
+  // ──────────────────────────────────────────────
+  // addObject()
+  // v11.6：_id、_autoMass、_autoDensity
+  // v11.7：根據當前 phase 快照對應態的密度
+  // v12.0：x/y/velocityX/velocityY 未設定時正規化為 0
+  // ──────────────────────────────────────────────
+  addObject(config) {
+    const el = this.objectPool.acquire();
+    el.textContent    = config.text      ?? '';
+    el.style.position = 'absolute';
+    el.style.left     = '0px';
+    el.style.top      = '0px';
+    el.style.color    = config.color     ?? '#ffffff';
+    el.style.fontSize = config.fontSize  ?? '16px';
+    el.style.fontWeight = config.fontWeight ?? 'normal';
+    el.style.fontFamily = config.fontFamily ?? 'monospace';
+    el.style.opacity  = config.opacity !== undefined
+      ? String(config.opacity) : '1';
+    if (config.textShadow) el.style.textShadow = config.textShadow;
+
+    document.body.appendChild(el);
+
+    const obj = {
+      ...config,
+      element: el,
+      semanticVector: config.semanticVector
+        ?? this.computeSemanticVector(config.text ?? '')
+    };
+
+    // ── v12.0：座標與速度正規化 ──
+    // 猴子解釋：以前模板沒寫 x/y 的話，obj.y += velocityY 直接變 NaN，
+    //           NaN > groundY 永遠 false、transform 也失效，
+    //           物體像被冰封在畫面左上角。現在出生就補 0，
+    //           全引擎從此不用怕 undefined 座標。
+    obj.x         = obj.x         ?? 0;
+    obj.y         = obj.y         ?? 0;
+    obj.velocityX = obj.velocityX ?? 0;
+    obj.velocityY = obj.velocityY ?? 0;
+
+    // ── v12.1：出生即寫入初始 transform ──
+    // 猴子解釋：以前元素只設 left:0/top:0，transform 要等第一幀 Render Pass 才寫。
+    //           但 Step 9 跳過 fixed 物體，所以 fixed 的太陽、鈴鐺
+    //           邏輯上在 (400, 50)，畫面上卻永遠擠在左上角 (0, 0)——
+    //           影子從一個空無一物的角落射出來，鬧鬼了。
+    //           現在出生就把 transform 寫好：fixed 物體站對位置，
+    //           一般物體也不會在第一幀前閃現在左上角。
+    el.style.transform = `translate(${obj.x}px, ${obj.y}px)`;
+
+    // ── 分配唯一 _id ──
+    obj._id = this._nextId++;
+
+    // ── 偵測手動設定的 mass / density ──
+    obj._autoMass    = !('mass'    in config);
+    obj._autoDensity = !('density' in config);
+
+    // ── v11.7：根據出生 phase 快照對應態密度 ──
+    if (obj.phase !== undefined && obj.density !== undefined) {
+      switch (obj.phase) {
+        case 'solid':
+          obj.solidDensity  = obj.solidDensity  ?? obj.density;
+          break;
+        case 'liquid':
+          obj.liquidDensity = obj.liquidDensity ?? obj.density;
+          break;
+        case 'gas':
+          obj.gasDensity    = obj.gasDensity    ?? obj.density;
+          break;
+      }
+    }
+
+    this.updateAABB(obj);
+    this.objects.push(obj);
+    this.spatialGrid.insert(obj);
+    return obj;
+  }
+
+  // ──────────────────────────────────────────────
+  // updateAABB()
+  // ──────────────────────────────────────────────
+  updateAABB(obj) {
+    if (!obj.element) return;
+    const rect = obj.element.getBoundingClientRect();
+    obj.aabb = {
+      w: rect.width  || 16,
+      h: rect.height || 16
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  // recalculatePhysics()
+  // v11.6：_autoDensity / _autoMass 旗標
+  // ──────────────────────────────────────────────
+  recalculatePhysics(obj) {
+    this.updateAABB(obj);
+    const volume      = (obj.aabb?.w ?? 16) * (obj.aabb?.h ?? 16);
+    const charCount   = (obj.text ?? '').length;
+    const semanticWeight = obj.semanticWeight ?? charCount;
+
+    if (obj._autoDensity !== false) {
+      obj.density = (semanticWeight / Math.max(volume, 1)) * 1000;
+    }
+
+    obj.charCount = charCount;
+
+    if (obj._autoMass !== false) {
+      obj.mass = semanticWeight || PHYSICS_CONSTANTS.DEFAULT_MASS;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // computeSemanticVector()
+  // ──────────────────────────────────────────────
+  computeSemanticVector(text) {
+    const vec = new Array(26).fill(0);
+    for (const char of text.toUpperCase()) {
+      const idx = char.charCodeAt(0) - 65;
+      if (idx >= 0 && idx < 26) vec[idx]++;
+    }
+    const mag = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
+    return vec.map(v => v / mag);
+  }
+
+  // ──────────────────────────────────────────────
+  // getNearbyObjects()
+  // ──────────────────────────────────────────────
+  getNearbyObjects(obj) {
+    if (this.spatialGrid.isReady()) {
+      return this.spatialGrid.query(obj, 200);
+    }
+    return this.objects.filter(other => {
+      if (other === obj) return false;
+      const dx = (other.x ?? 0) - (obj.x ?? 0);
+      const dy = (other.y ?? 0) - (obj.y ?? 0);
+      return Math.sqrt(dx * dx + dy * dy) < 200;
+    });
+  }
+
+  // ──────────────────────────────────────────────
+  // checkAABBCollision()
+  // ──────────────────────────────────────────────
+  checkAABBCollision(objA, objB) {
+    const ax = objA.x ?? 0, ay = objA.y ?? 0;
+    const bx = objB.x ?? 0, by = objB.y ?? 0;
+    const aw = objA.aabb?.w ?? 16, ah = objA.aabb?.h ?? 16;
+    const bw = objB.aabb?.w ?? 16, bh = objB.aabb?.h ?? 16;
+    return (
+      ax      < bx + bw &&
+      ax + aw > bx      &&
+      ay      < by + bh &&
+      ay + ah > by
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // releaseObject()：統一釋放物件
+  // v11.8：冪等防護，防止多次呼叫導致 setTimeout 排多次
+  // v12.0：釋放時自動 memory.encode()（記憶系統接線）
+  // ──────────────────────────────────────────────
+  releaseObject(obj) {
+    if (obj._released) return;  // v11.8：冪等防護
+    obj._released = true;
+
+    // v12.0：死亡的物體進入記憶系統
+    // 猴子解釋：TextMemory 從 v11.x 就裝好了，但 encode() 從來沒人呼叫，
+    //           記憶永遠是空的——一台裝好的相機從沒按過快門。
+    //           現在物體死亡時自動 encode；短期記憶滿了或衰減到底時，
+    //           onForgotten 會在物體原地留下一顆小小的「遺忘之點」。
+    this.memory.encode(obj);
+
+    if (obj.element) {
+      obj.element.style.opacity    = '0';
+      obj.element.style.transition = 'opacity 0.5s';
+      // v12.1：還池的同時斷開 obj.element 引用
+      // 猴子解釋：粒子靠 PARTICLE_FADE_FRAMES（30 幀）留在 objects 裡邊飛邊淡，
+      //           60fps 時 30 幀剛好 ≈ 500ms，跟這裡的 setTimeout 打平手。
+      //           但一掉幀（例如手機跑 30fps），30 幀變成 1 秒——
+      //           DOM 已經還池、甚至被新物體領走了，殭屍粒子卻還在
+      //           對它寫 transform，新物體會被莫名瞬移。
+      //           現在還池時把 obj.element 設 null：
+      //           全引擎讀 element 前都有 if 防護，設 null 是安全的。
+      const el = obj.element;
+      setTimeout(() => {
+        this.objectPool.release(el);
+        obj.element = null;
+      }, 500);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // animate()：每幀主循環
+  // ──────────────────────────────────────────────
+  animate() {
+    this.perfMonitor.update();
+
+    // ── Step 1：物理計算 ─────────────────────────
+    this.objects.forEach(obj => {
+
+      if (obj.isSmoke || obj.isHeat || obj.isGas) {
+        obj.velocityY += obj.riseAcceleration ?? -0.1;
+        obj.velocityY  = Math.max(obj.velocityY, obj.terminalRiseVelocity ?? -5);
+
+        // v11.8：氣體水平阻力衰減（線性）
+        obj.velocityX = (obj.velocityX ?? 0)
+          * (1 - PHYSICS_CONSTANTS.DRAG_COEFFICIENT);
+
+        obj.x  = (obj.x ?? 0) + obj.velocityX;
+        obj.y += obj.velocityY;
+
+        // v11.6：氣體地面夾持
+        if (obj.y > this.groundY) {
+          obj.y         = this.groundY;
+          obj.velocityY = Math.min(obj.velocityY, 0);
+        }
+        return;
+      }
+
+      if (obj.isMoon || obj.isMoonRay || obj.isSun) {
+        obj.x  = (obj.x ?? 0) + (obj.velocityX ?? 0);
+        obj.y += obj.velocityY;
+        return;
+      }
+
+      if (obj.fixed) return;
+
+      const mass = this.getMass(obj);
+
+      // ─ 垂直方向的力 ─
+      let totalForceY = 0;
+      if (this.gravity) totalForceY += this.gravityForce * mass;
+
+      if (obj.density !== undefined) {
+        // v12.0 修正：浮力方向反轉
+        // 猴子解釋：14.1 的公式是「向上為正」的物理慣例，
+        //           但引擎的 Y 軸是螢幕座標、向下為正（重力是正值）。
+        //           以前直接 +=，等於把浮力上下顛倒——
+        //           氣泡像石頭一樣往下砸，石頭反而被托著。
+        //           現在改成 -=，輕的往上、重的往下，阿基米德安息。
+        totalForceY -= calculateBuoyancy(obj, this.getNearbyObjects(obj));
+      }
+
+      const dragY = -Math.sign(obj.velocityY)
+        * obj.velocityY * obj.velocityY
+        * PHYSICS_CONSTANTS.DRAG_COEFFICIENT;
+      totalForceY += dragY;
+
+      // ─ 水平方向的力 ─
+      const dragX = -Math.sign(obj.velocityX ?? 0)
+        * (obj.velocityX ?? 0) * (obj.velocityX ?? 0)
+        * PHYSICS_CONSTANTS.DRAG_COEFFICIENT;
+      let totalForceX = dragX;
+
+      // ─ 相對論修正 ─
+      let dilationFactor = 1;
+      if (obj.applyTimeDilation && obj.speed !== undefined) {
+        const speedRatio = Math.min(obj.speed / PHYSICS_CONSTANTS.LIGHT_SPEED, 0.9999);
+        dilationFactor   = 1 / Math.sqrt(1 - speedRatio * speedRatio);
+      }
+
+      // ─ F=ma → a=F/m ─
+      const accelY = (totalForceY / mass) / dilationFactor;
+      const accelX = (totalForceX / mass) / dilationFactor;
+
+      obj.velocityY    += accelY;
+      obj.velocityX     = (obj.velocityX ?? 0) + accelX;
+      obj.x             = (obj.x ?? 0) + obj.velocityX;
+      obj.y            += obj.velocityY;
+
+      if (obj.applyLengthContraction && obj.speed !== undefined) {
+        const speedRatio        = Math.min(obj.speed / PHYSICS_CONSTANTS.LIGHT_SPEED, 0.9999);
+        const contractionFactor = Math.sqrt(1 - speedRatio * speedRatio);
+        if (obj.element) {
+          obj.element.style.transform =
+            `translate(${obj.x}px, ${obj.y}px) scaleX(${contractionFactor})`;
+        }
+      }
+
+      if (obj.y > this.groundY) {
+        obj.y         = this.groundY;
+        obj.velocityY = -obj.velocityY * PHYSICS_CONSTANTS.GROUND_RESTITUTION;
+        if (Math.abs(obj.velocityY) < PHYSICS_CONSTANTS.GROUND_VELOCITY_THRESHOLD) {
+          obj.velocityY = 0;
+        }
+      }
+    });
+
+    // ── Step 2：量子態更新 ────────────────────────
+    this.objects.forEach(obj => {
+      if (!obj.isQuantum || obj.collapsed) return;
+      if (this.frameCount % (obj.switchInterval ?? 100) === 0) {
+        const idx    = Math.floor(Math.random() * obj.states.length);
+        obj.text     = obj.states[idx];
+        if (obj.element) obj.element.textContent = obj.text;
+
+        // v12.0：切換 text 後同步語義指紋與碰撞箱
+        // 猴子解釋：WAVE 換成 PARTICLE，字變長了，
+        //           semanticVector（共鳴用）跟 aabb（化學碰撞用）卻還是舊的。
+        //           v11.9 幫 mutate 修過同一種病，這次輪到量子。
+        obj.semanticVector   = this.computeSemanticVector(obj.text);
+        obj.needsRecalculate = true;
+      }
+    });
+
+    // ── Step 3：粒子生命週期 ──────────────────────
+    // v11.7：統一走 releaseObject()
+    // v11.8：releaseObject 有冪等防護，不怕重複呼叫
+    // v11.9：_released 後保留 PARTICLE_FADE_FRAMES 幀，邊飛邊淡
+    //        猴子解釋：以前粒子一 _released 就從 objects 被移除（Step 5），
+    //                 Step 9 不再更新它的位置，視覺上會突然定住然後淡出。
+    //                 現在改成：lifetime 歸零 → 標記 _released + 開始淡出，
+    //                 但不馬上從 objects 移除，而是多留 PARTICLE_FADE_FRAMES 幀。
+    //                 這段期間 Step 1 還會更新位置，Step 9 還會渲染，
+    //                 所以粒子會邊飛邊淡，不會突然釘住。
+    this.objects.forEach(obj => {
+      if (!obj.isParticle) return;
+
+      // 已進入淡出期：倒數淡出幀數
+      if (obj._released) {
+        obj._fadeRemaining = (obj._fadeRemaining ?? 0) - 1;
+        // _fadeRemaining <= 0 時，Step 5 的 filter 會移除
+        return;
+      }
+
+      obj.lifetime = (obj.lifetime ?? 60) - 1;
+      if (obj.lifetime <= 0) {
+        this.releaseObject(obj);
+        obj._fadeRemaining = PHYSICS_CONSTANTS.PARTICLE_FADE_FRAMES;
+      } else if (obj.element) {
+        obj.element.style.opacity = String(obj.lifetime / 60);
+      }
+    });
+
+    // ── Step 4：熱力學更新 ────────────────────────
+    const heatVisited = new Set();
+
+    this.objects.forEach(obj => {
+      const actualTemp = this.temperature + (obj.tempOffset ?? 0);
+      const nearby     = this.getNearbyObjects(obj);
+
+      nearby.forEach(other => {
+        const pairKey = obj._id < other._id
+          ? `${obj._id}:${other._id}`
+          : `${other._id}:${obj._id}`;
+        if (heatVisited.has(pairKey)) return;
+        heatVisited.add(pairKey);
+
+        const otherTemp  = this.temperature + (other.tempOffset ?? 0);
+        const transfer   = (otherTemp - actualTemp)
+          * PHYSICS_CONSTANTS.HEAT_TRANSFER * 0.01;
+        obj.tempOffset   = (obj.tempOffset ?? 0) + transfer;
+        other.tempOffset = (other.tempOffset ?? 0) - transfer;
+      });
+
+      const updatedTemp = this.temperature + (obj.tempOffset ?? 0);
+      const prevPhase = obj.phase;
+      this.checkPhaseTransition(obj, updatedTemp);
+      if (obj.phase !== prevPhase) {
+        obj.needsRecalculate = true;
+      }
+    });
+
+    // ── Step 5：化學反應偵測（Mark-and-Sweep）──────
+    this.chemicalRules.detectAndReact(this.objects, this);
+
+    // v11.9：過濾條件分離
+    // _released 的粒子如果還有淡出幀數（_fadeRemaining > 0），保留在 objects 裡
+    // 猴子解釋：以前 _released 就立刻被趕出 objects，現在淡出期間可以繼續飛
+    //
+    // 🟡 已知邊界情況：如果粒子同時被設了 toBeRemoved（例如粒子有 chemicalId
+    //    而且參與了化學反應），toBeRemoved 的檢查在最前面，會直接移除，
+    //    _fadeRemaining 機制失效。目前粒子沒有 chemicalId 所以不會觸發，
+    //    但如果未來有化學反應粒子，需要調整優先級。
+    this.objects = this.objects.filter(o => {
+      if (o.toBeRemoved) return false;
+      if (o._released) {
+        // 粒子淡出期間保留
+        if (o.isParticle && (o._fadeRemaining ?? 0) > 0) return true;
+        return false;
+      }
+      return true;
+    });
+
+    // ── Step 6：光場更新 ──────────────────────────
+    this.lightSystem.update(this.objects);
+
+    // ── Step 7：聲場更新（純視覺）────────────────
+    this.soundSystem.update(this.objects);
+
+    // ── Step 8：子系統 ───────────────────────────
+    if (this.frameCount % 30 === 0) {
+      this.resonance.scanResonance(this.objects);
+    }
+    this.resonance.update();
+    this.memory.decay();
+    if (this.evolutionEnabled && this.frameCount > 0
+        && this.frameCount % 300 === 0) {
+      // v12.0 修正之一：frameCount > 0
+      // 猴子解釋：以前 0 % 300 === 0 成立，場景第 0 幀就跑一輪進化，
+      //           太陽還沒升起就被天擇了。現在至少活滿 300 幀才開始演化。
+      //
+      // v12.0 修正之二：受保護物體豁免進化
+      // 猴子解釋：以前 select() 六親不認——★ 和 🔔 這種符號在
+      //           dominantKeywords 裡 fitness 必為 0，第一輪就被淘汰，
+      //           你精心擺的光源、聲源、固定佈景會自己消失。
+      //           現在 fixed / isLightSource / isSoundSource / noEvolve:true
+      //           的物體完全不進進化系統，連淺拷貝都不做——
+      //           所以外部引用（例如事件綁定）對受保護物體永遠有效。
+      const isProtected = o =>
+        o.fixed || o.isLightSource || o.isSoundSource || o.noEvolve;
+      const protectedObjs = this.objects.filter(isProtected);
+      const evolvable     = this.objects.filter(o => !isProtected(o));
+
+      this.environment.updateFromScene(this.objects);
+      const { kept, removed } = this.evolution.nextGeneration(
+        evolvable, this.environment, this  // v11.9：傳入 engine 引用
+      );
+      removed.forEach(obj => this.releaseObject(obj));
+
+      // v11.8 修正：_id 去重改用 kept 自身
+      // v12.0：受保護物體的 _id 先登記，避免子代撞號
+      const existingIds = new Set(protectedObjs.map(o => o._id));
+      kept.forEach(obj => {
+        if (obj._id === undefined || existingIds.has(obj._id)) {
+          obj._id = this._nextId++;
+        }
+        existingIds.add(obj._id);
+      });
+
+      this.objects = [...protectedObjs, ...kept];
+    }
+    this.renderBuffer.commit();
+    if (this.frameCount % 10 === 0) {
+      this.vectorField.generateField(this.objects);
+    }
+    this.objects.forEach(obj => this.vectorField.applyField(obj));
+
+    // ── Step 9：Render Pass ───────────────────────
+    this.objects.forEach(obj => {
+      if (!obj.element || obj.fixed) return;
+      if (!obj.applyLengthContraction) {
+        obj.element.style.transform =
+          `translate(${obj.x ?? 0}px, ${obj.y ?? 0}px)`;
+      }
+    });
+
+    // ── Step 10：延遲物理重算 ─────────────────────
+    this.objects.forEach(obj => {
+      if (obj.needsRecalculate) {
+        this.recalculatePhysics(obj);
+        obj.needsRecalculate = false;
+      }
+    });
+
+    // ── Step 11：空間劃分更新 ─────────────────────
+    if (this.frameCount % 5 === 0) {
+      this.spatialGrid.rebuild(this.objects);
+    }
+
+    this.frameCount++;
+    requestAnimationFrame(() => this.animate());
+  }
+
+  // ──────────────────────────────────────────────
+  // checkPhaseTransition()：雙向相變 + 三態密度快照
+  // v11.8 修正：固→液 fallback 改用 solidDensity 推導
+  // v11.9 修正：液→固、液→氣 fallback 也統一改用快照值
+  // v12.0 新增：相變遲滯（±PHASE_HYSTERESIS）
+  // ──────────────────────────────────────────────
+  checkPhaseTransition(obj, actualTemp) {
+    if (!obj.phase) return;
+
+    // v12.0：相變遲滯
+    // 猴子解釋：溫度剛好卡在熔點附近時，熱傳導的小抖動會讓
+    //           ICE⇄water 每幀來回變身，畫面像壞掉的霓虹燈。
+    //           臨界點外加一圈 ±H 緩衝帶：要熔就熔得乾脆，
+    //           要凍就凍得徹底，緩衝帶裡維持現狀。
+    const H = PHYSICS_CONSTANTS.PHASE_HYSTERESIS;
+
+    // ─ 正向：固→液 ─
+    if (obj.phase === 'solid' && obj.meltingPoint !== undefined) {
+      if (actualTemp > obj.meltingPoint + H) {
+        obj.phase = 'liquid';
+
+        // v11.8：fallback 用 solidDensity 而非 obj.density
+        const newDensity = obj.liquidDensity
+          ?? (obj.solidDensity ?? obj.density ?? 5) * 0.5;
+        obj.liquidDensity = obj.liquidDensity ?? newDensity;
+        obj.density = newDensity;
+
+        obj.text = obj.liquidText ?? obj.text.toLowerCase();
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    // ─ 正向：液→氣 ─
+    if (obj.phase === 'liquid' && obj.boilingPoint !== undefined) {
+      if (actualTemp > obj.boilingPoint + H) {
+        obj.phase              = 'gas';
+        obj.isSmoke            = true;
+        obj.velocityY          = -1.0;
+        obj.riseAcceleration   = -0.05;
+        obj.terminalRiseVelocity = -4;
+
+        // v11.9 修正：補上 gasDensity fallback 快照
+        // 猴子解釋：以前如果 gasDensity 是 undefined，density 完全不變，
+        //           液態密度直接帶進氣態，氣體跟液體一樣重。
+        //           而且沒有做快照，氣→液→氣 第二次循環也救不回來。
+        //           現在跟固→液 一樣：有快照就用快照，沒有就從上一態推導並存檔。
+        const newGasDensity = obj.gasDensity
+          ?? (obj.liquidDensity ?? obj.density ?? 5) * 0.2;
+        obj.gasDensity = obj.gasDensity ?? newGasDensity;
+        obj.density = newGasDensity;
+
+        obj.text = obj.gasText
+          ?? obj.text.toUpperCase().split('').join(' ');
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    // ─ 逆向：氣→液 ─
+    if (obj.phase === 'gas' && obj.boilingPoint !== undefined) {
+      if (actualTemp <= obj.boilingPoint - H) {
+        obj.phase            = 'liquid';
+        obj.isSmoke          = false;
+        obj.isHeat           = false;
+        obj.isGas            = false;
+        obj.riseAcceleration = undefined;
+        obj.terminalRiseVelocity = undefined;
+        obj.velocityY        = 0;
+
+        if (obj.liquidDensity !== undefined) {
+          obj.density = obj.liquidDensity;
+        }
+
+        obj.text = obj.liquidText ?? obj.text.toLowerCase().replace(/\s/g, '');
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+
+    // ─ 逆向：液→固 ─
+    if (obj.phase === 'liquid' && obj.meltingPoint !== undefined) {
+      if (actualTemp <= obj.meltingPoint - H) {
+        obj.phase = 'solid';
+
+        // v11.9 修正：fallback 改用 liquidDensity 推導，而非 obj.density
+        // 猴子解釋：跟固→液 同一個問題——obj.density 可能被 recalculatePhysics 改過。
+        //           現在用 liquidDensity 這張照片來推算固態密度，穩。
+        obj.density = obj.solidDensity
+          ?? (obj.liquidDensity ?? obj.density ?? 2.5) * 2;
+
+        obj.text = obj.solidText ?? obj.text.toUpperCase();
+        if (obj.element) obj.element.textContent = obj.text;
+        return;
+      }
+    }
+  }
+
+  start() {
+    // v12.1：防重複啟動
+    // 猴子解釋：以前 start() 呼叫兩次就有兩條主循環同時跑——
+    //           重力翻倍、時間加速，整個宇宙用 2 倍速崩壞。
+    //           現在第二次呼叫直接在門口擋下。
+    if (this._running) return;
+    this._running   = true;
+    this.frameCount = 0;
+    requestAnimationFrame(() => this.animate());
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// calculateBuoyancy — v11.5 修正
+// v12.0 註記：回傳值採「向上為正」的物理慣例；
+//            Step 1 以 totalForceY -= 併入向下為正的螢幕座標系。
+// ══════════════════════════════════════════════════
+
+function calculateBuoyancy(object, surroundings) {
+  const objectDensity = object.density ?? PHYSICS_CONSTANTS.WATER_DENSITY;
+
+  if (!surroundings || surroundings.length === 0) return 0;
+
+  const surroundingDensity =
+    surroundings.reduce((sum, obj) => {
+      const d = obj.density ?? PHYSICS_CONSTANTS.AIR_DENSITY;
+      return sum + (isNaN(d) ? 0 : d);
+    }, 0) / surroundings.length;
+
+  return (surroundingDensity - objectDensity) * PHYSICS_CONSTANTS.BUOYANCY_FACTOR;
+}
+
+
+// ══════════════════════════════════════════════════
+// ChemicalReactionSystem
+// v11.4：Mark-and-Sweep
+// v11.9：反應物統一走 engine.releaseObject()
+// ══════════════════════════════════════════════════
+
+class ChemicalReactionSystem {
+  constructor() {
+    this.rules = new Map([
+      ['FIRE+WATER',  { products:['STEAM'],        byproducts:['💥'],          energyRelease:50  }],
+      ['FIRE+ICE',    { products:['WATER','WATER'], byproducts:[],              energyRelease:30  }],
+      ['ACID+BASE',   { products:['SALT','WATER'],  byproducts:[],              energyRelease:10  }],
+      ['WOOD+FIRE',   { products:['ASH'],           byproducts:['SMOKE'],       energyRelease:80  }],
+      ['BOMB+FIRE',   { products:[],                byproducts:['💥','💥','💥'], energyRelease:200, isExplosion:true }],
+      ['GAS+SPARK',   { products:[],                byproducts:['💥','💥'],     energyRelease:150, isExplosion:true }],
+    ]);
+  }
+
+  detectAndReact(objects, engine) {
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i + 1; j < objects.length; j++) {
+        const a = objects[i], b = objects[j];
+        if (!a.chemicalId || !b.chemicalId) continue;
+        if (a.toBeRemoved || b.toBeRemoved) continue;
+
+        if (engine.checkAABBCollision(a, b)) {
+          this.tryReact(a, b, engine);
+        }
+      }
+    }
+  }
+
+  tryReact(objA, objB, engine) {
+    const key1  = `${objA.chemicalId}+${objB.chemicalId}`;
+    const key2  = `${objB.chemicalId}+${objA.chemicalId}`;
+    const rule  = this.rules.get(key1) || this.rules.get(key2);
+    if (!rule) return;
+
+    const midX = ((objA.x ?? 0) + (objB.x ?? 0)) / 2;
+    const midY = ((objA.y ?? 0) + (objB.y ?? 0)) / 2;
+
+    // v11.9 修正：反應物統一走 releaseObject()
+    // 猴子解釋：以前反應物自己做 opacity + setTimeout + 手動 release，
+    //           繞過了 releaseObject()，沒有設 _released 標記。
+    //           如果同一個物體同時被別的系統（例如進化淘汰）處理，
+    //           就會出現兩套 setTimeout。
+    //           現在統一走 releaseObject()，有冪等防護，安全。
+    //
+    //           但還是要設 toBeRemoved = true，因為 Step 5 的 filter 用它來清理，
+    //           而且爆炸衝擊波迴圈也用 toBeRemoved 來跳過反應物。
+    [objA, objB].forEach(obj => {
+      obj.toBeRemoved = true;
+      engine.releaseObject(obj);
+    });
+
+    rule.products.forEach((productId, i) => {
+      engine.addObject({
+        text: productId, chemicalId: productId,
+        x: midX + i * 20, y: midY,
+        velocityX: (Math.random() - 0.5) * 3, velocityY: -2
+      });
+    });
+
+    rule.byproducts.forEach((byproduct, i) => {
+      const angle = (i / rule.byproducts.length) * Math.PI * 2;
+      engine.addObject({
+        text: byproduct, x: midX, y: midY,
+        velocityX: Math.cos(angle) * 5,
+        velocityY: Math.sin(angle) * 5,
+        isParticle: true, lifetime: 60
+      });
+    });
+
+    if (rule.isExplosion) {
+      engine.objects.forEach(obj => {
+        if (obj.toBeRemoved) return;
+        const exDx   = (obj.x ?? 0) - midX;
+        const exDy   = (obj.y ?? 0) - midY;
+        const exDist = Math.sqrt(exDx * exDx + exDy * exDy) || 1;
+        if (exDist < 100) {
+          const force   = (100 - exDist) * 0.2;
+          obj.velocityX = (obj.velocityX ?? 0) + (exDx / exDist) * force;
+          obj.velocityY = (obj.velocityY ?? 0) + (exDy / exDist) * force;
+        }
+      });
+    }
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// ObjectPool：DOM 元素回收池
+// v11.5：_inPool 標記防止競態
+// ══════════════════════════════════════════════════
+
+class ObjectPool {
+  constructor(initialSize = 50) {
+    this.pool = Array.from({ length: initialSize }, () => {
+      const el = document.createElement('span');
+      el.style.display = 'none';
+      el._inPool = true;
+      document.body.appendChild(el);
+      return el;
+    });
+  }
+
+  acquire() {
+    while (this.pool.length > 0) {
+      const el = this.pool.pop();
+      if (!el._inPool) continue;
+      el._inPool        = false;
+      el.style.cssText  = '';
+      el.style.display  = '';
+      el.style.position = 'absolute';
+      el.style.left     = '0px';
+      el.style.top      = '0px';
+      el.style.transition = '';
+      return el;
+    }
+    console.warn('ObjectPool 已空，建立新元素（考慮增大初始容量）');
+    const el = document.createElement('span');
+    el._inPool = false;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  release(el) {
+    if (!el || el._inPool) return;
+    el.style.display    = 'none';
+    el.style.transition = '';
+    el.textContent      = '';
+    el._inPool          = true;
+    this.pool.push(el);
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// LightFieldSystem：光源對周圍物體的影響（純視覺）
+// v12.0：_lit 旗標 = filter 所有權（見附錄 C）
+// ══════════════════════════════════════════════════
+
+class LightFieldSystem {
+  update(objects) {
+    const lightSources = objects.filter(obj => obj.isLightSource);
+    if (lightSources.length === 0) {
+      // v12.0：沒有光源時清掉 _lit，把 filter 所有權還給向量場（見附錄 C）
+      // v12.1：順便卸妝——把光場之前寫上去的 textShadow / filter 清乾淨
+      // 猴子解釋：以前太陽被移除後，物體臉上還留著最後一幀的影子和亮度，
+      //           永遠洗不掉。現在光源全滅時統一卸妝。
+      //           只清 _lightStyled（光場化過妝）的物體，
+      //           不會誤清使用者在 config 自己設的 textShadow。
+      objects.forEach(o => {
+        if (o._lightStyled && o.element) {
+          o.element.style.textShadow = '';
+          o.element.style.filter     = '';
+          o._lightStyled = false;
+        }
+        o._lit = false;
+      });
+      return;
+    }
+
+    objects.forEach(obj => {
+      if (obj.isLightSource || !obj.element) return;
+
+      let totalBrightness = 0;
+      let shadowX = 0, shadowY = 0;
+
+      lightSources.forEach(light => {
+        const dx       = (obj.x ?? 0) - (light.x ?? 0);
+        const dy       = (obj.y ?? 0) - (light.y ?? 0);
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const radius   = light.lightRadius ?? 300;
+
+        if (distance > radius) return;
+
+        const brightness = (light.lightIntensity ?? 1)
+          / (1 + distance * PHYSICS_CONSTANTS.LIGHT_DECAY);
+        totalBrightness += brightness;
+
+        const shadowDir  = distance;
+        shadowX += (dx / shadowDir) * brightness * 5;
+        shadowY += (dy / shadowDir) * brightness * 5;
+      });
+
+      obj._lit = totalBrightness > 0;  // v12.0：filter 所有權旗標（見附錄 C）
+      obj._lightStyled = true;         // v12.1：記錄「光場化過妝」，光源全滅時才知道要幫誰卸
+
+      if (totalBrightness > 0) {
+        obj.element.style.textShadow =
+          `${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px ${(3 / totalBrightness).toFixed(1)}px rgba(0,0,0,0.8)`;
+        obj.element.style.filter =
+          `brightness(${(0.5 + totalBrightness).toFixed(2)})`;
+      } else {
+        obj.element.style.textShadow = '';
+        obj.element.style.filter     = 'brightness(0.5)';
+      }
+    });
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// SoundFieldSystem：聲源對周圍物體的視覺震動
+// v11.4：純 CSS 視覺效果，不干預物理速度
+// ══════════════════════════════════════════════════
+
+class SoundFieldSystem {
+  update(objects) {
+    const soundSources = objects.filter(obj => obj.isSoundSource);
+    if (soundSources.length === 0) return;
+
+    objects.forEach(obj => {
+      if (obj.isSoundSource || !obj.element) return;
+
+      let totalForce = 0;
+
+      soundSources.forEach(source => {
+        const dx       = (obj.x ?? 0) - (source.x ?? 0);
+        const dy       = (obj.y ?? 0) - (source.y ?? 0);
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const radius   = source.soundRadius ?? 200;
+
+        if (distance > radius) return;
+
+        const force = (source.soundVolume ?? 1)
+          / (1 + distance * PHYSICS_CONSTANTS.SOUND_DECAY);
+        totalForce += force;
+      });
+
+      if (totalForce > 0.1) {
+        const vibration = (Math.random() - 0.5) * totalForce * 2;
+        obj.element.style.letterSpacing = `${vibration.toFixed(2)}px`;
+      } else {
+        obj.element.style.letterSpacing = '';
+      }
+    });
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// SpatialGrid：畫面格子地圖，加速鄰居搜尋
+// ══════════════════════════════════════════════════
+
+class SpatialGrid {
+  constructor(cellSize = 100) {
+    this.cellSize = cellSize;
+    this.grid     = new Map();
+    this.ready    = false;
+  }
+
+  isReady() { return this.ready; }
+
+  insert(obj) {
+    const key = this.getKey(obj.x ?? 0, obj.y ?? 0);
+    if (!this.grid.has(key)) this.grid.set(key, []);
+    this.grid.get(key).push(obj);
+  }
+
+  rebuild(objects) {
+    this.grid.clear();
+    objects.forEach(obj => this.insert(obj));
+    this.ready = objects.length >= PHYSICS_CONSTANTS.SPATIAL_GRID_THRESHOLD;
+  }
+
+  query(obj, radius) {
+    const result     = [];
+    const cellRadius = Math.ceil(radius / this.cellSize);
+    const cx         = Math.floor((obj.x ?? 0) / this.cellSize);
+    const cy         = Math.floor((obj.y ?? 0) / this.cellSize);
+    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
+      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
+        const cell = this.grid.get(`${cx+dx},${cy+dy}`);
+        if (cell) result.push(...cell.filter(o => o !== obj));
+      }
+    }
+    return result;
+  }
+
+  getKey(x, y) {
+    return `${Math.floor(x/this.cellSize)},${Math.floor(y/this.cellSize)}`;
+  }
+}
+
+
+class PerformanceMonitor {
+  constructor() {
+    this.frameCount = 0;
+    this.fps        = 60;
+    this.lastTime   = performance.now();
+    this.cpuUsage   = 0;
+  }
+  update() {
+    const now       = performance.now();
+    const delta     = now - this.lastTime;
+    this.fps        = 1000 / delta;
+    this.cpuUsage   = (delta / 16.67) * 100;
+    this.lastTime   = now;
+    this.frameCount++;
+    if (this.frameCount % 60 === 0) {
+      if (this.cpuUsage > 80) {
+        console.warn('CPU過載，降級渲染...');
+        // 🔴 v12.0 誠實標註：degradeComplexity() 尚未實作，
+        //    這行是預留鉤子（optional chaining，不存在就靜默跳過）。
+        if (typeof ENGINE !== 'undefined') ENGINE.degradeComplexity?.();
+      }
+    }
+  }
+}
+
+
+// 🔴 v12.0 誠實標註：本系統目前未接線。
+// staged / draft 沒有任何生產者，commit() 每幀空轉，
+// 純粹是為未來「分層渲染」規劃保留的骨架。
+// 猴子解釋：車站蓋好了，鐵軌還沒鋪。
+class RenderBufferSystem {
+  constructor(monitor) {
+    this.monitor     = monitor;
+    this.layers      = { committed:[], staged:[], draft:[], corrupted:[] };
+    this.maxCapacity = 100;
+  }
+  getCPULoad() {
+    return this.monitor ? Math.min(this.monitor.cpuUsage / 100, 1.0) : 0;
+  }
+  commit() {
+    if (this.getCPULoad() < 0.5) {
+      const ready = this.layers.staged.filter(
+        item => Date.now() - item.timestamp > 1000
+      );
+      ready.forEach(item => {
+        this.layers.committed.push(item);
+        this.layers.staged = this.layers.staged.filter(i => i !== item);
+      });
+    }
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// TextResonance
+// v11.5：語義向量長度檢查
+// v11.7：update() 過濾已釋放的物體
+// v12.0：?? 0 防護（NaN 雙保險）
+// ══════════════════════════════════════════════════
+
+class TextResonance {
+  constructor(threshold = 0.85) {
+    this.threshold      = threshold;
+    this.resonancePairs = [];
+  }
+  cosineSimilarity(vecA, vecB) {
+    if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+    const dot  = vecA.reduce((s, a, i) => s + a * vecB[i], 0);
+    const magA = Math.sqrt(vecA.reduce((s, a) => s + a*a, 0));
+    const magB = Math.sqrt(vecB.reduce((s, b) => s + b*b, 0));
+    return dot / ((magA * magB) || 1);
+  }
+  scanResonance(objects) {
+    this.resonancePairs = [];
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i+1; j < objects.length; j++) {
+        const a = objects[i], b = objects[j];
+        if (!a.semanticVector || !b.semanticVector) continue;
+        const sim = this.cosineSimilarity(a.semanticVector, b.semanticVector);
+        if (sim >= this.threshold) {
+          this.resonancePairs.push({ a, b, similarity: sim, phase: 0 });
+        }
+      }
+    }
+  }
+  update() {
+    const MIN_DIST = 20, DAMPING = 0.98;
+
+    // v11.7：過濾掉包含已釋放物體的 pair
+    this.resonancePairs = this.resonancePairs.filter(
+      pair => !pair.a._released && !pair.b._released
+    );
+
+    this.resonancePairs.forEach(pair => {
+      pair.phase += 0.05 * pair.similarity;
+      const spacing = Math.sin(pair.phase) * (pair.similarity - this.threshold) * 10;
+      if (pair.a.element) pair.a.element.style.letterSpacing = `${spacing}px`;
+      if (pair.b.element) pair.b.element.style.letterSpacing = `${spacing}px`;
+      // v12.0：?? 0 防護（雙保險）
+      // 猴子解釋：addObject 出生時已經會補 0，
+      //           但共鳴系統也可能碰到外部手動組裝的物體，
+      //           這裡再守一層，NaN 不准進場跳舞。
+      const dx = (pair.b.x ?? 0) - (pair.a.x ?? 0);
+      const dy = (pair.b.y ?? 0) - (pair.a.y ?? 0);
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > MIN_DIST) {
+        const att = pair.similarity * 0.02;
+        pair.a.velocityX = (pair.a.velocityX ?? 0) + (dx/dist)*att;
+        pair.a.velocityY = (pair.a.velocityY ?? 0) + (dy/dist)*att;
+        pair.b.velocityX = (pair.b.velocityX ?? 0) - (dx/dist)*att;
+        pair.b.velocityY = (pair.b.velocityY ?? 0) - (dy/dist)*att;
+      } else {
+        const rep = (MIN_DIST - dist) * 0.05;
+        pair.a.velocityX = (pair.a.velocityX ?? 0) - (dx/(dist||1))*rep;
+        pair.a.velocityY = (pair.a.velocityY ?? 0) - (dy/(dist||1))*rep;
+        pair.b.velocityX = (pair.b.velocityX ?? 0) + (dx/(dist||1))*rep;
+        pair.b.velocityY = (pair.b.velocityY ?? 0) + (dy/(dist||1))*rep;
+      }
+      [pair.a, pair.b].forEach(o => {
+        o.velocityX = (o.velocityX ?? 0) * DAMPING;
+        o.velocityY = (o.velocityY ?? 0) * DAMPING;
+      });
+    });
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// TextMemory
+// v11.4：殘影自動淡出 + 定時移除
+// v11.5：setTimeout 加 100ms 緩衝
+// v12.0：encode() 由 engine.releaseObject() 自動呼叫（快門終於接上了）
+// ══════════════════════════════════════════════════
+
+class TextMemory {
+  constructor(capacity = 10) {
+    this.capacity        = capacity;
+    this.shortTerm       = [];
+    this.longTerm        = new Map();
+    this.forgettingCurve = 0.95;
+  }
+  encode(object) {
+    const snap = {
+      text: object.text,
+      key: (object.text ?? '').slice(0,10).trim(),
+      x: object.x, y: object.y,
+      strength: 1.0, timestamp: Date.now(), accessCount: 0
+    };
+    this.shortTerm.unshift(snap);
+    if (this.shortTerm.length > this.capacity) {
+      this.onForgotten(this.shortTerm.pop());
+    }
+  }
+  consolidate(snap) {
+    snap.accessCount++;
+    if (snap.accessCount >= 3) {
+      this.longTerm.set(snap.key, { ...snap, strength: 1.0 });
+      this.shortTerm = this.shortTerm.filter(s => s !== snap);
+    }
+  }
+  recall(key) {
+    const mem = this.longTerm.get(key)
+      || this.shortTerm.find(s => s.key.includes(key));
+    if (mem) {
+      mem.strength = Math.min(mem.strength + 0.3, 1.0);
+      mem.accessCount++;
+      this.consolidate(mem);
+      return mem;
+    }
+    return null;
+  }
+  decay() {
+    this.shortTerm.forEach(s => { s.strength *= this.forgettingCurve; });
+    this.shortTerm.filter(s => s.strength < 0.05).forEach(s => this.onForgotten(s));
+    this.shortTerm = this.shortTerm.filter(s => s.strength >= 0.05);
+    this.longTerm.forEach((mem, key) => {
+      mem.strength *= 0.999;
+      if (mem.strength < 0.01) { this.onForgotten(mem); this.longTerm.delete(key); }
+    });
+  }
+  onForgotten(snap) {
+    const g = document.createElement('sub');
+    g.textContent = '.';
+    g.style.cssText = `
+      position:absolute;
+      left:${snap.x ?? 0}px;
+      top:${snap.y ?? 0}px;
+      opacity:0.1;
+      font-size:8px;
+      color:#666;
+      pointer-events:none;
+      transition: opacity 3s;
+    `;
+    g.title = `遺忘: "${snap.text}"`;
+    document.body.appendChild(g);
+
+    requestAnimationFrame(() => { g.style.opacity = '0'; });
+
+    setTimeout(() => g.parentNode?.removeChild(g), 3100);
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// TextEvolution
+// v11.4：職責分離 — 回傳 { kept, removed }
+// v11.7：reproduce _id 去重在 animate Step 8 處理
+// v11.9：mutate() 總是回傳淺拷貝、reproduce() 子代建立獨立 DOM（不經 addObject）
+// v12.0：受保護物體（fixed/光源/聲源/noEvolve）由 Step 8 豁免，不進本系統
+//
+// 🟡 架構級已知限制：進化系統的引用斷裂問題
+// 猴子解釋：nextGeneration 每 300 幀跑一次，把所有物件 map 成淺拷貝（mutate），
+//           然後 Step 8 用 `this.objects = kept` 把 engine.objects 整批換掉。
+//           問題：外部程式碼如果持有物件引用（例如量子物體的 mouseenter 事件綁定
+//           引用的是 addObject 回傳的 qObj），進化之後 kept 裡的是淺拷貝，
+//           外部引用指向的舊物件已經不在 engine.objects 裡了。
+//           事件回調修改的是舊物件的 collapsed，不是新副本的——坍縮失效。
+//
+//           這從 v11.0 就存在，不是 v11.9 引入的。
+//           根治方案有兩條路：
+//           1. mutate/select 原地修改物件屬性，不做淺拷貝（破壞 immutable 語義）
+//           2. 進化後重新綁定事件（需要事件註冊表機制）
+//           兩條都是架構級改動，目前先標記為已知限制。
+//
+//           影響範圍：任何在 addObject 後對物件綁定事件或保存引用的場景。
+//           規避方式：每幀從 engine.objects 裡重新查找物件（用 chemicalId 或 text 等屬性），
+//                    不要長期持有 addObject 回傳的引用。
+//
+//           v12.0 補充：多了一條正道——受保護物體（fixed / isLightSource /
+//           isSoundSource / noEvolve: true）完全不進進化系統，連淺拷貝都不做，
+//           外部引用對它們永遠有效。會綁事件的物體（例如量子物體）
+//           請直接設 noEvolve: true，一勞永逸。
+// ══════════════════════════════════════════════════
+
+class TextEvolution {
+  constructor(mutationRate = 0.01, selectionPressure = 0.5) {
+    this.mutationRate      = mutationRate;
+    this.selectionPressure = selectionPressure;
+    this.generation        = 0;
+  }
+  mutate(object) {
+    // v11.9 修正：不 mutate 時也回傳淺拷貝，不再回傳原引用
+    // 猴子解釋：以前不 mutate 就回傳同一個人，
+    //           後面 select() 在上面寫 fitnessScore 會直接改原物件。
+    //           目前不會壞（fitnessScore 是加上去的新屬性），
+    //           但萬一未來在 select 裡改了 text 或 velocity 就完蛋了。
+    //           現在一律回傳分身，原物件不受影響。
+    if (Math.random() > this.mutationRate) return { ...object };
+    const text = object.text ?? '';
+    if (!text.length) return { ...object };
+    const pos  = Math.floor(Math.random() * text.length);
+    const type = Math.random();
+    let mutated;
+    if (type < 0.6)      mutated = text.slice(0,pos) + this.getAdjacentKey(text[pos]) + text.slice(pos+1);
+    else if (type < 0.8) mutated = text.slice(0,pos) + String.fromCharCode(65+Math.floor(Math.random()*26)) + text.slice(pos);
+    else                 mutated = text.slice(0,pos) + text.slice(pos+1);
+    return { ...object, text: mutated, generation: (object.generation??0)+1 };
+  }
+  fitness(object, environment) {
+    const kws = environment.dominantKeywords ?? [];
+    if (!kws.length) return 0.5;
+    const text = object.text ?? '';
+    return text.split('').filter(c => kws.some(kw => kw.includes(c.toUpperCase()))).length
+      / Math.max(text.length, 1);
+  }
+  select(objects, environment) {
+    const kept = [], removed = [];
+    objects.forEach(obj => {
+      const f = this.fitness(obj, environment);
+      if (f < this.selectionPressure * Math.random()) {
+        obj.fitnessScore = f;
+        removed.push(obj);
+      } else {
+        obj.fitnessScore = f;
+        kept.push(obj);
+      }
+    });
+    return { kept, removed };
+  }
+  reproduce(parent, engine) {
+    // v11.9 修正：子代建立自己的 DOM，不共享父代 element
+    // 猴子解釋：以前子代跟父代共享同一個 element，
+    //           Step 9 會用子代座標去 transform 父代的 element，
+    //           父代在畫面上突然跳到子代位置，看起來像鬼影。
+    //           現在子代拿到自己的 DOM，乾淨。
+    //
+    // v11.9 補充：不用 engine.addObject()，改用 objectPool.acquire() 手動建立。
+    //           猴子解釋：addObject 會 push 到 engine.objects + insert 到 spatialGrid，
+    //                    但 nextGeneration 回傳的 kept 也包含子代，
+    //                    Step 8 會 `this.objects = kept` 覆蓋 engine.objects，
+    //                    addObject 的 push 變成重複。更糟的是 spatialGrid
+    //                    在 rebuild 之前就多了這些子代，getNearbyObjects
+    //                    可能同一個物體撈到兩次（kept 裡有、grid 裡也有）。
+    //                    現在只建 DOM + 組裝物件，不碰 objects 和 spatialGrid，
+    //                    讓 Step 8 的 `this.objects = kept` 統一管理，
+    //                    Step 11 的 rebuild 會正確重建 grid。
+
+    // ── 繼承父代所有屬性，排除不該繼承的 ──
+    // 猴子解釋：以前手動列舉要繼承的屬性，漏了量子、光源、聲源等等。
+    //           現在用 {...parent} 全繼承，再把不該帶的刪掉。
+    //           element 是父代的 DOM 不能共享，_id 要重新分配，
+    //           aabb 和 semanticVector 會在後面重算，
+    //           _released 和 toBeRemoved 是死亡標記不該繼承，
+    //           fitnessScore 是上一代的適應度分數，
+    //           _autoMass 和 _autoDensity 要直接從父代繼承（見下方說明）。
+    const { element, _id, aabb, semanticVector,
+            _released, toBeRemoved, needsRecalculate,
+            fitnessScore, _fadeRemaining,
+            _autoMass, _autoDensity,
+            ...inherited } = parent;
+
+    const childConfig = {
+      ...inherited,
+      x: (parent.x??0) + (Math.random()-0.5)*50,
+      y: (parent.y??0) + (Math.random()-0.5)*50,
+      generation: (parent.generation??0)+1,
+      semanticWeight: (parent.semanticWeight??1)*0.9,
+    };
+
+    const saved = this.mutationRate;
+    this.mutationRate = Math.min(this.mutationRate*2, 0.1);
+    const result = this.mutate(childConfig);
+    this.mutationRate = saved;
+
+    if (engine) {
+      // 手動建立 DOM，不經過 addObject
+      const el = engine.objectPool.acquire();
+      el.textContent      = result.text ?? '';
+      el.style.position   = 'absolute';
+      el.style.left       = '0px';
+      el.style.top        = '0px';
+      el.style.color      = result.color     ?? '#ffffff';
+      el.style.fontSize   = result.fontSize  ?? '16px';
+      el.style.fontWeight = result.fontWeight ?? 'normal';
+      el.style.fontFamily = result.fontFamily ?? 'monospace';
+      el.style.opacity    = result.opacity !== undefined
+        ? String(result.opacity) : '1';
+      if (result.textShadow) el.style.textShadow = result.textShadow;
+      document.body.appendChild(el);
+
+      const child = {
+        ...result,
+        element: el,
+        semanticVector: engine.computeSemanticVector(result.text ?? ''),
+        _id: engine._nextId++,
+        // v11.9：直接繼承父代的 _autoMass / _autoDensity
+        // 猴子解釋：以前用 `!('mass' in result)` 重新判定，
+        //           但 result 裡幾乎一定有 mass（從 inherited 帶來的），
+        //           不管父代是自動算的還是手動設的，子代都被判成手動設定，
+        //           從此 recalculatePhysics 不再自動更新 mass/density。
+        //           更慘的是 childConfig 把 semanticWeight 改成 ×0.9，
+        //           mass 理應跟著變，但因為 _autoMass=false 所以不會重算，
+        //           mass 跟 semanticWeight 就脫鉤了。
+        //           修法：爸爸自動量體重，兒子也自動量；爸爸手動設的，兒子也手動。
+        _autoMass:    parent._autoMass    ?? true,
+        _autoDensity: parent._autoDensity ?? true,
+        // v11.9：子代誕生時標記需要重算
+        // 猴子解釋：子代繼承了父代的 mass/density，但 semanticWeight 已經打了九折。
+        //           如果 _autoMass=true，mass 應該跟著 semanticWeight 變，
+        //           但要等到有人設 needsRecalculate=true 才會重算。
+        //           不設的話，子代會帶著父代的舊 mass 跑好幾幀，
+        //           直到下次相變或其他觸發才修正。
+        //           現在出生就打勾，同一幀的 Step 10 就會重算，乾淨。
+        needsRecalculate: true,
+      };
+
+      engine.updateAABB(child);
+      // 猴子注意：不 push 到 engine.objects，不 insert 到 spatialGrid。
+      //           讓 nextGeneration 回傳的 kept 包含 child，
+      //           Step 8 的 `this.objects = kept` 會統一處理。
+      return child;
+    }
+
+    // fallback：沒有 engine 引用時退回舊行為（子代共享 element）
+    // 🟡 已知限制：僅為向後相容，建議總是傳入 engine
+    // 🟡 fallback 路徑的殘缺清單：
+    //    - 子代共享父代 element（DOM 共用）
+    //    - mutate 改了 text 時 semanticVector 不會更新（沒有 engine 叫不到 computeSemanticVector）
+    //    - 子代沒有自己的 _id（沒有 engine._nextId）
+    //    猴子解釋：fallback 路徑就是個殘廢模式，能動但到處漏風。
+    //             如果你在用 fallback 路徑，你遲早會來看這段註解。
+    return {
+      ...inherited,
+      ...result,
+      _autoMass:    parent._autoMass    ?? true,
+      _autoDensity: parent._autoDensity ?? true,
+      needsRecalculate: true,
+    };
+  }
+  nextGeneration(objects, environment, engine) {
+    this.generation++;
+    let evolved = objects.map(o => {
+      const m = this.mutate(o);
+      // v11.9：mutate 後同步 element.textContent
+      // 猴子解釋：mutate 只改了物件的 text 屬性，沒碰 element。
+      //           淺拷貝的 element 指向原物件的 DOM，
+      //           但 DOM 上的 textContent 還是舊的。
+      //           後面沒有任何地方會同步（Step 9 只更新 transform，
+      //           recalculatePhysics 不管 text，量子態只管 isQuantum），
+      //           所以 obj.text 說自己叫 STOQE，臉上還印著 STONE。
+      //           這個 bug 從 v11.0 就在了，到現在才修。
+      if (m.text !== o.text && m.element) {
+        m.element.textContent = m.text;
+        // 猴子注意：改了 textContent 會影響 DOM 尺寸，
+        //           標記 needsRecalculate 讓 Step 10 重算 density/mass。
+        m.needsRecalculate = true;
+        // v11.9：同步重算 semanticVector
+        // 猴子解釋：mutate 把 STONE 改成 STOQE，但 semanticVector 還是舊的。
+        //           共鳴系統每 30 幀 scanResonance 用 semanticVector 算相似度，
+        //           向量是舊的 → 配對是錯的 → 不該共鳴的在共鳴，該共鳴的沒反應。
+        //           改了名字也換了名牌，但指紋還是舊的，現在連指紋一起換。
+        if (engine) {
+          m.semanticVector = engine.computeSemanticVector(m.text);
+        }
+      }
+      return m;
+    });
+    const { kept, removed } = this.select(evolved, environment);
+    const elite  = [...kept]
+      .sort((a,b) => (b.fitnessScore??0) - (a.fitnessScore??0))
+      .slice(0, Math.ceil(kept.length * 0.2));
+    return {
+      kept: [...kept, ...elite.map(p => this.reproduce(p, engine))],
+      removed
+    };
+  }
+  getAdjacentKey(char) {
+    const map = {
+      'A':'SQWZ','B':'VGHN','C':'XDFV','D':'SFCE','E':'WRDS',
+      'F':'DGCVR','G':'FHBVT','H':'GJNBY','I':'UOJK','J':'HKNUI',
+      'K':'JLMIO','L':'KPOJ','M':'NKJL','N':'BHMJ','O':'IPLK',
+      'P':'OL','Q':'WA','R':'ETDF','S':'ADWE','T':'RYFG',
+      'U':'YIHJ','V':'CFGB','W':'QES','X':'ZSDC','Y':'TUGH','Z':'XAS'
+    };
+    const n = map[char.toUpperCase()];
+    return n ? n[Math.floor(Math.random()*n.length)] : char;
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+// SemanticVectorField
+// v11.5：只計算有物體存在的格點鄰域
+// ══════════════════════════════════════════════════
+
+class SemanticVectorField {
+  constructor() { this.field = new Map(); this.resolution = 50; }
+
+  calculateEmotionVector(text) {
+    const pos = ['LOVE','JOY','HAPPY','BRIGHT','FIRE','LIFE'];
+    const neg = ['HATE','SAD','DARK','DEATH','FEAR','VOID'];
+    const up  = (text??'').toUpperCase();
+    let p=0, n=0;
+    pos.forEach(w => { if(up.includes(w)) p++; });
+    neg.forEach(w => { if(up.includes(w)) n++; });
+    return { valence:(p-n)/Math.max(p+n,1), arousal:(p+n)/3 };
+  }
+
+  calculateInfluence(text, x, y) {
+    const dx = (text.x??0)-x, dy = (text.y??0)-y;
+    const d  = Math.sqrt(dx*dx+dy*dy)||1;
+    const em = this.calculateEmotionVector(text.text);
+    const mag = (em.arousal*1000)/(d*d);
+    const dir = em.valence>0?-1:1;
+    const ang = Math.atan2(y-(text.y??0), x-(text.x??0));
+    return { x:Math.cos(ang)*mag*dir, y:Math.sin(ang)*mag*dir, magnitude:mag };
+  }
+
+  generateField(texts) {
+    this.field.clear();
+    const res = this.resolution;
+    const influenceRadius = 3;
+
+    const cellsToCompute = new Set();
+    texts.forEach(t => {
+      const cx = Math.floor((t.x ?? 0) / res) * res;
+      const cy = Math.floor((t.y ?? 0) / res) * res;
+      for (let dx = -influenceRadius; dx <= influenceRadius; dx++) {
+        for (let dy = -influenceRadius; dy <= influenceRadius; dy++) {
+          cellsToCompute.add(`${cx + dx * res},${cy + dy * res}`);
+        }
+      }
+    });
+
+    cellsToCompute.forEach(key => {
+      const [x, y] = key.split(',').map(Number);
+      let tx=0, ty=0, tm=0;
+      texts.forEach(t => {
+        const i = this.calculateInfluence(t, x, y);
+        tx += i.x; ty += i.y; tm += i.magnitude;
+      });
+      this.field.set(key, { x:tx, y:ty, magnitude:tm });
+    });
+  }
+
+  applyField(text) {
+    const gx = Math.floor((text.x??0)/this.resolution)*this.resolution;
+    const gy = Math.floor((text.y??0)/this.resolution)*this.resolution;
+    const v  = this.field.get(`${gx},${gy}`);
+    if (v && v.magnitude>0.1) {
+      text.velocityX = (text.velocityX??0) + v.x*0.01;
+      text.velocityY = (text.velocityY??0) + v.y*0.01;
+      // v12.0：filter 所有權——被光照到（_lit）的物體由光場管 filter
+      // 猴子解釋：以前光場（Step 6）畫完妝，向量場（Step 8）馬上蓋掉，
+      //           太陽照了個寂寞。現在照到光的臉歸光場，沒照到的才歸向量場。
+      if (text.element && !text._lit) {
+        text.element.style.filter = `brightness(${1+v.magnitude*0.1})`;
+      }
+    }
+  }
+}
+
+</script>
+
+<script>
+/* ══════════════════════════════════════════════
+   展示場 · 場景邏輯（不修改引擎，只呼叫它）
+   規格依據：Textual Physics Codex v12.1
+            Geometric Performance Codex v0.3
+   ══════════════════════════════════════════════ */
+
+const ENGINE = new TextualPhysicsEngine();
+ENGINE.evolutionEnabled = false;   // 預設關閉天擇，按鈕可開（開了世界會自己變異）
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+const rand = (a, b) => a + Math.random() * (b - a);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── 生成器（每個都是 codex 裡的正門 API） ── */
+
+function spawnStone(x, y) {
+  return ENGINE.addObject({
+    text: 'STONE', density: 10, mass: 10,
+    x, y, velocityX: 0, velocityY: 0,
+    color: '#cfc9ba', fontSize: '16px'
+  });
+}
+function spawnPebble(x, y) {
+  return ENGINE.addObject({
+    text: '●', density: 8, mass: 5,
+    x, y, velocityX: rand(-0.4, 0.4), velocityY: 0,
+    color: '#bfb9a8', fontSize: '13px'
+  });
+}
+function spawnIce(x, y) {
+  const o = ENGINE.addObject({
+    text: 'ICE', phase: 'solid',
+    tempOffset: -35,                     // 出生自帶寒氣：世界 25° 時實溫 -10，維持固態
+    meltingPoint: 0, boilingPoint: 100,
+    solidText: 'ICE', liquidText: 'water', gasText: 'S T E A M',
+    solidDensity: 8, liquidDensity: 4, gasDensity: 0.5,
+    density: 8, mass: 8,
+    x, y, velocityX: 0, velocityY: 0, fontSize: '16px'
+  });
+  o._thermo = true;                      // 交給體溫旋鈕上色（演出 codex 2.2）
+  return o;
+}
+function spawnFire(x, y) {
+  const o = ENGINE.addObject({
+    text: 'FIRE', chemicalId: 'FIRE',
+    tempOffset: 260,                     // 熱傳導會自動烤熱鄰居（情緒感染）
+    density: 2, mass: 2,
+    x, y, velocityX: rand(-0.3, 0.3), velocityY: 0,
+    color: '#ff7a45', fontWeight: 'bold', fontSize: '16px'
+  });
+  o._thermo = true;
+  return o;
+}
+function spawnWater(x, y) {
+  const o = ENGINE.addObject({
+    text: 'WATER', chemicalId: 'WATER',
+    tempOffset: -5, density: 4, mass: 4,
+    x, y, velocityX: rand(-0.3, 0.3), velocityY: 0,
+    color: '#6fc3ff', fontSize: '16px'
+  });
+  o._thermo = true;
+  return o;
+}
+function spawnBubbles(n) {
+  // 浮力是相對的：氣泡要在重物附近才會被「擠」上去（codex 第五章）
+  for (let i = 0; i < n; i++) {
+    ENGINE.addObject({
+      text: '○', density: 0.05, mass: 0.2, opacity: 0.55,
+      x: W() * 0.5 + rand(-90, 90), y: H() - 90 - rand(0, 30),
+      velocityX: rand(-0.2, 0.2), velocityY: -2,
+      color: '#9fe0ff', fontSize: `${Math.round(rand(11, 17))}px`
+    });
+  }
+}
+function spawnMeteor() {
+  // 鏡頭軸「急促＋殘影」：高速粒子 + 場景邏輯拖尾（演出 codex 7.1-B）
+  const fromLeft = Math.random() < 0.5;
+  const o = ENGINE.addObject({
+    text: '☄', isParticle: true, lifetime: 170,
+    x: fromLeft ? -20 : W() + 20, y: rand(40, H() * 0.35),
+    velocityX: fromLeft ? rand(7, 11) : -rand(7, 11),
+    velocityY: rand(-1, 1.5),
+    color: '#ffd76a', fontSize: '18px'
+  });
+  o._trail = true;
+  return o;
+}
+function spawnBomb() {
+  const x = W() * rand(0.3, 0.7);
+  ENGINE.addObject({
+    text: '💣 BOMB', chemicalId: 'BOMB',
+    density: 6, mass: 6, x, y: 0, velocityX: 0, velocityY: 0, fontSize: '15px'
+  });
+  // 引信：0.5 秒後在旁邊生火 → BOMB+FIRE 觸發引擎爆炸（衝擊波推開全場）
+  setTimeout(() => spawnFire(x + 8, 0), 500);
+}
+
+/* ── 呼吸旋鈕（演出 codex 2.1：場景邏輯每幀改 fontSize） ── */
+const breathers = [];
+function addBreather(cfg, base, rate, depth) {
+  const o = ENGINE.addObject(cfg);
+  breathers.push({ o, base, rate, depth });
+  return o;
+}
+
+/* ── 量子體（hover 坍縮，noEvolve 保護外部引用，codex 24.5） ── */
+let quantum = null;
+function spawnQuantum() {
+  quantum = ENGINE.addObject({
+    text: 'WAVE', isQuantum: true, noEvolve: true, fixed: true,
+    states: ['WAVE', 'PARTICLE'], switchInterval: 55, collapsed: false,
+    x: W() * 0.62, y: H() * 0.30,
+    color: '#c9a7ff', fontSize: '18px',
+    textShadow: '0 0 12px rgba(201,167,255,.65)'
+  });
+  const el = quantum.element;
+  el.style.cursor = 'pointer';
+  el.style.pointerEvents = 'auto';
+  el.addEventListener('mouseenter', () => { quantum.collapsed = true;  el.style.color = '#efe6ff'; });
+  el.addEventListener('mouseleave', () => { quantum.collapsed = false; el.style.color = '#c9a7ff'; });
+}
+
+/* ── 體溫→顏色（演出 codex 2.2 的色帶，color 無系統爭奪、安全） ── */
+function thermoColor(t) {
+  if (t <= -10) return '#9fd8ff';
+  if (t <= 0)   return '#c6e6ff';
+  if (t < 25)   return '#e8e4d6';
+  if (t < 60)   return '#ffd9a0';
+  if (t < 110)  return '#ff9e5e';
+  return '#ff5c38';
+}
+
+/* ── 情緒濾鏡：世界溫度 → 背景冷暖 ── */
+const mood = document.getElementById('mood');
+function updateMood() {
+  const t = ENGINE.temperature;                       // -30 ~ 150
+  const k = Math.max(0, Math.min(1, (t + 30) / 180)); // 0=極冷 1=極熱
+  const r = Math.round(80 + k * 175);
+  const g = Math.round(150 - k * 10);
+  const b = Math.round(255 - k * 195);
+  const a = 0.06 + Math.abs(k - 0.31) * 0.18;         // 常溫最透明，越偏越濃
+  mood.style.background =
+    `radial-gradient(120% 70% at 50% 0%, rgba(${r},${g},${b},${a}), transparent 70%)`;
+}
+
+/* ── 主場景循環（獨立 rAF：呼吸、上色、蒸氣領養、拖尾、HUD） ── */
+const hudTemp  = document.getElementById('hudTemp');
+const hudCount = document.getElementById('hudCount');
+const hudFps   = document.getElementById('hudFps');
+let lastT = performance.now(), fps = 60, tick = 0;
+
+function sceneLoop(now) {
+  tick++;
+  fps = fps * 0.95 + (1000 / Math.max(1, now - lastT)) * 0.05;
+  lastT = now;
+
+  // 呼吸（reduced-motion 時停用裝飾性脹縮）
+  if (!reduceMotion) {
+    for (const b of breathers) {
+      if (!b.o.element || b.o._released) continue;
+      const s = b.base * (1 + Math.sin(tick * b.rate) * b.depth);
+      b.o.element.style.fontSize = `${s.toFixed(1)}px`;
+    }
+  }
+
+  for (const o of ENGINE.objects) {
+    // 體溫上色
+    if (o._thermo && o.element && !o._released) {
+      o.element.style.color = thermoColor(ENGINE.temperature + (o.tempOffset ?? 0));
+    }
+    // 蒸氣領養：化學產物是裸物體（codex 11.2 誠實標註），場景邏輯補上氣體證
+    if (o.chemicalId === 'STEAM' && !o._adopted) {
+      o._adopted = true; o.isSmoke = true;
+      o.velocityY = -1; o.riseAcceleration = -0.05; o.terminalRiseVelocity = -3.5;
+      if (o.element) { o.element.style.color = '#dfe9f5'; o.element.style.opacity = '0.85'; }
+    }
+    // FIRE+ICE 生出的裸 WATER 也領養進體溫系統
+    if (o.chemicalId === 'WATER' && !o._thermo) o._thermo = true;
+    // 流星拖尾（每 2 幀留一枚快速淡去的殘影）
+    if (o._trail && !o._released && tick % 2 === 0) {
+      ENGINE.addObject({
+        text: '·', isParticle: true, lifetime: 16,
+        x: o.x + rand(-2, 2), y: o.y + rand(-2, 2),
+        velocityX: 0, velocityY: 0,
+        color: '#ffd76a', opacity: 0.5, fontSize: '12px'
+      });
+    }
+  }
+
+  if (tick % 20 === 0) {
+    hudTemp.textContent  = `${Math.round(ENGINE.temperature)}°C`;
+    hudCount.textContent = String(ENGINE.objects.length);
+    hudFps.textContent   = String(Math.round(fps));
+  }
+  requestAnimationFrame(sceneLoop);
+}
+
+/* ── UI 接線 ── */
+const slider  = document.getElementById('tempSlider');
+const tempVal = document.getElementById('tempVal');
+slider.addEventListener('input', () => {
+  ENGINE.temperature = Number(slider.value);
+  tempVal.textContent = `${slider.value}°`;
+  updateMood();
+});
+
+document.getElementById('btnStone').onclick  = () => spawnStone(W() * rand(0.15, 0.85), 0);
+document.getElementById('btnIce').onclick    = () => spawnIce(W() * rand(0.25, 0.75), 0);
+document.getElementById('btnFire').onclick   = () => spawnFire(W() * rand(0.35, 0.65), 0);
+document.getElementById('btnWater').onclick  = () => spawnWater(W() * rand(0.35, 0.65), 0);
+document.getElementById('btnBubble').onclick = () => spawnBubbles(6);
+document.getElementById('btnMeteor').onclick = () => spawnMeteor();
+document.getElementById('btnBomb').onclick   = () => spawnBomb();
+
+const btnEvo = document.getElementById('btnEvo');
+btnEvo.onclick = () => {
+  ENGINE.evolutionEnabled = !ENGINE.evolutionEnabled;
+  btnEvo.setAttribute('aria-pressed', String(ENGINE.evolutionEnabled));
+  btnEvo.textContent = ENGINE.evolutionEnabled ? '天擇：開' : '天擇：關';
+};
+
+document.getElementById('btnClear').onclick = () => {
+  // 凋亡式清場：非保護物體體面退場 → 記憶系統留下「遺忘之點」
+  ENGINE.objects
+    .filter(o => !(o.fixed || o.isLightSource || o.isSoundSource || o.noEvolve || o._released))
+    .forEach(o => ENGINE.releaseObject(o));
+};
+
+// 點夜空落石（避開 UI）
+document.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.ui')) return;
+  spawnPebble(e.clientX - 6, Math.min(e.clientY, H() - 120));
+});
+
+/* ── 開幕運鏡序列（演出 codex 7.2）──
+   [日出：★淡入] → [鐘現：🔔] → [生息：兩枚呼吸體] →
+   [落物：STONE+ICE] → [量子：WAVE] → [提示浮現] */
+function opening() {
+  setTimeout(() => ENGINE.addObject({
+    text: '★', isSun: true, isLightSource: true, fixed: true,
+    lightRadius: 460, lightIntensity: 1.4,
+    x: W() * 0.30, y: 64, color: '#ffd76a', fontSize: '32px'
+  }), 400);
+
+  setTimeout(() => ENGINE.addObject({
+    text: '🔔', isSoundSource: true, fixed: true,
+    soundVolume: 1.2, soundRadius: 220,
+    x: W() * 0.80, y: H() * 0.48, fontSize: '24px'
+  }), 1100);
+
+  setTimeout(() => {
+    // 平靜的呼吸（慢而深）與焦慮的呼吸（淺而快）——演出 codex 2.1 檔位表
+    addBreather({ text: '●', fixed: true, noEvolve: true,
+      x: W() * 0.14, y: H() * 0.58, color: '#8fb7d8', fontSize: '22px', opacity: 0.9
+    }, 22, 0.05, 0.12);
+    addBreather({ text: '●', fixed: true, noEvolve: true,
+      x: W() * 0.21, y: H() * 0.64, color: '#d88f8f', fontSize: '18px', opacity: 0.9
+    }, 18, 0.30, 0.06);
+  }, 1700);
+
+  setTimeout(() => { spawnStone(W() * 0.24, 0); spawnIce(W() * 0.46, 0); }, 2300);
+  setTimeout(() => spawnQuantum(), 2900);
+  setTimeout(() => { document.getElementById('hint').style.opacity = '1'; }, 3400);
+}
+
+updateMood();
+opening();
+ENGINE.start();
+requestAnimationFrame(sceneLoop);
+</script>
+</body>
+</html>

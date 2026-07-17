@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幾何劇場 · 鏡頭測試卷</title>
+<!--
+  ══════════════════════════════════════════════
+  幾何劇場 · 鏡頭測試卷 v0.1
+  依據：Geometric Performance Codex v0.3 第七章（鏡頭軸）
+  架構升級：畫框（#frame）固定不動，世界（#world）在框裡
+            接受攝影機變換——超近鏡不會撐爆畫框。
+  鏡頭清單：全景 → 推近 → 近鏡 → 超近鏡（裂紋揭示）
+            → 大遠景 → 搖鏡 → 跟拍 → 荷蘭角
+            → 對峙構圖（寶可夢站位：近大遠小＋站台）
+  超近鏡的敘事理由：只有在那個距離，才看得見裂紋。
+  ⚠ 台詞為原創佔位。點擊開始 → 自動播放；點擊＝暫停。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#0b0a10; --bg1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --warm:#ffb347; --cold:#9fd8ff;
+    --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  #cover{
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    transition:opacity 1.4s; cursor:pointer;
+  }
+  #cover.gone{opacity:0; pointer-events:none}
+  #cover h1{margin:0; font-size:28px; font-weight:600; letter-spacing:.3em; text-indent:.3em}
+  #cover .sub{font:11px 'Courier New',monospace; letter-spacing:.26em; color:var(--faint)}
+  #cover .go{font-size:12px; color:var(--muted); letter-spacing:.2em; animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 畫框固定；世界移動 */
+  #frame{
+    position:fixed; left:50%; top:44%; transform:translate(-50%,-50%);
+    width:min(94vw,640px); aspect-ratio:16/10;
+    border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    background:rgba(16,13,28,.5);
+  }
+  #world{
+    position:absolute; inset:0;
+    transform-origin:50% 50%;
+    background:
+      radial-gradient(1px 1px at 20% 30%, rgba(147,160,191,.25), transparent),
+      radial-gradient(1px 1px at 70% 60%, rgba(147,160,191,.2), transparent),
+      radial-gradient(1px 1px at 45% 82%, rgba(147,160,191,.18), transparent),
+      radial-gradient(1px 1px at 88% 18%, rgba(147,160,191,.15), transparent),
+      repeating-linear-gradient(0deg, transparent 0 39px, rgba(147,160,191,.045) 39px 40px),
+      repeating-linear-gradient(90deg, transparent 0 39px, rgba(147,160,191,.045) 39px 40px);
+  }
+  #world.deepzoom .nm{opacity:0}
+  .nm{transition:opacity .8s}
+
+  #shotname{
+    position:absolute; top:10px; left:14px; z-index:40;
+    font:10px 'Courier New',monospace; letter-spacing:.26em; color:var(--faint);
+    transition:opacity .5s;
+  }
+
+  /* 角色 */
+  .actor{position:absolute; width:0; height:0; z-index:20}
+  .actor .body{
+    position:absolute; left:0; top:0;
+    transform:translate(-50%,-50%) scale(var(--as,1));
+    transition:transform 1.4s cubic-bezier(.35,.1,.25,1), opacity 1.5s;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .actor .symwrap{position:relative}
+  .actor .sym{
+    font-size:27px; line-height:1; display:block;
+    transition:color 1.5s, text-shadow 1s;
+  }
+  .actor .crack{
+    position:absolute; top:5px; left:56%; font-size:6px; line-height:1;
+    color:var(--faint); opacity:.3; pointer-events:none;
+    transform:rotate(12deg);
+  }
+  .actor .nm{font:9.5px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint)}
+  .breath .sym{animation:brth 3.8s ease-in-out infinite}
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  .trem .sym{animation:trm .14s steps(2) infinite}
+  @keyframes trm{0%{transform:translate(0,0) scale(1)}50%{transform:translate(1px,-.8px) scale(1.02)}100%{transform:translate(-.8px,.6px) scale(1)}}
+
+  /* 對峙站台（寶可夢） */
+  .platform{
+    position:absolute; z-index:8; border-radius:50%;
+    background:radial-gradient(closest-side, rgba(147,160,191,.16), transparent 78%);
+    transform:translate(-50%,-40%); opacity:0; transition:opacity 1.6s;
+  }
+  .platform.on{opacity:1}
+
+  .bub{
+    position:absolute; z-index:30; transform:translate(-50%,-100%);
+    max-width:210px; padding:7px 12px; border-radius:11px;
+    background:rgba(20,16,34,.92); border:1px solid var(--line);
+    font-size:13px; line-height:1.55; letter-spacing:.03em;
+    opacity:0; transition:opacity .35s;
+  }
+  .bub.on{opacity:1}
+  .bub::after{
+    content:''; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%) rotate(45deg);
+    width:8px; height:8px; background:rgba(20,16,34,.92);
+    border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+
+  #caption{
+    position:fixed; left:50%; bottom:50px; transform:translateX(-50%);
+    width:min(92vw,600px); text-align:center; z-index:20;
+    font-size:14.5px; letter-spacing:.08em; color:var(--muted);
+    min-height:44px; transition:opacity .8s;
+  }
+  #foot{
+    position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:20px; z-index:20;
+  }
+  #btnReplay{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnReplay.show{display:inline-block}
+  @media (prefers-reduced-motion:reduce){
+    .breath .sym,.trem .sym{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>鏡頭測試卷</h1>
+  <div class="sub">GEOMETRIC THEATRE · CAMERA REEL</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="frame">
+  <div id="world"></div>
+  <div id="shotname"></div>
+</div>
+<div id="caption"></div>
+
+<div id="foot">
+  <span id="pauseTip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重演</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const world = $('world');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let paused = false, ended = false;
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+
+/* ══════════ 攝影機 ══════════
+   camTo(x, y, zoom, dur, rot)：把世界座標 (x%, y%) 置於畫框中心 */
+function camTo(x, y, z, dur, rot = 0, ease){
+  world.style.transition = `transform ${dur}ms ${ease ?? 'cubic-bezier(.35,.1,.25,1)'}`;
+  world.style.transform =
+    `rotate(${rot}deg) scale(${z}) translate(${(50-x).toFixed(2)}%, ${(50-y).toFixed(2)}%)`;
+  world.classList.toggle('deepzoom', z >= 3.5);
+  return wait(dur + 80);
+}
+function shotName(t){
+  const s = $('shotname');
+  s.style.opacity = 0;
+  setTimeout(() => { s.textContent = t; s.style.opacity = 1; }, 400);
+}
+
+/* ══════════ 角色 ══════════ */
+function makeActor(id, sym, name, color, opt = {}){
+  const a = document.createElement('div');
+  a.className = 'actor';
+  const body = document.createElement('div');
+  body.className = 'body' + (opt.noBreath ? '' : ' breath');
+  const w = document.createElement('span');
+  w.className = 'symwrap';
+  const s = document.createElement('span');
+  s.className = 'sym'; s.textContent = sym; s.style.color = color;
+  if (opt.glow) s.style.textShadow = `0 0 12px ${opt.glow}`;
+  w.appendChild(s);
+  if (opt.crack){
+    const c = document.createElement('span');
+    c.className = 'crack'; c.textContent = '╲';
+    w.appendChild(c);
+  }
+  const n = document.createElement('span');
+  n.className = 'nm'; n.textContent = name;
+  body.append(w, n);
+  a.appendChild(body);
+  world.appendChild(a);
+  return {el:a, body, x:0, y:0};
+}
+function setPos(A, x, y){
+  A.x = x; A.y = y;
+  A.el.style.left = x + '%'; A.el.style.top = y + '%';
+}
+function scaleTo(A, s){ A.body.style.setProperty('--as', s); }
+async function walkTo(A, x, y, style){
+  const dist = Math.hypot(x - A.x, y - A.y);
+  const speed = {hop:22, glide:26, mech:16, slow:9}[style] ?? 20;
+  const dur = Math.max(400, dist / speed * 1000);
+  const ease = {mech:'linear', glide:'cubic-bezier(.4,0,.3,1)'}[style] ?? 'ease-in-out';
+  A.el.style.transition = `left ${dur}ms ${ease}, top ${dur}ms ${ease}`;
+  setPos(A, x, y);
+  return {dur, ease};
+}
+function tremble(A, on){
+  A.body.classList.toggle('trem', on && !reduceMotion);
+  if (on) A.body.classList.remove('breath'); else A.body.classList.add('breath');
+}
+async function say(A, text){
+  const b = document.createElement('div');
+  b.className = 'bub';
+  b.style.left = Math.min(84, Math.max(16, A.x)) + '%';
+  b.style.top = (A.y - 10) + '%';
+  world.appendChild(b);
+  requestAnimationFrame(() => b.classList.add('on'));
+  for (const ch of text){
+    b.appendChild(document.createTextNode(ch));
+    await wait(46);
+  }
+  await wait(800 + text.length * 40);
+  b.classList.remove('on');
+  setTimeout(() => b.remove(), 400);
+}
+async function caption(text, hold){
+  const c = $('caption');
+  c.style.opacity = 0;
+  await wait(320);
+  c.textContent = text;
+  c.style.opacity = 1;
+  await wait(hold ?? (900 + text.length * 62));
+}
+
+/* ══════════ 測試卷 ══════════ */
+async function run(){
+  await wait(500);
+  const yuan = makeActor('yuan', '○', '小圓', '#e9e4d6', {crack:true});
+  setPos(yuan, 34, 60);
+  const star = makeActor('star', '☆', '星星', 'var(--warm)', {glow:'rgba(255,179,71,.5)'});
+  setPos(star, 66, 44);
+  const grid = makeActor('grid', '□', '白格', '#c9ccd6', {noBreath:true});
+  setPos(grid, -8, 82);
+
+  /* 1 全景 */
+  shotName('01 · 全景 WIDE');
+  await caption('全景——先給世界一個樣子。');
+  await wait(600);
+
+  /* 2 推近 */
+  shotName('02 · 推近 PUSH-IN');
+  await caption('推近——空氣開始變緊。');
+  await camTo(50, 52, 1.35, 2200);
+  await wait(400);
+
+  /* 3 近鏡 */
+  shotName('03 · 近鏡 CLOSE-UP');
+  await caption('近鏡——現在，只有它重要。');
+  await camTo(yuan.x, yuan.y - 2, 2.6, 1800);
+  await say(yuan, '⋯⋯我沒事。');
+  await wait(300);
+
+  /* 4 超近鏡：裂紋揭示 */
+  shotName('04 · 超近鏡 EXTREME CLOSE-UP');
+  await caption('超近鏡——在這個距離，呼吸像地震。');
+  await camTo(yuan.x, yuan.y - 3, 8, 2600);
+  tremble(yuan, true);
+  await wait(2200);
+  tremble(yuan, false);
+  await caption('而且只有在這個距離，才看得見那道裂紋。', 3000);
+  await wait(600);
+
+  /* 5 大遠景 */
+  shotName('05 · 大遠景 EXTREME WIDE');
+  await caption('拉遠——孤獨是用留白拍的。');
+  await camTo(50, 52, 0.55, 2800);
+  await wait(1200);
+
+  /* 6 搖鏡 */
+  shotName('06 · 搖鏡 PAN');
+  await caption('搖鏡——視線從一個人，移到另一個人。');
+  await camTo(yuan.x, yuan.y, 1.8, 1400);
+  await wait(500);
+  await camTo(star.x, star.y, 1.8, 2600, 0, 'cubic-bezier(.45,.05,.35,1)');
+  await say(star, '看什麼？');
+  await wait(300);
+
+  /* 7 跟拍 */
+  shotName('07 · 跟拍 TRACKING');
+  await caption('跟拍——鏡頭跟著它走，等速，不眨眼。');
+  await camTo(grid.x, grid.y, 1.7, 1200);
+  const mv = await walkTo(grid, 108, 82, 'mech');
+  camTo(108, 82, 1.7, mv.dur, 0, 'linear');   // 與步伐同速同緩動＝鎖定跟隨
+  await wait(mv.dur + 200);
+
+  /* 8 荷蘭角 */
+  shotName('08 · 荷蘭角 DUTCH ANGLE');
+  await caption('荷蘭角——世界斜了一點點，就不對勁了。');
+  await camTo(yuan.x, yuan.y - 2, 1.6, 1800, 7);
+  tremble(yuan, true);
+  await wait(1800);
+  tremble(yuan, false);
+
+  /* 9 對峙構圖（寶可夢站位） */
+  shotName('09 · 對峙構圖 VS STAGING');
+  await caption('對峙構圖——近大遠小，平面裡長出縱深。');
+  await camTo(50, 50, 1, 2000, 0);
+  // 站台
+  const p1 = document.createElement('div');
+  p1.className = 'platform';
+  p1.style.cssText += 'left:27%; top:82%; width:230px; height:64px;';
+  const p2 = document.createElement('div');
+  p2.className = 'platform';
+  p2.style.cssText += 'left:73%; top:38%; width:120px; height:34px;';
+  world.append(p1, p2);
+  requestAnimationFrame(() => { p1.classList.add('on'); p2.classList.add('on'); });
+  // 近者大、遠者小
+  yuan.el.style.zIndex = 26;
+  await walkTo(yuan, 27, 76, 'slow');
+  scaleTo(yuan, 2.1);
+  await walkTo(star, 73, 33, 'glide');
+  scaleTo(star, 0.9);
+  await wait(1600);
+  await say(star, '還要繼續嗎？');
+  await say(yuan, '⋯⋯嗯。');
+  await wait(400);
+  await caption('（不用真的打——站位本身，已經把緊張講完了。）', 3200);
+
+  /* 終幕 */
+  shotName('10 · 收 FIN');
+  await camTo(50, 54, 1.12, 3200);
+  await caption('鏡頭測試卷，完。', 2600);
+
+  ended = true;
+  $('pauseTip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(run, 1000);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay') || ended) return;
+  paused = !paused;
+  $('pauseTip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

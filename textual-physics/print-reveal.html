@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>檔案 KX-77（節錄）</title>
+<!--
+  破框術小樣 2 ·〈列印才顯形〉
+  用法：先在螢幕上讀這份被塗黑的檔案，
+        然後按 Ctrl+P（⌘P）看列印預覽——
+        被塗黑的段落，在紙上全部顯形。
+  技術：純 CSS（@media print），零 JavaScript 也能成立。
+  ⚠ 檔案內容為原創佔位。
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    display:flex; align-items:center; justify-content:center; padding:30px 14px;
+  }
+  #doc{
+    width:min(92vw,560px); background:#14111f;
+    border:1px solid var(--line); border-radius:6px;
+    padding:38px 42px 46px; position:relative;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);
+  }
+  #stamp{
+    position:absolute; top:26px; right:30px; transform:rotate(8deg);
+    border:2px solid rgba(224,143,143,.55); color:rgba(224,143,143,.7);
+    font:12px 'Courier New',monospace; letter-spacing:.3em;
+    padding:4px 10px; border-radius:3px;
+  }
+  h1{font-size:15px; letter-spacing:.28em; margin:0 0 4px; font-weight:600}
+  .meta{font:10px 'Courier New',monospace; letter-spacing:.18em; color:var(--faint); margin-bottom:26px}
+  p{font-size:14px; line-height:2.1; letter-spacing:.05em; margin:0 0 14px; text-align:justify}
+  .rd{
+    background:#0a0910; color:transparent; border-radius:2px;
+    padding:0 3px; user-select:none;
+    text-shadow:none;
+  }
+  #hint{
+    margin-top:30px; text-align:center;
+    font:11px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+  }
+  .print-only{display:none}
+
+  /* ════ 紙上的真相 ════ */
+  @media print{
+    body{background:#fff; color:#1a1a1a; display:block; padding:0}
+    #doc{width:auto; background:#fff; border:none; box-shadow:none; padding:20px 8px}
+    .rd{
+      background:transparent; color:#1a1a1a; user-select:auto;
+      border-bottom:1px dotted #999;
+    }
+    #stamp{border-color:#1a1a1a; color:#1a1a1a}
+    #stamp::after{content:'（未經審查版本）'; display:block; font-size:8px; letter-spacing:.1em}
+    .meta,#hint{color:#666}
+    #hint{display:none}
+    .screen-only{display:none}
+    .print-only{display:block; margin-top:34px; text-align:center;
+      font:11px 'Courier New',monospace; letter-spacing:.2em; color:#1a1a1a}
+  }
+</style>
+</head>
+<body>
+<div id="doc">
+  <div id="stamp">已 審 查</div>
+  <h1>事 故 調 查 報 告</h1>
+  <div class="meta">檔案編號 KX-77 · 節錄 · 僅供內部傳閱</div>
+
+  <p>三月十四日凌晨，第七倉庫發生火警。消防紀錄顯示，起火點位於
+  <span class="rd">東側配電箱後方的儲物暗格</span>，火勢於四十分鐘後受控。
+  初步認定為<span class="rd">人為縱火。現場尋獲之打火機，登記於值班主管名下</span>。</p>
+
+  <p>當晚值班共兩人。其中一人於火警前十七分鐘打卡離場，理由為
+  <span class="rd">「接獲上級電話，指示暫離崗位」。通聯紀錄已於次日清晨遭刪除</span>。
+  另一人於現場尋獲，<span class="rd">法醫報告指出，其傷勢與火災性質不符</span>。</p>
+
+  <p>本案結論：意外事故，肇因於線路老化。
+  <span class="rd">上述結論由委員會於三月十五日上午做成——早於鑑識報告出爐十一個小時</span>。
+  全案卷宗依規定封存三十年。</p>
+
+  <div id="hint" class="screen-only">
+    本檔案不完整。<br>（試試看：Ctrl+P / ⌘P，看看「列印預覽」裡的它。）
+  </div>
+  <div class="print-only">—— 你印出了真相。紙不接受審查。 ——</div>
+</div>
+</body>
+</html>

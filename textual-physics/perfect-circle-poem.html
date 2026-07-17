@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圓美 · 文字物理詩</title>
+<!--
+  ══════════════════════════════════════════════
+  文字物理詩 no.1 ·〈圓美〉
+  詩：Sheep（全文一字未改）
+  原則：一句一效，一比一——效果只做詩已經在說的事。
+  裝置：畫圈（大膽/顫抖兩種筆跡）、聲部方位殘影、
+        永遠修不好的圈、「你→我」翻字、永恆旋轉。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --night-0:#0b0a10; --night-1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --mind:#b9a3e0; --shadowv:#6b7690;
+    --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:
+      radial-gradient(1px 1px at 26% 14%, rgba(233,228,214,.28), transparent),
+      radial-gradient(1.2px 1.2px at 76% 22%, rgba(233,228,214,.2), transparent),
+      linear-gradient(180deg,var(--night-0),var(--night-1));
+    user-select:none;
+  }
+
+  /* 開場 */
+  #cover{
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px;
+    background:linear-gradient(180deg,var(--night-0),var(--night-1));
+    transition:opacity 1.4s; cursor:pointer;
+  }
+  #cover.gone{opacity:0; pointer-events:none}
+  #cover h1{margin:0; font-size:44px; font-weight:600; letter-spacing:.5em; text-indent:.5em}
+  #cover .sub{font:11px 'Courier New',monospace; letter-spacing:.3em; color:var(--faint)}
+  #cover .go{font-size:12px; color:var(--muted); letter-spacing:.2em;
+    animation:blink 2s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 舞台：圈 */
+  #stageWrap{
+    position:fixed; left:50%; top:44%; transform:translate(-50%,-50%);
+    width:min(78vw,460px); height:min(78vw,460px);
+  }
+  #cv{width:100%; height:100%; overflow:visible}
+  #cv path{fill:none; stroke:var(--paper); stroke-linecap:round}
+  #arc{stroke-width:2.4}
+  #patchArc{stroke-width:2.2; opacity:0; stroke:var(--paper)}
+  .gapdot{fill:var(--cold); opacity:0}
+  #rot,#scl,#jit{transform-box:view-box; transform-origin:50% 50%;
+    transition:transform 1.4s cubic-bezier(.4,.1,.3,1)}
+  #rot.eternal{animation:spin 26s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #jit.tremble{animation:trem .14s steps(2) infinite}
+  @keyframes trem{0%{transform:translate(0,0)}50%{transform:translate(.8px,-.6px)}100%{transform:translate(-.6px,.5px)}}
+
+  /* 殘影（批評的方位） */
+  .ghost{
+    position:absolute; font-size:11px; letter-spacing:.06em;
+    color:var(--faint); opacity:0; pointer-events:none; white-space:nowrap;
+    transition:opacity 2.2s;
+    max-width:46vw; white-space:normal; line-height:1.5;
+  }
+  .ghost.on{opacity:.16}
+  .ghost.shadowg{color:var(--shadowv); font-size:13px}
+  .ghost.shadowg.on{opacity:.24}
+  .echoCopy{
+    position:absolute; font-size:12px; color:var(--cold); pointer-events:none;
+    animation:echoUp 2.6s ease-out forwards; white-space:nowrap;
+  }
+  @keyframes echoUp{0%{opacity:.55; transform:translateY(0) scale(1)}
+    100%{opacity:0; transform:translateY(-34px) scale(1.25)}}
+  .shaving{
+    position:absolute; width:3px; height:3px; border-radius:50%;
+    background:#a99f8c; pointer-events:none;
+    animation:fall 1.8s ease-in forwards;
+  }
+  @keyframes fall{0%{opacity:.8; transform:translateY(0)}
+    100%{opacity:0; transform:translateY(46px)}}
+
+  /* 詩行區 */
+  #verse{
+    position:fixed; left:50%; bottom:56px; transform:translateX(-50%);
+    width:min(92vw,620px); text-align:center; z-index:20;
+  }
+  .pline{
+    font-size:16.5px; line-height:1.9; letter-spacing:.05em;
+    margin-top:10px; transition:opacity 1s;
+  }
+  .pline .who{
+    display:block; font:10px 'Courier New',monospace; letter-spacing:.26em;
+    margin-bottom:4px;
+  }
+  .pline.old{opacity:.32}
+  .pline.older{opacity:.12}
+  .pline span{display:inline-block; white-space:pre}
+  .chorus{text-shadow:1.6px 1.4px 0 rgba(159,216,255,.28), -1.4px -1px 0 rgba(185,163,224,.22)}
+  .ghostline{
+    font-size:13px; opacity:.28; color:var(--muted); margin-bottom:2px;
+    letter-spacing:.05em; transition:opacity 1s;
+  }
+  .ghostline .gy{display:inline-block; transition:opacity 1.2s, filter 1.2s}
+  .ghostline .gy.out{opacity:.08; filter:blur(1px)}
+
+  .fx-t{animation:jitc .22s steps(2) infinite}
+  @keyframes jitc{0%{transform:translate(0,0)}33%{transform:translate(.7px,-.6px)}
+    66%{transform:translate(-.6px,.5px)}100%{transform:translate(.4px,.3px)}}
+  .fx-c{color:var(--cold)}
+  .fx-m{color:var(--mind); text-shadow:0 0 9px rgba(185,163,224,.45)}
+  .fx-x{color:var(--mind); animation:flipIn 1.1s cubic-bezier(.2,.8,.3,1) 1;
+    text-shadow:0 0 12px rgba(185,163,224,.7)}
+  @keyframes flipIn{0%{transform:rotateX(92deg); opacity:0}
+    60%{transform:rotateX(-14deg); opacity:1}100%{transform:rotateX(0)}}
+
+  #foot{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:24px; align-items:center; z-index:20;
+  }
+  #next{animation:blink 1.8s ease-in-out infinite; opacity:0}
+  #next.show{opacity:1}
+  #credit{opacity:.7}
+
+  @media (max-width:640px){
+    #stageWrap{top:38%}
+    .pline{font-size:14.5px; line-height:1.8}
+    #cover h1{font-size:34px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #jit.tremble,.fx-t,#rot.eternal{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>圓美</h1>
+  <div class="sub">SHEEP · 文字物理詩 NO.1</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="stageWrap">
+  <svg id="cv" viewBox="-200 -200 400 400">
+    <g id="rot"><g id="scl"><g id="jit">
+      <path id="arc" d=""/>
+      <path id="patchArc" d=""/>
+      <circle id="dotA" class="gapdot" r="3"/>
+      <circle id="dotB" class="gapdot" r="3"/>
+    </g></g></g>
+  </svg>
+</div>
+
+<div id="verse"></div>
+
+<div id="foot">
+  <span id="credit">詩：SHEEP〈圓美〉</span>
+  <span id="next">▼</span>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const R = 148;
+
+/* ══ 圓的幾何 ══ */
+const polar = (r,a) => [r*Math.cos(a*Math.PI/180), r*Math.sin(a*Math.PI/180)];
+let gapDeg = 8, baseA = -84;          // 缺口在頂端偏右
+function arcPath(r, a0, sweep, jitter){
+  // 用折線近似弧：可加抖動
+  const N = 150, pts = [];
+  for (let i = 0; i <= N; i++){
+    const a = a0 + sweep * i / N;
+    const rr = r + (jitter ? (Math.random()-.5)*jitter*2 + Math.sin(i*1.7)*jitter*.5 : 0);
+    pts.push(polar(rr, a));
+  }
+  return 'M' + pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join('L');
+}
+const arc = $('arc'), rot = $('rot'), scl = $('scl'), jit = $('jit');
+let rotDeg = 0, sclV = 1;
+const setRot = d => { rotDeg = d; rot.style.transform = `rotate(${d}deg)`; };
+const setScl = s => { sclV = s; scl.style.transform = `scale(${s})`; };
+
+function buildArc(jitter){
+  arc.setAttribute('d', arcPath(R, baseA + gapDeg, 360 - gapDeg*2, jitter));
+  const L = arc.getTotalLength();
+  return L;
+}
+function placeGapDots(){
+  const [x1,y1] = polar(R, baseA + gapDeg);
+  const [x2,y2] = polar(R, baseA - gapDeg + 360);
+  $('dotA').setAttribute('cx',x1); $('dotA').setAttribute('cy',y1);
+  $('dotB').setAttribute('cx',x2); $('dotB').setAttribute('cy',y2);
+}
+
+/* 畫圈：progress 0→1，可含停頓（顫抖版） */
+function drawOn(dur, pauses, jitter, done){
+  const L = buildArc(jitter);
+  placeGapDots();
+  arc.style.strokeDasharray = L;
+  arc.style.strokeDashoffset = L;
+  if (reduceMotion){ arc.style.strokeDashoffset = 0; done && done(); return; }
+  const t0 = performance.now();
+  let pausedTotal = 0, pauseUntil = 0;
+  const fired = pauses.map(() => false);
+  function step(now){
+    if (now < pauseUntil){ requestAnimationFrame(step); return; }
+    const p = Math.min(1, (now - t0 - pausedTotal) / dur);
+    pauses.forEach((pp, i) => {
+      if (!fired[i] && p >= pp[0]){ fired[i] = true; pauseUntil = now + pp[1]; pausedTotal += pp[1]; }
+    });
+    arc.style.strokeDashoffset = L * (1 - p);
+    if (p < 1) requestAnimationFrame(step); else done && done();
+  }
+  requestAnimationFrame(step);
+}
+
+/* ══ 效果庫：一句一效 ══ */
+const FX = {
+  draw(){ setRot(0); setScl(1); drawOn(1900, [], 0); },
+  gapPulse(){
+    [$('dotA'),$('dotB')].forEach(d => {
+      d.style.transition = 'opacity .6s';
+      d.style.opacity = .8;
+      setTimeout(() => d.style.opacity = 0, 1800);
+    });
+    setRot(rotDeg + 4);   // 試圖對齊的微轉
+  },
+  paperWhisper(){},        // 效果在殘影本身
+  rotate90(){ setRot(rotDeg + 90); },
+  chorusJit(){
+    if (reduceMotion) return;
+    jit.classList.add('tremble');
+    setTimeout(() => jit.classList.remove('tremble'), 1100);
+  },
+  spinHalf(){ setRot(rotDeg + 180); },
+  strokeTune(){
+    arc.style.transition = 'stroke-width 1.4s, opacity 1.4s';
+    arc.style.strokeWidth = '1.4'; arc.style.opacity = '.82';
+  },
+  patch(){
+    // 「補充」的一小段弧——貼著缺口，卻造成重疊
+    const p = $('patchArc');
+    p.setAttribute('d', arcPath(R + 3.5, baseA - gapDeg - 26, 34, 1));
+    const L = p.getTotalLength();
+    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    p.style.opacity = '.5';
+    p.style.transition = 'stroke-dashoffset 1.2s ease';
+    requestAnimationFrame(() => p.style.strokeDashoffset = 0);
+  },
+  gapExpose(){
+    gapDeg = 15; buildArc(0); placeGapDots();
+    arc.style.strokeDashoffset = 0;
+    setScl(.93);
+    [$('dotA'),$('dotB')].forEach(d => { d.style.opacity = .7;
+      setTimeout(() => d.style.opacity = 0, 2200); });
+  },
+  breathe(){
+    setScl(1.02); setTimeout(() => setScl(.985), 1400);
+  },
+  narrowWide(){
+    setScl(.9); setTimeout(() => setScl(1.08), 900);
+    setTimeout(() => setScl(.99), 1900);
+  },
+  microAdjust(){
+    setRot(rotDeg + 3); setTimeout(() => setRot(rotDeg - 5), 700);
+    setTimeout(() => setRot(rotDeg + 2), 1400);
+    // 擦子細屑落下
+    const w = $('stageWrap');
+    for (let i = 0; i < 10; i++){
+      const s = document.createElement('span');
+      s.className = 'shaving';
+      s.style.left = (58 + Math.random()*24) + '%';
+      s.style.top  = (66 + Math.random()*10) + '%';
+      s.style.animationDelay = (Math.random()*0.9) + 's';
+      w.appendChild(s);
+      setTimeout(() => s.remove(), 3200);
+    }
+  },
+  echo(){
+    if (!reduceMotion){ jit.classList.add('tremble');
+      setTimeout(() => jit.classList.remove('tremble'), 1600); }
+    const w = $('stageWrap');
+    ['還不夠圓！','還不夠美！','還不夠圓美！'].forEach((t,i) => {
+      setTimeout(() => {
+        const e = document.createElement('span');
+        e.className = 'echoCopy';
+        e.textContent = t;
+        e.style.left = '56%'; e.style.top = '4%';
+        w.appendChild(e);
+        setTimeout(() => e.remove(), 2700);
+      }, i*650);
+    });
+  },
+  chase(){ setRot(rotDeg + 300); },   // 盡頭追逐起點，永遠差一個缺口
+  redraw(){
+    setRot(0); setScl(1); gapDeg = 10;
+    arc.style.strokeWidth = '2'; arc.style.opacity = '.92';
+    $('patchArc').style.opacity = 0;
+    drawOn(5200, [[.36,650],[.72,850]], 2.4);
+  },
+  flip(){},                // 效果在詩行本身（你→我）
+  selfRotate(){
+    setRot(rotDeg + 120);
+    if (!reduceMotion){ jit.classList.add('tremble');
+      setTimeout(() => jit.classList.remove('tremble'), 1400); }
+  },
+  eternal(){
+    // 從當前角度平滑接續，永不停止（缺口永遠追不上自己）
+    if (reduceMotion) return;
+    const start = performance.now(), d0 = rotDeg;
+    rot.style.transition = 'none';
+    (function spin(now){
+      rot.style.transform = `rotate(${(d0 + (now - start) * 0.014).toFixed(2)}deg)`;
+      requestAnimationFrame(spin);
+    })(start);
+  },
+  end(){}
+};
+
+/* ══ 詩（全文一字未改；標記僅：t抖 c冷 m我 x翻字） ══ */
+const POEM = [
+ {text:'你畫了一個圈，一條圓的曲線，大膽而堅定。', fx:'draw'},
+ {text:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜的瞬間，線條將重新對齊。', fx:'gapPulse'},
+ {who:'草稿紙', wc:'#7f8aa3', text:'然而草稿紙上有聲音在竊竊私語，「你的圈有缺憾、缺少圓的優雅﹐還不足以稱作完美。」',
+  fx:'paperWhisper', ghost:'paper', gtxt:'你的圈有缺憾'},
+ {who:'他們', wc:'var(--cold)', text:'「來、轉動你的手」他們念道', fx:'rotate90', ghost:'top', gtxt:'轉動你的手'},
+ {who:'眾聲', wc:'var(--cold)', text:'「「讓我們重新調整你的藝術」」', fx:'chorusJit', chorus:true, ghost:'top', gtxt:'讓我們重新調整你的藝術'},
+ {text:'讓圈旋轉吧、我的朋友。', fx:'spinHalf'},
+ {who:'聲音', wc:'var(--cold)', text:'「不要重疊、不要太濃、也不要太淡。」', fx:'strokeTune', ghost:'top', gtxt:'不要太濃、也不要太淡'},
+ {text:'你的線太尖了，還需要另一部分補充。', fx:'patch'},
+ {who:'聲音', wc:'var(--cold)', text:'「不要畫得那麼寬、一個缺口要顯露出來了！」', fx:'gapExpose', ghost:'top', gtxt:'一個缺口要顯露出來了'},
+ {text:'友善的提醒，每一條曲線都是圓的組成部分，每一個彎經過都深思熟慮。', fx:'breathe'},
+ {who:'筆尖的影子', wc:'var(--shadowv)', text:'筆尖的影子呼喊：「夥計，你的圈留在原地很窄、現在追逐又太寬！」',
+  fx:'narrowWide', ghost:'shadow', gtxt:'留在原地很窄、追逐又太寬'},
+ {who:'擦子的細屑', wc:'#a99f8c', text:'「但你的圈還沒有圍成圓，還有機會調整﹐搭檔。只需要再一次微調、一次轉折就好。」擦子的細屑一旁細語。',
+  fx:'microAdjust', ghost:'eraser', gtxt:'再一次微調、一次轉折就好'},
+ {who:'圈的起點', wc:'var(--cold)', text:'圈的起點傳來的聲音又在回響，{c}「還不夠圓！還不夠美！你的圈還不夠圓美！」{/c}',
+  fx:'echo', ghost:'gapA', gtxt:'還不夠圓美！'},
+ {who:'線的盡頭', wc:'var(--cold)', text:'每一次嚴謹的探索都形成新的悖論，「很快就會到達目的地了!」線的盡頭如此說著，反覆循環。',
+  fx:'chase', ghost:'gapB', gtxt:'很快就會到達目的地了'},
+ {text:'你再次畫了一個圈，一條圓的曲線，{t}顫抖而猶豫{/t}。', fx:'redraw'},
+ {text:'圈差一點就變圓，但離圓差一寸、距離完美還差一筆，在筆傾斜時，線條將重新對齊。', fx:'gapPulse'},
+ {who:'自己', wc:'var(--mind)', flipGhost:'你的圈有缺憾、缺少圓的優雅﹐還不足以稱作完美。',
+  text:'然而你對自己竊竊私語：「{x}我{/x}的圈有缺憾、仍欠缺圓的優雅﹐還不足以稱作完美。」', fx:'flip'},
+ {who:'自己', wc:'var(--mind)', text:'「來，轉動{m}我{/m}的手」你念道，「讓{m}我{/m}再調整{m}我{/m}的藝術。」', fx:'selfRotate'},
+ {text:'讓圈繼續旋轉吧﹑我的朋友。', fx:'eternal'},
+ {text:'畢竟還不夠圓、不夠美，你的圈還不到圓美。', fx:'end', end:true}
+];
+
+/* 殘影錨點 */
+const ANCHOR = {
+  paper: () => [{l:6+Math.random()*20, t:12+Math.random()*60}][0],
+  top:   () => ({l:24+Math.random()*40, t:2+Math.random()*8}),
+  shadow:() => ({l:2+Math.random()*10,  t:74+Math.random()*10}),
+  eraser:() => ({l:66+Math.random()*20, t:74+Math.random()*10}),
+  gapA:  () => ({l:56, t:3}),
+  gapB:  () => ({l:30, t:3})
+};
+function dropGhost(anchor, txt, isShadow){
+  const a = ANCHOR[anchor]();
+  const g = document.createElement('span');
+  g.className = 'ghost' + (isShadow ? ' shadowg' : '');
+  g.textContent = txt;
+  g.style.left = a.l + '%'; g.style.top = a.t + '%';
+  g.style.transform = `rotate(${(Math.random()*8-4).toFixed(1)}deg)`;
+  $('stageWrap').appendChild(g);
+  requestAnimationFrame(() => g.classList.add('on'));
+}
+
+/* ══ 標記解析＋打字 ══ */
+function parseLine(text){
+  const out = []; let i = 0;
+  const tagMap = {t:'fx-t', c:'fx-c', m:'fx-m', x:'fx-x'};
+  const stack = [];
+  while (i < text.length){
+    const tm = /^\{(\/?)([tcmx])\}/.exec(text.slice(i));
+    if (tm){ if (tm[1]) stack.pop(); else stack.push(tagMap[tm[2]]); i += tm[0].length; continue; }
+    out.push({ch:text[i], cls:stack.join(' ')});
+    i++;
+  }
+  return out;
+}
+function pauseAfter(ch){
+  const P = {'，':180,'、':130,'。':360,'？':320,'！':320,'﹐':180,'﹑':130,
+             '⋯':280,'…':280,'—':200,'：':220,'!':320};
+  return P[ch] ?? 0;
+}
+
+const verse = $('verse');
+let idx = 0, typing = false, skipFlag = false, ended = false;
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(){
+      if (skipFlag || performance.now() - t0 >= ms) return res();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+
+async function playLine(L){
+  typing = true; skipFlag = false;
+  $('next').classList.remove('show');
+
+  // 舊行降階
+  [...verse.children].forEach(el => {
+    if (el.classList.contains('old')) { el.classList.remove('old'); el.classList.add('older'); }
+    else if (!el.classList.contains('older')) el.classList.add('old');
+  });
+  while (verse.children.length > 3) verse.removeChild(verse.firstChild);
+
+  // 翻字前置：舊句幽靈（「你」待熄）
+  let gy = null;
+  if (L.flipGhost){
+    const gl = document.createElement('div');
+    gl.className = 'ghostline';
+    const before = L.flipGhost.split('你');
+    gl.innerHTML = '';
+    const s1 = document.createElement('span'); s1.textContent = before[0];
+    gy = document.createElement('span'); gy.className = 'gy'; gy.textContent = '你';
+    const s2 = document.createElement('span'); s2.textContent = before.slice(1).join('你');
+    gl.append(s1, gy, s2);
+    verse.appendChild(gl);
+  }
+
+  const div = document.createElement('div');
+  div.className = 'pline' + (L.chorus ? ' chorus' : '');
+  if (L.who){
+    const w = document.createElement('span');
+    w.className = 'who'; w.textContent = L.who;
+    w.style.color = L.wc ?? 'var(--faint)';
+    div.appendChild(w);
+  }
+  verse.appendChild(div);
+
+  if (FX[L.fx]) FX[L.fx]();                     // 一句一效：句起效起
+  if (L.ghost) dropGhost(L.ghost, L.gtxt, L.ghost === 'shadow');
+
+  const seq = parseLine(L.text);
+  for (const item of seq){
+    const sp = document.createElement('span');
+    sp.textContent = item.ch;
+    if (item.cls){
+      sp.className = item.cls;
+      if (item.cls.includes('fx-t') && !reduceMotion){
+        sp.style.animationDuration = (0.18 + Math.random()*0.12).toFixed(2) + 's';
+        sp.style.animationDelay = (-Math.random()*0.2).toFixed(2) + 's';
+      }
+      if (item.cls.includes('fx-x') && gy) gy.classList.add('out');  // 我落下的瞬間，你熄滅
+    }
+    div.appendChild(sp);
+    if (!skipFlag) await wait(46 + pauseAfter(item.ch));
+  }
+  typing = false;
+  if (!L.end) $('next').classList.add('show');
+}
+
+function advance(){
+  if (typing){ skipFlag = true; return; }
+  if (idx >= POEM.length){ return; }
+  const L = POEM[idx++];
+  playLine(L).then(() => { if (L.end) ended = true; });
+}
+
+/* 接線 */
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(advance, 900);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover')) return;
+  if (!ended) advance();
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && !ended){ e.preventDefault(); advance(); }
+});
+</script>
+</body>
+</html>

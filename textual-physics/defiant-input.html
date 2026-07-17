@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會反抗的輸入框</title>
+<!--
+  破框術小樣 4 ·〈會反抗的輸入框〉
+  裝置：頁面請你替角色回一句話。但無論你打什麼，
+        送出的瞬間——你的字會當著你的面被一個一個擦掉，
+        換成「安全」的話。三輪。
+        第三輪，它擦到一半，停住了。半句真話逃了出去。
+  這是口是心非系統的互動終極形態：
+  讀者親身體驗「連我的話都不是我的」。
+  ⚠ 情境為原創佔位。
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--mind:#b9a3e0;--warm:#ffb347;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  #scene{
+    position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);
+    width:min(92vw,520px);text-align:center;
+  }
+  #ask{font-size:14px;letter-spacing:.08em;color:var(--muted);
+    line-height:2;min-height:56px;transition:opacity .8s}
+  #msg{
+    margin:26px auto 0;min-height:52px;font-size:16.5px;
+    letter-spacing:.06em;line-height:1.9;
+  }
+  #msg .u{color:var(--paper)}
+  #msg .re{color:var(--faint);font-style:italic}
+  #msg .truth{color:var(--mind);text-shadow:0 0 10px rgba(185,163,224,.4)}
+  #msg span{display:inline-block;white-space:pre-wrap}
+  #inbar{
+    position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
+    width:min(88vw,440px);display:flex;gap:10px;z-index:20;
+    transition:opacity .8s;
+  }
+  #inbar.off{opacity:.25;pointer-events:none}
+  #inp{
+    flex:1;font:inherit;font-size:15px;color:var(--paper);
+    background:rgba(20,16,34,.85);border:1px solid var(--line);
+    border-radius:9px;padding:11px 15px;outline:none;letter-spacing:.05em;
+  }
+  #inp:focus{border-color:rgba(233,228,214,.35)}
+  #send{
+    cursor:pointer;font:inherit;font-size:14px;color:var(--paper);
+    letter-spacing:.14em;background:transparent;
+    border:1px solid var(--line);border-radius:9px;padding:0 20px;transition:.2s;
+  }
+  #send:hover{border-color:var(--warm);color:var(--warm)}
+  #cap{
+    position:fixed;left:50%;bottom:30px;transform:translateX(-50%);
+    font:11px 'Courier New',monospace;letter-spacing:.18em;color:var(--faint);
+    text-align:center;width:92vw;transition:opacity .8s;
+  }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="ask">今晚，家人傳訊息問他：「最近過得好嗎？」<br>——替他回一句<b>真心話</b>。</div>
+  <div id="msg"></div>
+</div>
+<div id="inbar">
+  <input id="inp" type="text" maxlength="40" placeholder="替他打一句真心話⋯⋯" autocomplete="off">
+  <button id="send">送出</button>
+</div>
+<div id="cap"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const msg = $('msg'), inp = $('inp');
+let round = 0, busy = false;
+
+const SAFE = ['我沒事。', '都挺好的，別擔心。'];
+const CAPS = [
+ '送出的，不是你打的。',
+ '再試一次。打一句更真的。',
+ ''
+];
+
+function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function typeSpans(container, text, cls){
+  const spans = [];
+  for (const ch of text){
+    const sp = document.createElement('span');
+    sp.textContent = ch; if (cls) sp.className = cls;
+    container.appendChild(sp); spans.push(sp);
+    await wait(55);
+  }
+  return spans;
+}
+async function eraseSpans(spans, stopAt = 0){
+  for (let i = spans.length - 1; i >= stopAt; i--){
+    spans[i].style.transition = 'opacity .12s';
+    spans[i].style.opacity = 0;
+    await wait(85);
+    spans[i].remove();
+  }
+}
+
+async function submit(){
+  if (busy) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  busy = true;
+  inp.value = '';
+  $('inbar').classList.add('off');
+  msg.innerHTML = '';
+
+  // 你的字，一個一個出現（它以為要被送出了）
+  const yours = await typeSpans(msg, text, 'u');
+  await wait(1100);
+
+  round++;
+  if (round < 3){
+    // 當著你的面，擦掉
+    await eraseSpans(yours);
+    await wait(500);
+    await typeSpans(msg, SAFE[round - 1], 're');
+    await wait(600);
+    $('cap').textContent = CAPS[round - 1];
+    $('inbar').classList.remove('off');
+    inp.placeholder = round === 1 ? '不甘心？再打一句。' : '最後一次。';
+    inp.focus();
+  } else {
+    // 第三輪：擦到一半——停住了
+    const keep = Math.max(1, Math.ceil(text.length / 2));
+    await eraseSpans(yours, keep);
+    await wait(1600);                       // 猶豫。很長的猶豫。
+    // 剩下的半句，變成真話的顏色——逃出去了
+    yours.slice(0, keep).forEach(sp => sp.className = 'truth');
+    await wait(900);
+    const dot = document.createElement('span');
+    dot.textContent = '。'; dot.className = 'truth';
+    msg.appendChild(dot);
+    await wait(1400);
+    $('ask').style.opacity = .3;
+    $('cap').textContent = '這一次，有半句真話逃了出去。';
+    await wait(2200);
+    const done = document.createElement('div');
+    done.style.cssText = 'margin-top:22px;font-size:12px;color:var(--faint);letter-spacing:.12em';
+    done.textContent = '（已送出）';
+    msg.appendChild(done);
+  }
+  busy = false;
+}
+
+$('send').addEventListener('click', submit);
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) submit();
+});
+inp.focus();
+</script>
+</body>
+</html>

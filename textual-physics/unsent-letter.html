@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>沒寄出的信</title>
+<!--
+  ══════════════════════════════════════════════
+  痕跡術小樣 no.1 ·〈沒寄出的信〉
+  裝置：讀者看著一封信被現場起草——打字、停頓、
+        整句刪掉、換一句更客氣的。被刪掉的才是真話。
+  結構：真話打得慢（他是認真的）、客套話打得快（謊話不費力）、
+        刪除前有一次長長的游標閃爍（那是決定的瞬間）。
+  結尾：信件淡去，被刪掉的句子按順序重現——
+        它們自己連成了那封真正的信。
+  ⚠ 信的內容為佔位示意文字（Snape→Lily 題材），待作者親自重寫。
+  操作：點擊開始 → 自動播放；播放中點擊＝暫停。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#0b0a10; --bg1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --mind:#b9a3e0; --ink:#ddd6c4;
+    --sheet:#1b1726; --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  #cover{
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    transition:opacity 1.4s; cursor:pointer;
+  }
+  #cover.gone{opacity:0; pointer-events:none}
+  #cover h1{margin:0; font-size:30px; font-weight:600; letter-spacing:.34em; text-indent:.34em}
+  #cover .sub{font:11px 'Courier New',monospace; letter-spacing:.28em; color:var(--faint)}
+  #cover .go{font-size:12px; color:var(--muted); letter-spacing:.2em; animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  #desk{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(92vw,560px); max-height:82vh; overflow:hidden;
+    background:var(--sheet); border:1px solid var(--line); border-radius:12px;
+    padding:34px 38px 40px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  #dateline{
+    font:10.5px 'Courier New',monospace; letter-spacing:.22em;
+    color:var(--faint); margin-bottom:22px;
+  }
+  #letter{
+    font-size:16.5px; line-height:2.15; letter-spacing:.04em;
+    color:var(--ink); text-align:left; min-height:200px;
+    transition:opacity 1.8s;
+  }
+  #letter.dimmed{opacity:.16}
+  #letter span{white-space:pre-wrap}
+  #cursor{
+    display:inline-block; width:2px; height:1.05em; vertical-align:-0.18em;
+    background:var(--ink); animation:cblink 1s steps(1) infinite;
+  }
+  @keyframes cblink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  #cursor.thinking{animation-duration:.55s}
+
+  /* 結尾：被刪掉的信 */
+  #truth{
+    position:absolute; inset:34px 38px 40px; pointer-events:none;
+    font-size:16.5px; line-height:2.15; letter-spacing:.04em;
+    color:var(--mind); font-style:italic; opacity:0; transition:opacity 2.4s;
+  }
+  #truth.show{opacity:.95}
+  #truth .tcap{
+    display:block; font:10.5px 'Courier New',monospace; font-style:normal;
+    letter-spacing:.22em; color:var(--faint); margin-bottom:22px;
+  }
+  #truth span{white-space:pre-wrap; text-shadow:0 0 10px rgba(185,163,224,.25)}
+
+  #after{
+    position:fixed; left:50%; bottom:44px; transform:translateX(-50%);
+    font-size:14.5px; letter-spacing:.1em; color:var(--muted);
+    opacity:0; transition:opacity 1.6s; text-align:center; z-index:20;
+  }
+  #after.show{opacity:1}
+
+  #foot{
+    position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:20px; z-index:20;
+  }
+  #btnReplay{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnReplay.show{display:inline-block}
+
+  @media (max-width:640px){
+    #desk{padding:24px 22px 30px}
+    #letter,#truth{font-size:15px; line-height:2.0}
+    #truth{inset:24px 22px 30px}
+  }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>沒寄出的信</h1>
+  <div class="sub">痕跡術 · 被刪掉的才是真話</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="desk">
+  <div id="dateline">（這封信沒有日期）</div>
+  <div id="letter"><span id="flow"></span><span id="cursor"></span></div>
+  <div id="truth"></div>
+</div>
+
+<div id="after"></div>
+
+<div id="foot">
+  <span id="pauseTip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重看</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ══ 信的節拍 ══
+   keep：直接寫下的（客套與空白）
+   truth＋safe：先寫真話 → 長停頓 → 刪掉 → 換上客套
+   safe 為空字串＝真話被刪掉後，什麼都沒有補上。
+   ⚠ 佔位文字，待作者重寫。 */
+const DRAFT = [
+ {truth:'莉莉，', safe:'波特夫人：'},
+ {keep:'\n聽說你們搬去了高錐克山谷。'},
+ {truth:'我每天都會想起', safe:'我偶爾會想起'},
+ {keep:'以前的事。\n魔藥課的筆記我還留著，'},
+ {truth:'因為上面有你的字。', safe:'不知道你是否還需要。'},
+ {keep:'\n'},
+ {truth:'那個字，我沒有一天不後悔。', safe:''},
+ {keep:'近來一切都好。\n'},
+ {truth:'如果有危險，先想到我。我什麼都可以做。', safe:'請代我向你的家人問好。'},
+ {keep:'\n\n'},
+ {truth:'永遠是你的，西弗勒斯', safe:'西·斯內普'}
+];
+
+const flow = $('flow'), cursor = $('cursor');
+let paused = false, ended = false;
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+const P = {'，':200,'、':140,'。':380,'？':340,'：':260,'\n':500};
+
+/* 打字：真話慢而遲疑，客套快而平 */
+async function typeText(text, mode){
+  const spd = mode === 'truth' ? 95 : 55;
+  const chars = [];
+  for (const ch of text){
+    const sp = document.createElement('span');
+    sp.textContent = ch;
+    if (mode === 'truth') sp.dataset.t = '1';
+    flow.appendChild(sp);
+    chars.push(sp);
+    let d = spd + (P[ch] ?? 0);
+    if (mode === 'truth' && Math.random() < .18) d += 260;   // 遲疑
+    await wait(d);
+  }
+  return chars;
+}
+/* 刪除：一字一字退回 */
+async function backspace(chars){
+  for (let i = chars.length - 1; i >= 0; i--){
+    chars[i].remove();
+    await wait(46 + Math.random()*36);
+  }
+}
+
+async function run(){
+  await wait(900);
+  for (const b of DRAFT){
+    if (b.keep !== undefined){
+      await typeText(b.keep, 'safe');
+      continue;
+    }
+    const chars = await typeText(b.truth, 'truth');
+    // 決定的瞬間：游標急促閃爍
+    cursor.classList.add('thinking');
+    await wait(1900 + Math.random()*900);
+    cursor.classList.remove('thinking');
+    await backspace(chars);
+    await wait(650);
+    if (b.safe) await typeText(b.safe, 'safe');
+  }
+  // 寫完。停很久。
+  await wait(2600);
+  cursor.style.display = 'none';
+
+  const after = $('after');
+  after.textContent = '他沒有寄出這封信。';
+  after.classList.add('show');
+  await wait(3000);
+
+  // 信淡去，被刪掉的句子按順序重現——它們自己連成了那封真正的信
+  $('letter').classList.add('dimmed');
+  await wait(1400);
+  after.textContent = '被刪掉的，按順序讀，是——';
+  await wait(1800);
+
+  const truthBox = $('truth');
+  const cap = document.createElement('span');
+  cap.className = 'tcap'; cap.textContent = '（那封真正的信）';
+  truthBox.appendChild(cap);
+  truthBox.classList.add('show');
+  const truths = DRAFT.filter(b => b.truth).map(b => b.truth);
+  for (const t of truths){
+    const sp = document.createElement('span');
+    sp.textContent = t + '\n';
+    sp.style.opacity = 0; sp.style.transition = 'opacity 1.6s';
+    truthBox.appendChild(sp);
+    requestAnimationFrame(() => sp.style.opacity = 1);
+    await wait(1500);
+  }
+  await wait(1200);
+  after.textContent = '';
+  ended = true;
+  $('pauseTip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(run, 1200);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay') || ended) return;
+  paused = !paused;
+  $('pauseTip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

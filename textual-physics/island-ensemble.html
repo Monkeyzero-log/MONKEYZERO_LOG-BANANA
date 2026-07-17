@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>島 · 荒島群像 demo</title>
+<!--
+  ══════════════════════════════════════════════
+  荒島群像 demo v0.1 ·〈島〉
+  裝置：
+    1. 島嶼即目錄——地圖就是導航，點誰讀誰，位置即敘事
+    2. 所有活著的符號都在呼吸；死去的停止呼吸、
+       化為遺忘之點永遠留在島上
+    3. HUD 即敘事——天數、生還人數、水量，數字自己講故事
+    4. 讀者驅動：點角色讀當日狀態，「▶ 下一天」推進
+  ⚠ 人物與文本為原創佔位，待作者重寫。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#080d18; --bg1:#0d1526;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --warm:#ffb347; --cold:#9fd4ff; --sand:#c9b98a; --grove:#5f7a5a;
+    --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:
+      radial-gradient(1px 1px at 22% 12%, rgba(233,228,214,.3), transparent),
+      radial-gradient(1px 1px at 78% 8%, rgba(233,228,214,.25), transparent),
+      linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  #hud{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:26px; align-items:center;
+    font:11px 'Courier New',monospace; letter-spacing:.2em; color:var(--muted);
+    background:rgba(13,18,36,.72); border:1px solid var(--line);
+    border-radius:10px; padding:8px 18px; backdrop-filter:blur(8px);
+  }
+  #hud b{color:var(--paper); font-weight:normal}
+  #waterbar{
+    display:inline-block; width:64px; height:5px; border-radius:3px;
+    background:rgba(147,160,191,.15); overflow:hidden; vertical-align:middle;
+  }
+  #waterfill{
+    display:block; height:100%; background:var(--cold);
+    width:100%; transition:width 1.6s ease;
+  }
+
+  /* 海與島 */
+  #sea{
+    position:fixed; left:50%; top:47%; transform:translate(-50%,-50%);
+    width:min(94vw,660px); aspect-ratio:16/10;
+    border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(159,212,255,.05), transparent 60%),
+      linear-gradient(180deg,#0a1424,#0c1930);
+  }
+  #island{
+    position:absolute; left:50%; top:52%; width:76%; height:72%;
+    transform:translate(-50%,-50%) rotate(-4deg);
+    background:
+      radial-gradient(60% 55% at 42% 42%, rgba(95,122,90,.5), transparent 72%),
+      radial-gradient(closest-side, rgba(201,185,138,.4), rgba(201,185,138,.22) 70%, transparent);
+    border-radius:48% 60% 52% 64% / 58% 46% 62% 50%;
+    filter:blur(.4px);
+  }
+  .loc{
+    position:absolute; font:9px 'Courier New',monospace;
+    letter-spacing:.24em; color:var(--faint); z-index:5; opacity:.8;
+  }
+  #night{
+    position:absolute; inset:0; z-index:12; pointer-events:none;
+    background:#05070e; opacity:0; transition:opacity 1.2s;
+  }
+  #night.on{opacity:.85}
+
+  /* 倖存者 */
+  .sv{
+    position:absolute; width:0; height:0; z-index:20; cursor:pointer;
+  }
+  .sv .body{
+    position:absolute; left:0; top:0; transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+    transition:opacity 2s;
+  }
+  .sv .sym{font-size:19px; line-height:1; transition:color 2s, text-shadow .5s}
+  .sv .nm{font:8.5px 'Courier New',monospace; letter-spacing:.16em; color:var(--faint)}
+  .sv .body.breath .sym{animation:brth 3.6s ease-in-out infinite}
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .sv:hover .sym{text-shadow:0 0 10px rgba(233,228,214,.6)}
+  .sv.sel .sym{text-shadow:0 0 12px rgba(255,179,71,.8)}
+  .sv.dead{cursor:default}
+  .sv.dead .sym{color:#586074 !important; animation:none; transform:rotate(78deg)}
+  .memdot{
+    position:absolute; z-index:15; color:var(--faint); font-size:10px;
+    transform:translate(-50%,-50%); opacity:0; transition:opacity 2.5s;
+  }
+  .memdot.on{opacity:.85}
+  .shard{
+    position:absolute; z-index:22; font-size:8px; pointer-events:none;
+    animation:fly 1s ease-out forwards;
+  }
+  @keyframes fly{
+    0%{transform:translate(0,0); opacity:1}
+    100%{transform:translate(var(--dx),var(--dy)); opacity:0}
+  }
+
+  /* 讀取區 */
+  #reader{
+    position:fixed; left:50%; bottom:78px; transform:translateX(-50%);
+    width:min(92vw,600px); min-height:70px; z-index:25;
+    text-align:center;
+  }
+  #rwho{
+    font:10.5px 'Courier New',monospace; letter-spacing:.26em;
+    color:var(--warm); margin-bottom:6px; min-height:12px;
+  }
+  #rtxt{
+    font-size:14.5px; line-height:1.9; letter-spacing:.05em; color:var(--paper);
+  }
+  #rtxt span{display:inline-block; white-space:pre-wrap}
+
+  #foot{
+    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.18em; color:var(--faint);
+    display:flex; gap:18px; z-index:30; align-items:center;
+  }
+  #btnDay{
+    cursor:pointer; font:inherit; color:var(--paper); letter-spacing:.18em;
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:5px 14px;
+    transition:.2s;
+  }
+  #btnDay:hover{border-color:var(--warm); color:var(--warm)}
+  #btnDay:disabled{opacity:.3; cursor:default}
+  @media (prefers-reduced-motion:reduce){ .sv .body.breath .sym{animation:none} }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <span>第 <b id="hDay">1</b> 天</span>
+  <span>生還 <b id="hAlive">6</b></span>
+  <span>水 <span id="waterbar"><span id="waterfill"></span></span></span>
+</div>
+
+<div id="sea">
+  <div id="island"></div>
+  <span class="loc" style="left:20%; top:24%">林 地</span>
+  <span class="loc" style="left:64%; top:20%">崖</span>
+  <span class="loc" style="left:44%; top:52%">營 地</span>
+  <span class="loc" style="left:26%; top:76%">海 灘</span>
+  <div id="night"></div>
+</div>
+
+<div id="reader">
+  <div id="rwho"></div>
+  <div id="rtxt">點一個人，讀他的今天。</div>
+</div>
+
+<div id="foot">
+  <span id="tip">島嶼即目錄</span>
+  <button id="btnDay">▶ 進入第 2 天</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const sea = $('sea');
+
+/* ══ 人物與三天的狀態（⚠ 原創佔位） ══ */
+const CAST = [
+ {id:'yan',  sym:'△', nm:'阿岩', color:'#c9ccd6', pos:[[66,26],[66,26],[60,34]],
+  txt:['整天待在崖上堆石頭排 SOS。沒有人問他累不累。',
+       '石頭排到一半被風吹散了。他從頭再排。',
+       '他不排了。他開始往崖下看，看很久。']},
+ {id:'man',  sym:'○', nm:'小滿', color:'#e9e4d6', pos:[[46,54],[46,54],[46,54]],
+  txt:['負責分水。每個人一天三口，她自己喝兩口。',
+       '水剩一半。她開始在夜裡重數水壺，數了四遍。',
+       '她把自己那份倒回去了。沒有人看見。你看見了。']},
+ {id:'doc',  sym:'◇', nm:'醫生', color:'#9fd4ff', pos:[[40,58],[40,58],[36,44]],
+  txt:['藥箱裡剩六片退燒藥。他沒有告訴任何人確切數字。',
+       '有人發燒了。他給了一片，說「還很多」。剩五片。',
+       '他往林地去了——啞巴倒下的地方。藥箱留在營地。']},
+ {id:'cap',  sym:'☆', nm:'隊長', color:'var(--warm)', pos:[[28,74],[34,66],[44,60]],
+  txt:['在海灘紮了信號堆。說話永遠很大聲，大到像在說服自己。',
+       '他開始往營地靠。說是「方便指揮」。',
+       '他提議：水應該按「貢獻」分配。營地安靜了三秒。']},
+ {id:'mute', sym:'□', nm:'啞巴', color:'#c9ccd6', pos:[[22,28],[24,30],[24,30]],
+  txt:['不會說話。天沒亮就進林地，回來時帶著能吃的根莖。',
+       '他比手勢：林子深處有水聲。沒有人跟他去。',
+       null], dieOn:3},
+ {id:'thorn',sym:'✳', nm:'阿刺', color:'#e08f8f', pos:[[16,44],[26,50],[40,50]],
+  txt:['一個人待在林地邊緣。誰靠近就衝誰喊。',
+       '他往營地挪了一段。沒有人邀請他。',
+       '啞巴出事之後，他第一個說：「是意外。」說得太快了。']}
+];
+const DAYS = 3;
+const DAY_CAP = [
+ '第一天。船沉了十二個小時。還有人相信明天會有飛機。',
+ '第二天。水剩一半。距離開始縮短——人和人的，也是。',
+ '第三天。林地深處傳來一聲短促的響。然後，很安靜。'
+];
+const WATER = [100, 55, 26];
+
+/* ══ 建立倖存者 ══ */
+const SV = {};
+CAST.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'sv';
+  const body = document.createElement('div');
+  body.className = 'body breath';
+  const s = document.createElement('span');
+  s.className = 'sym'; s.textContent = c.sym; s.style.color = c.color;
+  const n = document.createElement('span');
+  n.className = 'nm'; n.textContent = c.nm;
+  body.append(s, n);
+  el.appendChild(body);
+  sea.appendChild(el);
+  SV[c.id] = {c, el, body, alive:true};
+  el.style.left = c.pos[0][0] + '%';
+  el.style.top  = c.pos[0][1] + '%';
+  el.style.transition = 'left 2.4s ease-in-out, top 2.4s ease-in-out';
+  el.addEventListener('pointerdown', ev => { ev.stopPropagation(); read(c.id); });
+});
+
+/* ══ 讀取 ══ */
+let day = 1, typing = null;
+async function typeInto(el, text){
+  const token = {}; typing = token;
+  el.innerHTML = '';
+  for (const ch of text){
+    if (typing !== token) return;
+    const sp = document.createElement('span');
+    sp.textContent = ch;
+    el.appendChild(sp);
+    await new Promise(r => setTimeout(r, 34));
+  }
+}
+function read(id){
+  const s = SV[id];
+  Object.values(SV).forEach(x => x.el.classList.remove('sel'));
+  if (!s.alive){
+    $('rwho').textContent = `${s.c.nm} —— 已離開`;
+    typeInto($('rtxt'), '島記得他。');
+    return;
+  }
+  s.el.classList.add('sel');
+  $('rwho').textContent = `${s.c.nm} · 第 ${day} 天`;
+  typeInto($('rtxt'), s.c.txt[day-1] ?? '');
+}
+
+/* ══ 死亡：停止呼吸 → 碎片 → 遺忘之點 ══ */
+async function die(id){
+  const s = SV[id];
+  s.alive = false;
+  s.el.classList.add('dead');
+  s.body.classList.remove('breath');
+  const x = parseFloat(s.el.style.left), y = parseFloat(s.el.style.top);
+  for (let i = 0; i < 10; i++){
+    const sh = document.createElement('span');
+    sh.className = 'shard';
+    sh.textContent = Math.random() < .5 ? '▪' : '·';
+    sh.style.color = '#8a90a4';
+    sh.style.left = x + '%'; sh.style.top = y + '%';
+    const a = Math.random()*Math.PI*2, r = 12 + Math.random()*26;
+    sh.style.setProperty('--dx', (Math.cos(a)*r).toFixed(0)+'px');
+    sh.style.setProperty('--dy', (Math.sin(a)*r*.6+8).toFixed(0)+'px');
+    sea.appendChild(sh);
+    setTimeout(() => sh.remove(), 1300);
+  }
+  await new Promise(r => setTimeout(r, 2600));
+  s.body.style.opacity = 0;
+  const d = document.createElement('span');
+  d.className = 'memdot'; d.textContent = '·';
+  d.style.left = x + '%'; d.style.top = y + '%';
+  sea.appendChild(d);
+  requestAnimationFrame(() => d.classList.add('on'));
+  $('hAlive').textContent = String(Object.values(SV).filter(v => v.alive).length);
+}
+
+/* ══ 天數推進 ══ */
+const btn = $('btnDay');
+btn.onclick = async () => {
+  if (day >= DAYS){ return; }
+  btn.disabled = true;
+  // 夜幕掃過
+  $('night').classList.add('on');
+  await new Promise(r => setTimeout(r, 1500));
+  day++;
+  $('hDay').textContent = String(day);
+  $('waterfill').style.width = WATER[day-1] + '%';
+  // 走位
+  CAST.forEach(c => {
+    const s = SV[c.id];
+    if (!s.alive) return;
+    s.el.style.left = c.pos[day-1][0] + '%';
+    s.el.style.top  = c.pos[day-1][1] + '%';
+  });
+  $('night').classList.remove('on');
+  await new Promise(r => setTimeout(r, 2600));
+  // 事件
+  const dead = CAST.find(c => c.dieOn === day);
+  if (dead) await die(dead.id);
+  $('rwho').textContent = '';
+  await typeInto($('rtxt'), DAY_CAP[day-1]);
+  btn.textContent = day < DAYS ? `▶ 進入第 ${day+1} 天` : '（demo 到此為止）';
+  btn.disabled = day >= DAYS;
+};
+$('waterfill').style.width = '100%';
+typeInto($('rtxt'), DAY_CAP[0]);
+</script>
+</body>
+</html>

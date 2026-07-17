@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>循環 · 輪迴懸疑 demo</title>
+<!--
+  ══════════════════════════════════════════════
+  輪迴懸疑 demo v0.1 ·〈循環〉
+  裝置：
+    1. 同一場景重播，每輪有「不做任何標示」的微差異——
+       讓讀者自己當差異的偵探（時間逐輪提早、咖啡少一罐、
+       店員的話差一個字、風鈴那句整句消失⋯⋯）
+    2. 打字機的不耐煩：輪數越多打字越快，第 3、4 輪
+       部分段落直接縮寫——形式本身演出輪迴的疲勞
+    3. 殘影累積：每次重置在頁面上留下一個詞的幽靈
+    4. 跨次記憶：localStorage 記住你來過幾輪
+       （Claude Artifacts 環境不支援；下載檔案或放上
+        GitHub Pages 皆可正常運作，已做 try/catch 防護）
+  ⚠ 劇本為原創佔位（便利商店雨夜），待作者重寫。
+  操作：點擊推進（打字中點擊＝跳完整句）。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#0b0a10; --bg1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --mind:#b9a3e0;
+    --line:rgba(147,160,191,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  /* 雨 */
+  #rain{position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.5}
+  .drop{
+    position:absolute; width:1px; height:14px;
+    background:linear-gradient(180deg, transparent, rgba(159,216,255,.4));
+    animation:fall linear infinite;
+  }
+  @keyframes fall{to{transform:translateY(105vh)}}
+
+  #loopnum{
+    position:fixed; top:16px; right:20px; z-index:30;
+    font:11px 'Courier New',monospace; letter-spacing:.3em; color:var(--faint);
+    opacity:.7;
+  }
+  #ghosts{position:fixed; inset:0; z-index:3; pointer-events:none}
+  .gword{
+    position:absolute; font-size:12px; color:var(--faint);
+    opacity:0; transition:opacity 2s; transform:rotate(var(--gr,0deg));
+  }
+  .gword.on{opacity:.13}
+
+  #verse{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(90vw,560px); z-index:20; text-align:left;
+  }
+  .pline{
+    font-size:16px; line-height:2.05; letter-spacing:.05em;
+    margin-top:8px; opacity:1; transition:opacity .8s, transform .5s;
+  }
+  .pline.old{opacity:.4}
+  .pline.older{opacity:.15}
+  .pline.hasty{color:var(--muted); font-style:italic}
+  .pline span{display:inline-block; white-space:pre-wrap}
+  .pline.reset{opacity:0; transform:translateY(-16px)}
+
+  #ending{
+    position:fixed; left:50%; bottom:70px; transform:translateX(-50%);
+    text-align:center; z-index:25; font-size:13.5px; letter-spacing:.1em;
+    color:var(--mind); opacity:0; transition:opacity 1.5s; width:min(90vw,520px);
+  }
+  #ending.show{opacity:1}
+
+  #foot{
+    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:20px; z-index:30; align-items:center;
+  }
+  #next{animation:blink 1.6s infinite; opacity:0}
+  #next.show{opacity:1}
+  @keyframes blink{0%,100%{opacity:.2}50%{opacity:.85}}
+  #btnLoop{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnLoop.show{display:inline-block}
+</style>
+</head>
+<body>
+
+<div id="rain"></div>
+<div id="ghosts"></div>
+<div id="loopnum"></div>
+<div id="verse"></div>
+<div id="ending"></div>
+
+<div id="foot">
+  <span id="tip">點擊推進</span>
+  <span id="next">▼</span>
+  <button id="btnLoop">↻ 再進一次循環</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* 跨次記憶（環境防護：Artifacts 不支援 localStorage，file:// 與 GitHub Pages 支援） */
+const MEM = (() => {
+  try{
+    const t = '__loop_test__';
+    localStorage.setItem(t, '1'); localStorage.removeItem(t);
+    return {
+      get: k => localStorage.getItem(k),
+      set: (k,v) => localStorage.setItem(k, v)
+    };
+  }catch(e){
+    const m = {};
+    return { get: k => m[k] ?? null, set: (k,v) => { m[k] = v; } };
+  }
+})();
+
+let loop = Math.min(4, (parseInt(MEM.get('loop_n') ?? '0', 10) || 0) + 1);
+MEM.set('loop_n', String(loop));
+
+/* ══ 劇本：每行可有各輪變體 v[輪-1]；null＝該輪此句消失 ══
+   ⚠ 原創佔位。差異全部不做標示——讀者自己發現。 */
+const SCENE = [
+ {v:['凌晨兩點十四分。雨聲。你走進便利商店。',
+     '凌晨兩點十三分。雨聲。你走進便利商店。',
+     '凌晨兩點十一分。雨聲。你走進便利商店。',
+     '凌晨兩點零八分。雨聲。你走進便利商店。']},
+ {v:['店員沒有抬頭。收音機在播一首老歌。',
+     '店員沒有抬頭。收音機在播一首老歌。',
+     '店員抬了一下頭。收音機在播一首老歌。',
+     '店員一直看著你。收音機是靜的。']},
+ {v:['貨架第三排，有兩罐咖啡。',
+     '貨架第三排，有一罐咖啡。',
+     '貨架第三排，有一罐咖啡。',
+     '貨架第三排，是空的。']},
+ {v:['你拿了一罐，走向櫃檯。',
+     '你拿了一罐，走向櫃檯。',
+     '（你開始覺得，這段路你走過。）',
+     null], hasty:[false,false,true,false]},
+ {v:['店員說：「今晚雨很大。」',
+     '店員說：「今晚雨真大。」',
+     '店員說：「今晚雨，很大。」',
+     '（一樣的咖啡。一樣的話。一樣的錢。）'], hasty:[false,false,false,true]},
+ {v:['你付了錢。門上的風鈴響了一聲。',
+     '你付了錢。門上的風鈴響了一聲。',
+     null,
+     null]},
+ {v:['有人走進來。黑色的傘，滴著水。',
+     '有人走進來。黑色的傘，滴著水。',
+     '有人走進來。黑色的傘。傘是乾的。',
+     '他已經站在店裡了。']},
+ {v:['你看不清他的臉。',
+     '你看不清他的臉。',
+     '你差一點，就看清他的臉。',
+     '你看清了。']},
+ {v:['然後，燈滅了。',
+     '然後，燈滅了。',
+     '然後，燈滅了。',
+     null]},
+ /* 第四輪專屬結尾 */
+ {v:[null, null, null, '他也在看你。他說：']},
+ {v:[null, null, null, '「你數過咖啡了嗎？」']},
+ {v:[null, null, null, '這一次，燈沒有滅。'], end:true}
+];
+/* 每輪打字速度：越輪越不耐煩 */
+const SPEED = [48, 40, 30, 22];
+/* 每次重置留下的幽靈詞 */
+const GHOST_WORDS = ['兩點', '咖啡', '風鈴', '傘'];
+
+/* ══ 雨 ══ */
+(function makeRain(){
+  const r = $('rain');
+  for (let i = 0; i < 40; i++){
+    const d = document.createElement('span');
+    d.className = 'drop';
+    d.style.left = Math.random()*100 + '%';
+    d.style.top = (-20 - Math.random()*80) + 'px';
+    d.style.animationDuration = (0.7 + Math.random()*0.8) + 's';
+    d.style.animationDelay = (Math.random()*1.5) + 's';
+    r.appendChild(d);
+  }
+})();
+
+/* ══ 播放器（點擊推進） ══ */
+const verse = $('verse');
+let idx = 0, typing = false, skipFlag = false, ended = false;
+const P = {'，':170,'、':120,'。':340,'？':320,'：':240,'「':60,'」':120};
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(){
+      if (skipFlag || performance.now() - t0 >= ms) return res();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+function trim(){
+  [...verse.children].forEach(el => {
+    if (el.classList.contains('old')){ el.classList.remove('old'); el.classList.add('older'); }
+    else if (!el.classList.contains('older')) el.classList.add('old');
+  });
+  while (verse.children.length > 5) verse.removeChild(verse.firstChild);
+}
+async function playLine(b){
+  typing = true; skipFlag = false;
+  $('next').classList.remove('show');
+  trim();
+  const div = document.createElement('div');
+  div.className = 'pline' + ((b.hasty && b.hasty[loop-1]) ? ' hasty' : '');
+  verse.appendChild(div);
+  const text = b.v[loop-1];
+  const spd = SPEED[loop-1];
+  for (const ch of text){
+    const sp = document.createElement('span');
+    sp.textContent = ch;
+    div.appendChild(sp);
+    if (!skipFlag) await wait(spd + (P[ch] ?? 0));
+  }
+  typing = false;
+  if (!b.end) $('next').classList.add('show');
+}
+function nextLine(){
+  while (idx < SCENE.length){
+    const b = SCENE[idx];
+    if (b.v[loop-1] === null){ idx++; continue; }
+    return b;
+  }
+  return null;
+}
+function dropGhost(){
+  const g = document.createElement('span');
+  g.className = 'gword';
+  g.textContent = GHOST_WORDS[(loop-1) % GHOST_WORDS.length];
+  g.style.left = (8 + Math.random()*80) + '%';
+  g.style.top = (8 + Math.random()*80) + '%';
+  g.style.setProperty('--gr', (Math.random()*10-5).toFixed(1) + 'deg');
+  $('ghosts').appendChild(g);
+  requestAnimationFrame(() => g.classList.add('on'));
+}
+async function resetLoop(){
+  // 燈滅：整頁瞬黑一拍，詩行被抽走，殘影落下
+  document.body.style.transition = 'filter .18s';
+  document.body.style.filter = 'brightness(0)';
+  await wait(650);
+  [...verse.children].forEach(el => el.classList.add('reset'));
+  dropGhost();
+  await wait(500);
+  verse.innerHTML = '';
+  document.body.style.filter = '';
+  loop = Math.min(4, loop + 1);
+  MEM.set('loop_n', String(loop));
+  $('loopnum').textContent = '②③④'[loop-2] ?? '';
+  idx = 0;
+  await wait(900);
+  advance();
+}
+async function finale(){
+  ended = true;
+  $('next').classList.remove('show');
+  const e = $('ending');
+  const seen = MEM.get('loop_seen_end');
+  e.innerHTML = `第 4 次循環。<br>你發現了幾處不同？<br><span style="color:var(--faint);font-size:11.5px">（有些差異，你可能也沒發現。）</span>` +
+    (seen ? `<br><span style="color:var(--faint);font-size:11.5px">你以前也走到過這裡。</span>` : '');
+  MEM.set('loop_seen_end', '1');
+  e.classList.add('show');
+  $('tip').textContent = '';
+  $('btnLoop').classList.add('show');
+}
+function advance(){
+  if (ended) return;
+  if (typing){ skipFlag = true; return; }
+  const b = nextLine();
+  if (!b){
+    if (loop < 4){ resetLoop(); return; }
+    finale(); return;
+  }
+  idx++;
+  playLine(b).then(() => { if (b.end) finale(); });
+}
+
+$('loopnum').textContent = loop > 1 ? ('②③④'[loop-2] ?? '') : '';
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#btnLoop')) return;
+  advance();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); advance(); }
+});
+$('btnLoop').onclick = () => {
+  MEM.set('loop_n', '0');            // 歸零，重新入環
+  location.reload();
+};
+advance();
+</script>
+</body>
+</html>

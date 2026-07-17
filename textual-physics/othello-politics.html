@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黑白棋 / Othello</title>
+<!--
+  ══════════════════════════════════════════════
+  文字物理小說 no.1 ·〈黑白棋 / Othello〉
+  文：GorillaOne（Sheep），全文一字未改
+  形式：棋盤即舞台 · 擬聲詞即事件 · 音量即政治
+    啪＝官僚的印章（重、鈍）
+    喀噠＝棋手落子（小、精確、幾乎聽不見）
+    砰＝掀桌的暴力（爆裂、震盤）
+    喀噠喀噠——＝連鎖翻轉（加速成舞）
+  聲音：WebAudio 全程式合成，零音檔
+  操作：封面點擊開始（解鎖音訊）→ 全自動播放
+        播放中點擊＝暫停/繼續
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg0:#0b0a10; --bg1:#141222;
+    --paper:#e9e4d6; --muted:#93a0bf; --faint:#5b6784;
+    --cold:#9fd8ff; --warm:#ffb347;
+    --line:rgba(147,160,191,.14);
+    --cellbg:rgba(147,160,191,.05);
+  }
+  body.white{
+    --bg0:#f0ede4; --bg1:#e7e3d6;
+    --paper:#2a2620; --muted:#6b665a; --faint:#9a9384;
+    --line:rgba(42,38,32,.12); --cellbg:rgba(42,38,32,.03);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:var(--paper);
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));
+    user-select:none;
+  }
+  #whiteout{
+    position:fixed; inset:0; z-index:8; pointer-events:none;
+    background:#f0ede4; opacity:0; transition:opacity 2.4s ease;
+  }
+  body.whiting #whiteout{opacity:1}
+  body.white #whiteout{opacity:0; transition:opacity 1.8s}
+
+  /* 封面 */
+  #cover{
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg,#0b0a10,#141222);
+    transition:opacity 1.4s; cursor:pointer; color:#e9e4d6;
+  }
+  #cover.gone{opacity:0; pointer-events:none}
+  #cover h1{margin:0; font-size:38px; font-weight:600; letter-spacing:.4em; text-indent:.4em}
+  #cover .sub{font:11px 'Courier New',monospace; letter-spacing:.28em; color:#5b6784}
+  #cover .go{font-size:12px; color:#93a0bf; letter-spacing:.2em; animation:blink 2s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* 棋盤 */
+  #boardWrap{
+    position:fixed; left:50%; top:36%; transform:translate(-50%,-50%);
+    width:min(66vw,340px); z-index:10; transition:opacity 2s;
+  }
+  body.white #boardWrap{opacity:.16}
+  #board{
+    display:grid; grid-template-columns:repeat(8,1fr); gap:2px;
+    aspect-ratio:1; padding:6px;
+    border:1px solid var(--line); border-radius:10px;
+    background:rgba(16,13,28,.5); backdrop-filter:blur(6px);
+    transition:transform .1s;
+  }
+  body.white #board{background:rgba(240,237,228,.4)}
+  .cell{position:relative; background:var(--cellbg); border-radius:3px}
+  .disc{
+    position:absolute; inset:11%; border-radius:50%;
+    opacity:0; transform:scale(.3);
+    transition:opacity .5s, transform .45s cubic-bezier(.3,1.4,.5,1),
+               box-shadow .8s, filter .8s;
+  }
+  .disc.on{opacity:1; transform:scale(1)}
+  .disc.b{background:radial-gradient(circle at 35% 30%, #3d4358, #0e111c)}
+  .disc.w{background:radial-gradient(circle at 35% 30%, #ffffff, #c9c2ae)}
+  .disc.dim{opacity:.34; filter:saturate(.6)}
+  .disc.spy{box-shadow:inset 0 0 0 1.5px rgba(233,228,214,.55)}
+  .disc.selfstone{box-shadow:0 0 10px rgba(255,179,71,.55), inset 0 0 0 1.5px rgba(255,179,71,.5)}
+  .disc.beacon{box-shadow:0 0 16px rgba(159,216,255,.9), 0 0 4px rgba(159,216,255,.9)}
+  .disc.flipping{animation:flipX .44s ease}
+  @keyframes flipX{0%{transform:scale(1,1)}50%{transform:scale(0,1.06)}100%{transform:scale(1,1)}}
+  #board.stampshake{animation:sshake .22s ease 1}
+  @keyframes sshake{0%,100%{transform:translate(0,0)}40%{transform:translate(0,4px)}}
+  #board.boomshake{animation:bshake .55s ease 1}
+  @keyframes bshake{0%,100%{transform:translate(0,0)}15%{transform:translate(-5px,3px) rotate(-.6deg)}
+    35%{transform:translate(5px,-3px) rotate(.5deg)}55%{transform:translate(-3px,2px)}75%{transform:translate(2px,-2px)}}
+
+  #greenflash{
+    position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;
+    background:radial-gradient(60% 60% at 50% 34%, rgba(80,255,120,.5), transparent 70%);
+    transition:opacity .18s;
+  }
+  #greenflash.on{opacity:1}
+
+  #count{
+    text-align:center; margin-top:8px;
+    font:10.5px 'Courier New',monospace; letter-spacing:.24em; color:var(--faint);
+    opacity:0; transition:opacity 1.5s;
+  }
+  #count.show{opacity:1}
+
+  /* 文字區 */
+  #verse{
+    position:fixed; left:50%; bottom:54px; transform:translateX(-50%);
+    width:min(92vw,640px); text-align:center; z-index:20;
+  }
+  .pline{
+    font-size:15.5px; line-height:1.85; letter-spacing:.05em;
+    margin-top:9px; transition:opacity 1s;
+  }
+  .pline .who{display:block; font:10px 'Courier New',monospace; letter-spacing:.26em; margin-bottom:3px; color:var(--faint)}
+  .pline.old{opacity:.32}
+  .pline.older{opacity:.12}
+  .pline span{display:inline-block; white-space:pre}
+  .chap{
+    font-size:21px; letter-spacing:.5em; text-indent:.5em; margin:14px 0 6px;
+    color:var(--paper); opacity:0; transition:opacity 1.2s;
+  }
+  .chap.on{opacity:.95}
+  /* 擬聲詞：字級即音量 */
+  .sfx{margin-top:12px; opacity:0; transition:opacity .3s}
+  .sfx.on{opacity:1}
+  .sfx-stamp{font-size:22px; font-weight:700; letter-spacing:.1em}
+  .sfx-boom{font-size:27px; font-weight:700; letter-spacing:.12em}
+  .sfx-kata{font-size:12.5px; font-style:italic; letter-spacing:.3em; color:var(--muted)}
+  .sfx-cascade{font-size:16px; font-style:italic; letter-spacing:.14em; color:var(--paper)}
+  .sfx-stamp.on{animation:stampIn .3s cubic-bezier(.2,2,.4,1) 1}
+  .sfx-boom.on{animation:stampIn .35s cubic-bezier(.2,2.2,.4,1) 1}
+  @keyframes stampIn{0%{transform:scale(2.2); opacity:0}100%{transform:scale(1); opacity:1}}
+
+  #foot{
+    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:var(--faint);
+    display:flex; gap:22px; align-items:center; z-index:20;
+  }
+  #pauseTip{opacity:.8}
+  #btnReplay{
+    display:none; cursor:pointer; font:inherit; color:var(--muted);
+    background:transparent; border:1px solid var(--line); border-radius:6px; padding:4px 12px;
+  }
+  #btnReplay.show{display:inline-block}
+
+  @media (max-width:640px){
+    #boardWrap{top:32%; width:min(74vw,300px)}
+    .pline{font-size:14px; line-height:1.75}
+    #cover h1{font-size:30px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #board.stampshake,#board.boomshake,.sfx-stamp.on,.sfx-boom.on{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="whiteout"></div>
+<div id="greenflash"></div>
+
+<div id="cover">
+  <h1>黑白棋</h1>
+  <div class="sub">OTHELLO · GORILLAONE · 文字物理小說 NO.1</div>
+  <div class="go">點擊開始（有聲）</div>
+</div>
+
+<div id="boardWrap">
+  <div id="board"></div>
+  <div id="count"></div>
+</div>
+
+<div id="verse"></div>
+
+<div id="foot">
+  <span id="pauseTip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重演</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ══════════ 音效：WebAudio 全合成 ══════════ */
+let AC = null, master = null;
+function initAudio(){
+  try{
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = .7;
+    master.connect(AC.destination);
+  }catch(e){ AC = null; }
+}
+function noiseBurst(dur, freq, vol, type){
+  if (!AC) return;
+  const n = AC.sampleRate * dur, buf = AC.createBuffer(1, n, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = AC.createBufferSource(); src.buffer = buf;
+  const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = AC.createGain(); g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(master); src.start();
+}
+function tone(f0, f1, dur, vol, type){
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type ?? 'sine';
+  o.frequency.setValueAtTime(f0, AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), AC.currentTime + dur);
+  g.gain.setValueAtTime(vol, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(master);
+  o.start(); o.stop(AC.currentTime + dur + .02);
+}
+const SND = {
+  stamp(){ tone(130, 52, .17, .5); noiseBurst(.07, 420, .3, 'lowpass'); },       // 啪：印章悶響
+  boom(){ tone(78, 30, .5, .75); tone(160, 40, .3, .3); noiseBurst(.2, 300, .5, 'lowpass'); }, // 砰：掀桌
+  kata(v){ noiseBurst(.015, 2600, v ?? .1, 'highpass'); tone(1900, 1250, .035, (v ?? .1)*.8, 'square'); }, // 喀噠：極輕
+  green(){ tone(540, 95, .55, .16); },                                            // 綠光
+};
+
+/* ══════════ 棋盤 ══════════ */
+const board = $('board');
+const cells = [];   // 8×8 的 disc 元素
+const state = [];   // 'b' | 'w' | null；旗標記在 dataset
+for (let r = 0; r < 8; r++){
+  state.push([]);
+  for (let c = 0; c < 8; c++){
+    const cell = document.createElement('div'); cell.className = 'cell';
+    const disc = document.createElement('div'); disc.className = 'disc';
+    cell.appendChild(disc); board.appendChild(cell);
+    cells.push(disc); state[r].push(null);
+  }
+}
+const D = (r,c) => cells[r*8+c];
+function place(r, c, kind){         // kind: 'b','w','w-dim','spy','self'
+  const d = D(r,c);
+  d.className = 'disc on ' + (
+    kind === 'b'    ? 'b' :
+    kind === 'w'    ? 'w' :
+    kind === 'w-dim'? 'w dim' :
+    kind === 'spy'  ? 'b spy' :
+    kind === 'self' ? 'w selfstone' : 'w');
+  state[r][c] = (kind === 'b' || kind === 'spy') ? 'b' : 'w';
+  d.dataset.k = kind;
+}
+function flipTo(r, c, kind){
+  const d = D(r,c);
+  d.classList.add('flipping');
+  setTimeout(() => { place(r, c, kind); d.classList.add('on'); }, 210);
+  setTimeout(() => d.classList.remove('flipping'), 460);
+}
+function removeStone(r, c){
+  const d = D(r,c);
+  d.style.transition = 'opacity 1.2s, transform 1.2s';
+  d.style.transform = 'scale(1) translateY(-14px)';
+  d.style.opacity = 0;
+  state[r][c] = null; d.dataset.k = '';
+  setTimeout(() => { d.className = 'disc'; d.style.transform = ''; d.style.opacity = ''; d.style.transition = ''; }, 1300);
+}
+const isProtected = (r,c) => ['w-dim','spy','self','corner'].includes(D(r,c).dataset.k);
+function flood(rows){                // 一片染黑（保護暗線與死角）
+  for (const r of rows) for (let c = 0; c < 8; c++){
+    if (isProtected(r,c)) continue;
+    if (state[r][c] === 'w') flipTo(r, c, 'b');
+    else if (state[r][c] === null) setTimeout(() => place(r, c, 'b'), Math.random()*380);
+  }
+}
+function shake(cls){
+  if (reduceMotion) return;
+  board.classList.add(cls);
+  setTimeout(() => board.classList.remove(cls), 620);
+}
+
+/* 開局中盤：白棋佔優的棋面 */
+function setupBoard(){
+  cells.forEach(d => { d.className = 'disc'; d.dataset.k = ''; });
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) state[r][c] = null;
+  const W = [[3,3],[3,4],[4,3],[4,4],[2,3],[2,4],[3,2],[4,5],[5,4],[5,3]];
+  const B = [[2,2],[5,5],[4,2],[2,5]];
+  W.forEach(([r,c],i) => setTimeout(() => place(r,c,'w'), 120*i));
+  B.forEach(([r,c],i) => setTimeout(() => place(r,c,'b'), 150*i + 400));
+}
+
+/* 連鎖翻轉之舞：波浪自死角出發，沿對角線與邊緣，加速 */
+function cascade(){
+  const stubborn = new Set(['0,7','1,6','2,7','0,5','1,2','6,6','5,7']); // 留幾枚頑固黑棋：白多於黑，而非全滅
+  const bands = {};
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++){
+    if (state[r][c] !== 'b') continue;
+    if (isProtected(r,c)) continue;
+    if (stubborn.has(r+','+c)) continue;
+    const d = (7 - r) + c;             // 與死角(7,0)的對角距離
+    (bands[d] = bands[d] || []).push([r,c]);
+  }
+  const keys = Object.keys(bands).map(Number).sort((a,b) => a-b);
+  let t = 0, gap = 300;
+  keys.forEach(k => {
+    setTimeout(() => {
+      bands[k].forEach(([r,c]) => flipTo(r, c, 'w'));
+      SND.kata(.07 + Math.random()*.04);
+      if (!reduceMotion){ board.classList.add('stampshake');
+        setTimeout(() => board.classList.remove('stampshake'), 200); }
+    }, t);
+    t += gap; gap = Math.max(48, gap * .78);   // 加速——像在跳舞
+  });
+  return t + 700;
+}
+function counts(){
+  let w = 0, b = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++){
+    if (state[r][c] === 'w') w++; if (state[r][c] === 'b') b++;
+  }
+  return {w, b};
+}
+
+/* ══════════ 全文節拍（原文一字未改） ══════════ */
+const BEATS = [
+ {t:'chap', x:'一：中盤'},
+ {t:'line', x:'1995年，夏。魔法部部長辦公室。'},
+ {t:'line', x:'康奈利·福吉重重地蓋下印章。'},
+ {t:'sfx', k:'stamp', x:'啪。', op:() => { shake('stampshake'); flipTo(3,3,'b'); flipTo(3,4,'b'); }},
+ {t:'line', x:'「剝奪阿不思·鄧不利多，威森加摩首席魔法師頭銜。」'},
+ {t:'sfx', k:'stamp', x:'啪。', op:() => { shake('stampshake'); flipTo(4,3,'b'); flipTo(4,4,'b'); }},
+ {t:'line', x:'「撤銷國際巫師聯合會主席職務。」'},
+ {t:'sfx', k:'stamp', x:'啪。', op:() => { shake('stampshake'); flipTo(2,3,'b'); flipTo(2,4,'b'); }},
+ {t:'line', x:'「授權《預言家日報》頭版：鄧不利多老邁失智，哈利·波特謊稱目睹伏地魔復活。」'},
+ {t:'sfx', k:'stamp', x:'啪。', op:() => { shake('stampshake'); flipTo(3,2,'b'); flipTo(4,5,'b'); }},
+ {t:'line', x:'「委派恩不里居為霍格沃茨高級審查員。」'},
+ {t:'sfx', k:'stamp', x:'啪。', op:() => { shake('stampshake'); flipTo(5,4,'b'); flipTo(5,3,'b'); }},
+ {t:'line', x:'「召開針對哈利·波特之違規使用魔法聽證會。」'},
+ {t:'line', x:'辦公桌上的棋盤中央，幾枚白棋被強行翻成了黑棋。'},
+ {t:'line', x:'福吉看著大局已定的中盤，滿意地笑了。他把那個礙眼的老傢伙趕出了權力中心。現在，鄧不利多什麼都不是了。只是一個待在蘇格蘭鄉下的中學校長。'},
+ {t:'line', x:'霍格沃茨，校長室。'},
+ {t:'line', x:'麥格教授把《預言家日報》摔在桌上，氣得嘴唇發白。'},
+ {t:'line', x:'鄧不利多把報紙推到一旁。他沒有生氣，也沒有反駁。他只是剝開一顆檸檬雪寶的糖紙，放進嘴裡。'},
+ {t:'line', x:'他沒有去爭奪中盤的控制權。'},
+ {t:'line', x:'他的指尖輕輕點在棋盤最邊緣、最不起眼的死角——那個他已經牢牢佔領了半個世紀的位置。以學校為起點，他安插在各處的暗線，開始悄然啟動。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => { place(7,0,'w'); D(7,0).dataset.k = 'corner'; }},
+
+ {t:'chap', x:'二：佈局'},
+ {t:'line', x:'政客搶奪報紙的頭版。棋手佈置邊緣的暗線。'},
+ {t:'line', x:'寒風刺骨的山頭。強風呼嘯。一個穿著黑袍的男人單膝跪地，把自己的靈魂和壽命發誓交給兩邊的主人。一枚被塗成黑色的白棋，被深深釘進了敵人的大本營。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(1,5,'spy')},
+ {t:'line', x:'女貞路四號的隔壁。一個養著幾隻貓的啞炮老太太，日復一日地坐在窗前，盯著那個額頭有疤的男孩平安長大。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(3,0,'w-dim')},
+ {t:'line', x:'十一歲的聖誕節。一件原本屬於死神的隱形斗篷，被悄悄放回了男孩的床頭。附帶一張沒有署名的紙條：「好好使用它。」'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(0,3,'w-dim')},
+ {t:'line', x:'地牢深處，十一道機關橫亙在前。一塊棋盤，一個陷阱，一個謎題。三個一年級的孩子走進了黑暗，他們自己找出答案。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(7,4,'w-dim')},
+ {t:'line', x:'城堡七樓的密室。一個男孩在黑板前轉過身，十六個孩子舉起了魔杖。他沒有在場。他不需要在場。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(4,7,'w-dim')},
+ {t:'line', x:'最後，是校長室。'},
+ {t:'line', x:'鄧不利多看著自己焦黑、枯萎的右手。'},
+ {t:'line', x:'他平靜地拿起了代表「自己」的那枚白棋，主動走進了死局，把自己當成了最昂貴的誘餌。為了保住那個最痛苦的雙面間諜，為了折斷老魔杖綿延的殺孽，也為了徹底鎖死那個名為「救世主」的勝局。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => place(3,4+0,'self')},
+
+ {t:'chap', x:'三：掀桌'},
+ {t:'line', x:'伏地魔不喜歡下棋。他喜歡掀翻棋盤。'},
+ {t:'sfx', k:'boom', x:'砰。', op:() => { shake('boomshake'); flood([0,1]); }},
+ {t:'line', x:'魔法部淪陷。斯克林傑死於非命——被找到的時候，身上有刑訊的痕跡。'},
+ {t:'sfx', k:'boom', x:'砰。', op:() => { shake('boomshake'); flood([2,3]); }},
+ {t:'line', x:'預言家日報易主。通緝令貼滿大街小巷。'},
+ {t:'sfx', k:'boom', x:'砰。', op:() => { shake('boomshake'); flood([4,5]); }},
+ {t:'line', x:'傲羅辦公室崩潰。昨天追捕食死徒的人，今天成了通緝犯。'},
+ {t:'sfx', k:'boom', x:'砰。', op:() => { shake('boomshake'); flood([6,7]); }},
+ {t:'line', x:'麻瓜出身登記委員會，泥巴種一個個消失。'},
+ {t:'sfx', k:'boom', x:'砰。', op:() => { shake('boomshake'); flood([0,1,2,3,4,5,6,7]); }},
+ {t:'line', x:'馬份莊園的長桌上，一個女人在空中緩緩旋轉。她的名字叫博納提。她只是教過幾個孩子讀書。'},
+ {t:'line', x:'滿盤皆黑。'},
+ {t:'line', x:'伏地魔的紅眼睛看向最後一個角落。霍格沃茨。'},
+ {t:'line', x:'只要拔掉那個角落，整局棋就結束了。'},
+ {t:'line', x:'天文塔上，綠光閃過。白髮老人墜入黑暗。', op:() => {
+    $('greenflash').classList.add('on'); SND.green();
+    setTimeout(() => $('greenflash').classList.remove('on'), 300);
+    setTimeout(() => removeStone(3,4), 500);
+ }},
+ {t:'line', x:'伏地魔跨過他的屍體，把食死徒塞進了城堡，讓斯內普坐進了校長室。他以為換掉一個校長，就能把這個死角徹底染黑，贏下殘局。', op:() => {
+    removeStone(1,5); setTimeout(() => place(6,1,'spy'), 700);
+ }},
+ {t:'line', x:'但他不懂黑白棋的規則。'},
+ {t:'line', x:'他不知道，中盤的棋子再多，也是最脆弱的。'},
+ {t:'line', x:'他更不知道，為什麼那個老瘋子，寧願讓出大半個江山，甚至賠上自己的命，也必須死死咬住那個名為「學校」的角。'},
+
+ {t:'chap', x:'四：翻轉'},
+ {t:'line', x:'1998年5月。霍格沃茨之戰。'},
+ {t:'line', x:'伏地魔站在城堡外。他不理解。'},
+ {t:'line', x:'法律是他的，軍隊是他的，恐懼是他的。為什麼這群人還在抵抗？'},
+ {t:'line', x:'納威·隆巴頓，一個曾經連魔藥都熬不好的笨小孩，從分院帽裡拔出了格蘭芬多的寶劍。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => flipTo(3,0,'w')},
+ {t:'line', x:'科林·克里維，一個未成年的麻瓜出身男孩，違抗了疏散命令，偷偷溜回了走廊。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => flipTo(0,3,'w')},
+ {t:'line', x:'米勒娃·麥格，一個平時只關心作業和紀律的變形術教授，揮舞魔杖，召喚了城堡幾百年的石像。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => flipTo(7,4,'w')},
+ {t:'line', x:'霍拉斯·斯拉格霍恩，一個最懂得明哲保身、永遠躲在安全線後的斯萊特林，帶著霍格莫德的村民和家長衝破了防線。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => flipTo(4,7,'w')},
+ {t:'line', x:'流著血的尖叫棚屋裡，那個被塗成黑色的男人，在臨死前交出了銀色的記憶。'},
+ {t:'sfx', k:'kata', x:'喀噠。', op:() => flipTo(6,1,'w')},
+ {t:'line', x:'伏地魔看著眼前這道無法被恐懼撕裂的陣線。'},
+ {t:'line', x:'不需要任何一條魔法部法令。不需要任何一個威森加摩頭銜。'},
+ {t:'line', x:'過去五十年間，整個英國魔法界，有誰不是坐在那間大禮堂裡，聽著那個老人的瘋言瘋語長大的？'},
+ {t:'line', x:'刻在骨血裡的答案，早就寫好了。'},
+ {t:'line', x:'一旦角落的信號亮起。', op:() => D(7,0).classList.add('beacon')},
+ {t:'line', x:'一旦那個戴著眼鏡的男孩從海格懷裡翻身躍起。', op:() => place(3,4,'w')},
+ {t:'line', x:'那些他以為已經被恐懼統治的「黑棋」，那些在魔法部裡低頭聽命的成年巫師，瞬間沿著記憶中的走廊，開始了瘋狂的連鎖反應。'},
+ {t:'cascade', x:'喀噠喀噠喀噠喀噠——'},
+ {t:'line', x:'沿著對角線。沿著邊緣。沿著每一條被守住的防線。'},
+ {t:'line', x:'滿盤黑棋，一潰千里般翻轉。'},
+
+ {t:'chap', x:'五：終局'},
+ {t:'white'},
+ {t:'line', x:'國王十字車站。一片純白。'},
+ {t:'line', x:'哈利看著眼前這個戴著半月形眼鏡的老人。'},
+ {t:'line', who:'哈利', x:'「他們曾經剝奪了你所有的頭銜。」哈利輕聲說。'},
+ {t:'line', x:'鄧不利多沒有回答。'},
+ {t:'line', x:'他沒有長篇大論地解釋什麼是政治，也沒有提起那些聽起來嚇人的國際職務。'},
+ {t:'line', x:'他只是笑著眨了眨眼睛，像過去七年裡的每一次開學晚宴一樣，對著他唯一的聽眾，溫和地張開雙臂：'},
+ {t:'line', who:'鄧不利多', x:'「歡迎回到霍格沃茨，哈利。」'},
+ {t:'sfx', k:'kata', x:'喀噠。', soft:true},
+ {t:'line', x:'最後一子落下。'},
+ {t:'line', x:'白，多於黑。'},
+ {t:'line', x:'夠了。', end:true}
+];
+
+/* ══════════ 播放器 ══════════ */
+const verse = $('verse');
+let paused = false, ended = false;
+
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+function pauseAfter(ch){
+  const P = {'，':160,'、':110,'。':320,'？':300,'！':300,'：':200,'——':200,'—':180,'…':240};
+  return P[ch] ?? 0;
+}
+function trimVerse(){
+  [...verse.children].forEach(el => {
+    if (el.classList.contains('old')) { el.classList.remove('old'); el.classList.add('older'); }
+    else if (!el.classList.contains('older')) el.classList.add('old');
+  });
+  while (verse.children.length > 3) verse.removeChild(verse.firstChild);
+}
+async function typeLine(b){
+  trimVerse();
+  const div = document.createElement('div');
+  div.className = 'pline';
+  if (b.who){
+    const w = document.createElement('span');
+    w.className = 'who'; w.textContent = b.who;
+    div.appendChild(w);
+  }
+  verse.appendChild(div);
+  if (b.op) b.op();
+  for (const ch of b.x){
+    const sp = document.createElement('span');
+    sp.textContent = ch;
+    div.appendChild(sp);
+    await wait(42 + pauseAfter(ch));
+  }
+  await wait(650 + Math.min(2600, b.x.length * 26));
+}
+async function playBeat(b){
+  if (b.t === 'chap'){
+    trimVerse();
+    const d = document.createElement('div');
+    d.className = 'chap'; d.textContent = b.x;
+    verse.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('on'));
+    await wait(2300);
+    return;
+  }
+  if (b.t === 'line'){ await typeLine(b); return; }
+  if (b.t === 'sfx'){
+    trimVerse();
+    const d = document.createElement('div');
+    d.className = 'sfx sfx-' + b.k;
+    d.textContent = b.x;
+    verse.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('on'));
+    if (b.k === 'stamp') SND.stamp();
+    if (b.k === 'boom')  SND.boom();
+    if (b.k === 'kata')  SND.kata(b.soft ? .05 : .1);
+    if (b.op) b.op();
+    await wait(b.k === 'kata' ? 1500 : 1250);
+    return;
+  }
+  if (b.t === 'cascade'){
+    trimVerse();
+    const d = document.createElement('div');
+    d.className = 'sfx sfx-cascade on';
+    d.textContent = b.x;
+    verse.appendChild(d);
+    const dur = cascade();
+    await wait(dur + 500);
+    return;
+  }
+  if (b.t === 'white'){
+    document.body.classList.add('whiting');
+    await wait(2400);
+    document.body.classList.add('white');
+    document.body.classList.remove('whiting');
+    await wait(600);
+    return;
+  }
+}
+async function run(){
+  for (const b of BEATS){
+    await playBeat(b);
+    if (b.end) break;
+  }
+  ended = true;
+  const {w, b} = counts();
+  $('count').textContent = `白 ${w} · 黑 ${b}`;
+  $('count').classList.add('show');
+  $('pauseTip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+/* ══════════ 接線 ══════════ */
+$('cover').addEventListener('pointerdown', () => {
+  initAudio();
+  $('cover').classList.add('gone');
+  setupBoard();
+  setTimeout(run, 1600);
+}, {once:true});
+
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay')) return;
+  if (ended) return;
+  paused = !paused;
+  $('pauseTip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>版面即權力 · 分屏爭論</title>
+<!--
+  ══════════════════════════════════════════════
+  分屏爭論演出 v0.1 ·〈版面即權力〉
+  裝置：
+    1. 左右分屏，誰佔理誰的版面變大——優勢即面積
+    2. 劣勢方被擠成小格，字級跟著地盤縮小（聲音變小）
+    3. 吵得越兇，分界線越歪斜、越鋸齒（不規則格子）
+    4. 第三者從正中央劈開兩人、楔形砸入
+  技術：clip-path polygon（同點數可平滑過渡）
+  定位：三框系統的另一顆「鏡頭」——爭論鏡頭，攤牌時切入
+  ⚠ 台詞為原創佔位（規則 vs 情理）。
+  操作：點擊開始 → 自動播放；點擊＝暫停。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--warm:#ffb347;--cold:#9fd8ff;--mind:#b9a3e0;
+        --line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  #cover{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;cursor:pointer;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1));transition:opacity 1.4s}
+  #cover.gone{opacity:0;pointer-events:none}
+  #cover h1{margin:0;font-size:27px;font-weight:600;letter-spacing:.3em;text-indent:.3em}
+  #cover .sub{font:11px 'Courier New',monospace;letter-spacing:.26em;color:var(--faint)}
+  #cover .go{font-size:12px;color:var(--muted);letter-spacing:.2em;animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  #arena{
+    position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);
+    width:min(94vw,660px);aspect-ratio:16/9.5;
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  }
+  #arena.shake{animation:shk .5s ease 1}
+  @keyframes shk{0%,100%{transform:translate(-50%,-50%)}
+    20%{transform:translate(calc(-50% - 6px),calc(-50% + 3px))}
+    45%{transform:translate(calc(-50% + 5px),calc(-50% - 3px))}
+    70%{transform:translate(calc(-50% - 3px),calc(-50% + 2px))}}
+  .pane{
+    position:absolute;inset:0;
+    transition:clip-path 1s cubic-bezier(.35,.1,.25,1);
+  }
+  #pL{background:linear-gradient(160deg,#181327,#1d1530)}
+  #pR{background:linear-gradient(200deg,#101a2c,#0e1524)}
+  #pT{background:linear-gradient(180deg,#241a1a,#1c1216)}
+  .crew{
+    position:absolute;top:50%;transform:translate(-50%,-50%);
+    text-align:center;width:200px;
+    transition:left 1s cubic-bezier(.35,.1,.25,1), font-size 1s;
+  }
+  .crew .sym{display:block;font-size:2em;line-height:1.3}
+  .crew .sym .g{display:inline-block;animation:brth 3.8s ease-in-out infinite}
+  .crew.trem .sym .g{animation:trm .14s steps(2) infinite}
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  @keyframes trm{0%{transform:translate(0,0)}50%{transform:translate(1px,-.8px)}100%{transform:translate(-.8px,.6px)}}
+  .crew .nm{display:block;font:.62em 'Courier New',monospace;letter-spacing:.2em;color:var(--faint);margin:4px 0 8px}
+  .crew .say{display:block;font-size:1em;line-height:1.75;letter-spacing:.04em;min-height:3.4em}
+  .crew .say span{display:inline-block;white-space:pre-wrap}
+  #cap{
+    position:fixed;left:50%;bottom:52px;transform:translateX(-50%);
+    width:min(92vw,600px);text-align:center;font-size:13.5px;
+    letter-spacing:.1em;color:var(--muted);min-height:40px;transition:opacity .8s;
+  }
+  #foot{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    font:10px 'Courier New',monospace;letter-spacing:.2em;color:var(--faint);
+    display:flex;gap:20px;align-items:center;z-index:30}
+  #btnReplay{display:none;cursor:pointer;font:inherit;color:var(--muted);
+    background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 12px}
+  #btnReplay.show{display:inline-block}
+  @media (prefers-reduced-motion:reduce){
+    .crew .sym .g,.crew.trem .sym .g{animation:none}
+    #arena.shake{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="cover">
+  <h1>版面即權力</h1>
+  <div class="sub">SPLIT-SCREEN DEBATE · 爭論鏡頭</div>
+  <div class="go">點擊開始</div>
+</div>
+
+<div id="arena">
+  <div class="pane" id="pL">
+    <div class="crew" id="cL">
+      <span class="sym"><span class="g">□</span></span>
+      <span class="nm">白格</span>
+      <span class="say" id="sL"></span>
+    </div>
+  </div>
+  <div class="pane" id="pR">
+    <div class="crew" id="cR">
+      <span class="sym"><span class="g" style="color:var(--paper)">○</span></span>
+      <span class="nm">小圓</span>
+      <span class="say" id="sR"></span>
+    </div>
+  </div>
+  <div class="pane" id="pT">
+    <div class="crew" id="cT">
+      <span class="sym"><span class="g" style="color:var(--warm)">▲</span></span>
+      <span class="nm">當事人</span>
+      <span class="say" id="sT"></span>
+    </div>
+  </div>
+</div>
+
+<div id="cap"></div>
+<div id="foot">
+  <span id="tip">自動播放 · 點擊暫停</span>
+  <button id="btnReplay">↺ 重演</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let paused = false, ended = false;
+function wait(ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    let acc = 0, last = t0;
+    (function step(now){
+      if (!paused) acc += now - last;
+      last = now;
+      if (acc >= ms) return res();
+      requestAnimationFrame(step);
+    })(t0);
+  });
+}
+
+/* ══ 版面幾何：c＝分界中心(L 的佔比) · tilt＝歪斜 · jag＝鋸齒 · wc/wt/wb＝楔形 ══ */
+const G = {c:50, tilt:0, jag:0, wc:50, wt:0, wb:0};
+function edgeL(){ // L 的右邊界（上、中×3、下）
+  const t = G.wt > 0 ? G.wc - G.wt : G.c + G.tilt;
+  const b = G.wb > 0 ? G.wc - G.wb : G.c - G.tilt;
+  return mids(t, b, -1);
+}
+function edgeR(){ // R 的左邊界
+  const t = G.wt > 0 ? G.wc + G.wt : G.c + G.tilt;
+  const b = G.wb > 0 ? G.wc + G.wb : G.c - G.tilt;
+  return mids(t, b, 1);
+}
+function mids(t, b, sgn){
+  const p25 = t + (b - t) * .25 + G.jag * sgn;
+  const p50 = t + (b - t) * .5  - G.jag * sgn;
+  const p75 = t + (b - t) * .75 + G.jag * sgn;
+  return {t, b, p25, p50, p75};
+}
+function apply(fast){
+  const dur = fast ? '.18s' : '1s';
+  ['pL','pR','pT'].forEach(id => $(id).style.transitionDuration = dur);
+  const L = edgeL(), R = edgeR();
+  $('pL').style.clipPath =
+    `polygon(0% 0%, ${L.t}% 0%, ${L.p25}% 25%, ${L.p50}% 50%, ${L.p75}% 75%, ${L.b}% 100%, 0% 100%)`;
+  $('pR').style.clipPath =
+    `polygon(${R.t}% 0%, 100% 0%, 100% 100%, ${R.b}% 100%, ${R.p75}% 75%, ${R.p50}% 50%, ${R.p25}% 25%)`;
+  $('pT').style.clipPath =
+    `polygon(${G.wc - G.wt}% 0%, ${G.wc + G.wt}% 0%, ${G.wc + G.wb}% 100%, ${G.wc - G.wb}% 100%)`;
+  // 人物跟著自己地盤的重心走；字級隨地盤縮放（聲音變小）
+  const midL = (L.t + L.b) / 2, midR = (R.t + R.b) / 2;
+  const shareL = G.wt > 0 ? midL : G.c;
+  const shareR = 100 - (G.wt > 0 ? midR : G.c);
+  $('cL').style.left = (midL / 2) + '%';
+  $('cR').style.left = ((midR + 100) / 2) + '%';
+  $('cT').style.left = G.wc + '%';
+  $('cL').style.fontSize = (16 * (0.42 + shareL / 100 * 1.1)).toFixed(1) + 'px';
+  $('cR').style.fontSize = (16 * (0.42 + shareR / 100 * 1.1)).toFixed(1) + 'px';
+  $('cT').style.fontSize = (16 * (0.42 + (G.wt + G.wb) / 60)).toFixed(1) + 'px';
+}
+function power(c, tilt, jag, fast){ G.c = c; G.tilt = tilt; G.jag = jag; apply(fast); }
+function wedge(wt, wb, fast){ G.wt = wt; G.wb = wb; apply(fast); }
+
+/* ══ 打字 ══ */
+const P = {'，':160,'、':120,'。':320,'？':300,'！':300,'⋯':240};
+async function say(side, text){
+  const el = $('s' + side);
+  el.innerHTML = '';
+  for (const ch of text){
+    const sp = document.createElement('span');
+    sp.textContent = ch; el.appendChild(sp);
+    await wait(52 + (P[ch] ?? 0));
+  }
+  await wait(700 + text.length * 40);
+}
+async function cap(t, hold){
+  const c = $('cap'); c.style.opacity = 0;
+  await wait(320);
+  c.textContent = t; c.style.opacity = 1;
+  await wait(hold ?? 1200);
+}
+
+/* ══ 劇本（⚠ 原創佔位：規則 vs 情理，第三者＝被討論的當事人） ══ */
+async function run(){
+  apply();
+  await wait(500);
+  await cap('兩個人，在決定第三個人的命運。', 2200);
+
+  await say('L', '按規定，這件事必須上報。');
+  power(50, 0, 0);
+  await say('R', '他只是犯了一次錯。');
+  power(45, 2, 0);                                    // R 小勝
+  await say('L', '規定不分次數。');
+  power(58, 4, 0);                                    // L 反壓
+  await say('R', '規定也沒讓你變成好人。');
+  power(40, 6, 3);                                    // R 反殺，戰線開始鋸齒
+  await cap('（吵得越兇，分界線越不像一條直線。）', 2000);
+  await say('L', '⋯⋯');
+  power(34, 8, 4);                                    // L 語塞，繼續被擠
+  await say('L', '我見過太多個「只是一次」。');
+  power(64, 9, 5);                                    // L 大反攻
+  $('cR').classList.add('trem');
+  await say('R', '⋯⋯');
+  power(78, 10, 6);                                   // R 被擠成小格——字也小了
+  await say('R', '求你。');
+  await cap('（劣勢方的聲音，真的變小了。）', 2200);
+
+  /* 第三者：楔形劈入 */
+  await wait(600);
+  $('arena').classList.add('shake');
+  wedge(16, 10, true);                                // 砸進來——快切，不慢滑
+  power(50, 0, 0, true);
+  $('cR').classList.remove('trem');
+  await wait(650);
+  $('arena').classList.remove('shake');
+  await say('T', '夠了。');
+  await say('T', '你們在討論的人，就站在這裡。');
+  wedge(26, 20);                                      // 楔形吃下更多版面
+  await say('T', '我自己去說。');
+  wedge(34, 30);
+  await wait(800);
+  await cap('版面即權力——誰佔理，誰的字就大。', 3200);
+
+  ended = true;
+  $('tip').textContent = '';
+  $('btnReplay').classList.add('show');
+}
+
+$('cover').addEventListener('pointerdown', () => {
+  $('cover').classList.add('gone');
+  setTimeout(run, 1000);
+}, {once:true});
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#cover') || e.target.closest('#btnReplay') || ended) return;
+  paused = !paused;
+  $('tip').textContent = paused ? '已暫停 · 點擊繼續' : '自動播放 · 點擊暫停';
+});
+$('btnReplay').onclick = () => location.reload();
+</script>
+</body>
+</html>

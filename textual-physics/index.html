@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字物理學 · 雙館聯展</title>
+<style>
+:root{--ink0:#0a0912;--ink1:#131022;--paper:#e9e4d6;--muted:#8f9ab8;
+  --faint:#565f7c;--g1:#ffb347;--g2:#9fd8ff;--hair:rgba(143,154,184,.16)}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{color:var(--paper);background:linear-gradient(175deg,var(--ink0),var(--ink1)) fixed;
+  font-family:Georgia,'Noto Serif TC','PMingLiU',serif;min-height:100vh;overflow-x:hidden}
+::selection{background:rgba(255,179,71,.25)}
+/* ═════════ 封面：字有物理 ═════════ */
+#hero{height:100vh;position:relative;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:26px;overflow:hidden}
+#snow{position:absolute;inset:0;pointer-events:none}
+#snow span{position:absolute;top:-5%;color:var(--muted);animation:sfall linear infinite}
+@keyframes sfall{to{transform:translateY(110vh)}}
+#tp{display:flex;gap:.06em;user-select:none}
+.ch{display:inline-block;font-size:clamp(52px,11vw,104px);font-weight:600;
+  opacity:0;transform:translateY(-70vh);cursor:pointer;
+  animation:chdrop 1.05s cubic-bezier(.34,.9,.42,1) forwards}
+.ch:nth-child(1){animation-delay:.10s}.ch:nth-child(2){animation-delay:.28s}
+.ch:nth-child(3){animation-delay:.46s}.ch:nth-child(4){animation-delay:.64s}
+.ch:nth-child(5){animation-delay:.82s}
+@keyframes chdrop{
+  0%{opacity:0;transform:translateY(-70vh)}
+  55%{opacity:1;transform:translateY(0)}
+  70%{transform:translateY(-4.5%)}
+  84%{transform:translateY(0)}
+  92%{transform:translateY(-1.5%)}
+  100%{opacity:1;transform:translateY(0)}}
+.lean{display:inline-block;transition:transform .35s ease-out}
+.in{display:inline-block}
+/* 五個字，五種脾氣 */
+.c1 .in{animation:idbr 4.6s ease-in-out 2.2s infinite}
+@keyframes idbr{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+.c2 .in{animation:idtr 3.4s steps(2) 2.2s infinite}
+@keyframes idtr{0%,92%,100%{transform:translate(0,0)}94%{transform:translate(1.4px,-1px)}97%{transform:translate(-1.2px,.8px)}}
+.c3 .in{animation:idhv 7s ease-in-out 2.2s infinite}
+@keyframes idhv{0%,100%{transform:translateY(4px)}55%{transform:translateY(4px)}62%{transform:translateY(7px)}70%{transform:translateY(4px)}}
+.c4 .in{animation:idqt 5.2s steps(1) 2.2s infinite}
+@keyframes idqt{0%,88%,100%{opacity:1;transform:skewX(0)}90%{opacity:.35;transform:skewX(7deg)}92%{opacity:1;transform:skewX(0)}95%{opacity:.5}96%{opacity:1}}
+.c5 .in{animation:idwm 5.5s ease-in-out 2.2s infinite}
+@keyframes idwm{0%,100%{text-shadow:0 0 0 rgba(255,179,71,0)}50%{text-shadow:0 0 22px rgba(255,179,71,.55);color:#f4d9a8}}
+.ch.shat .in{opacity:0;transform:scale(.55);transition:opacity .2s,transform .2s}
+.ch.reborn .in{opacity:1;transform:scale(1);transition:opacity .9s,transform .9s cubic-bezier(.3,1.4,.5,1)}
+.shard{position:fixed;z-index:60;pointer-events:none;color:var(--paper);
+  animation:shfly .95s cubic-bezier(.2,.6,.5,1) forwards}
+@keyframes shfly{0%{transform:translate(0,0) rotate(0);opacity:1}
+  100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rr));opacity:0}}
+#sub1,#sub2{letter-spacing:.14em;opacity:0;animation:fin 1.4s ease forwards}
+#sub1{font-size:15px;color:var(--muted);animation-delay:1.9s}
+#sub2{font-size:11.5px;color:var(--faint);animation-delay:2.6s;
+  font-family:'Courier New',monospace;letter-spacing:.22em}
+@keyframes fin{to{opacity:1}}
+#cue{position:absolute;bottom:34px;font:13px monospace;color:var(--faint);
+  opacity:0;animation:fin 1s ease 3.2s forwards, cuehop 2.8s ease 4.2s infinite;
+  text-decoration:none}
+@keyframes cuehop{0%,86%,100%{transform:translateY(0)}90%{transform:translateY(-9px)}94%{transform:translateY(0)}97%{transform:translateY(-3px)}}
+/* ═════════ 場刊 ═════════ */
+#wrap{display:grid;grid-template-columns:172px 1fr;gap:52px;
+  max-width:1000px;margin:0 auto;padding:56px 26px 110px}
+#mast{position:sticky;top:56px;height:fit-content}
+#mast .vt{writing-mode:vertical-rl;font-size:26px;font-weight:600;
+  letter-spacing:.4em;color:var(--muted);margin-bottom:22px}
+#mast .en{font:9.5px 'Courier New',monospace;letter-spacing:.28em;color:var(--faint);margin-bottom:20px}
+#mast .meta{font-size:12px;line-height:2.1;color:var(--muted);letter-spacing:.06em}
+#mast .meta b{color:var(--paper);font-weight:normal}
+#mast .lg{margin-top:14px;font:10px 'Courier New',monospace;letter-spacing:.14em;color:var(--faint);line-height:2.2}
+#mast .lg i{font-style:normal}
+#mast .lg .d1{color:var(--g1)} #mast .lg .d2{color:var(--g2)}
+#mast .note{margin-top:18px;font-size:10.5px;line-height:2;color:var(--faint);
+  border-top:1px solid var(--hair);padding-top:13px;letter-spacing:.04em}
+.room{margin-bottom:50px}
+.rh{display:flex;align-items:baseline;gap:14px;margin-bottom:4px}
+.rh .rn{font:10px 'Courier New',monospace;letter-spacing:.4em;color:var(--faint)}
+.rh h2{font-size:16px;font-weight:600;letter-spacing:.34em;color:var(--muted)}
+.rh .rc{margin-left:auto;font:10px 'Courier New',monospace;color:var(--faint);letter-spacing:.2em}
+.row{display:grid;grid-template-columns:50px 166px 1fr 96px;gap:14px;
+  align-items:baseline;padding:15px 4px 14px;border-bottom:1px solid var(--hair);
+  text-decoration:none;color:inherit;transition:padding-left .35s}
+.row:hover{padding-left:12px}
+.row:focus-visible{outline:2px solid var(--g1);outline-offset:2px;border-radius:4px}
+.gl{font-size:23px;line-height:1;text-align:center;color:var(--muted);
+  align-self:center;transition:color .4s,transform .5s}
+.row:hover .gl{color:var(--paper)}
+.tt{font-size:16.5px;letter-spacing:.1em;transition:color .35s}
+.row.g1:hover .tt{color:var(--g1)} .row.g2:hover .tt{color:var(--g2)}
+.ds{font-size:12px;line-height:1.8;color:var(--muted);letter-spacing:.03em}
+.mt{text-align:right;font:9.5px 'Courier New',monospace;letter-spacing:.12em;color:var(--faint);line-height:1.9}
+.mt .g{display:block}
+.row.g1 .mt .g{color:var(--g1)} .row.g2 .mt .g{color:var(--g2)}
+.m-breathe .gl{animation:brA 3.8s ease-in-out infinite}
+@keyframes brA{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.row.m-tremble:hover .gl{animation:trA .13s steps(2) infinite}
+@keyframes trA{0%{transform:translate(0,0)}50%{transform:translate(1.2px,-1px)}100%{transform:translate(-1px,.8px)}}
+.row.m-glow:hover .gl{color:var(--g1);text-shadow:0 0 14px rgba(255,179,71,.7)}
+.row.m-zoom:hover .gl{transform:scale(1.7)}
+.row.m-hole:hover .gl{animation:holeA 1.4s ease-in-out infinite}
+@keyframes holeA{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.1);opacity:.15}}
+.row.m-flip:hover .gl{animation:flipA 1.1s ease-in-out infinite}
+@keyframes flipA{0%,100%{transform:scaleX(1)}50%{transform:scaleX(-.08);opacity:.6}}
+.row.m-spin:hover .gl{animation:spA 1.6s linear infinite}
+.row.m-spin-r:hover .gl{animation:spA 1.6s linear infinite reverse}
+@keyframes spA{to{transform:rotate(360deg)}}
+.row.m-fade:hover .gl{animation:fdA 2.4s ease-in-out infinite}
+@keyframes fdA{0%,100%{opacity:1}50%{opacity:.2}}
+.row.m-blink:hover .gl{animation:fdA 1s steps(2) infinite}
+.row.m-caret:hover .gl{animation:fdA .9s steps(2) infinite;color:var(--paper)}
+.row.m-beat .gl{color:#c96a66}
+.row.m-beat:hover .gl{animation:btA .8s ease-in-out infinite;color:#e08f8f}
+@keyframes btA{0%,100%{transform:scale(1)}12%{transform:scale(1.35)}24%{transform:scale(1)}}
+.row.m-drift:hover .gl{animation:dfA 3s ease-in-out infinite}
+@keyframes dfA{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+.row.m-step:hover .gl{animation:stA .9s steps(3) infinite}
+@keyframes stA{0%{transform:translateX(-4px)}100%{transform:translateX(4px)}}
+.m-ring .gl::before{content:'';display:inline-block;width:19px;height:19px;border-radius:50%;
+  background:conic-gradient(var(--muted) 0 322deg, transparent 322deg 360deg);
+  -webkit-mask:radial-gradient(circle, transparent 6px, #000 6.5px);
+          mask:radial-gradient(circle, transparent 6px, #000 6.5px)}
+.row.m-ring:hover .gl::before{animation:spA 2.4s linear infinite;
+  background:conic-gradient(var(--paper) 0 322deg, transparent 322deg 360deg)}
+.row.t-grow:hover .tt{transform:scaleX(1.08);display:inline-block;transform-origin:left}
+.row.t-strike:hover .tt{text-decoration:line-through;text-decoration-color:rgba(185,163,224,.7)}
+.row.t-blur:hover .tt{filter:blur(1.6px);opacity:.55;transition:filter .5s,opacity .5s}
+.row.t-split:hover .tt .h1{transform:translateX(-5px)}
+.row.t-split:hover .tt .h2{transform:translateX(5px)}
+.tt .h1,.tt .h2{display:inline-block;transition:transform .5s}
+.row.t-invert:hover .tt{background:var(--paper);color:var(--ink0);padding:0 4px}
+.row.t-squeeze:hover .tt{letter-spacing:-.06em}
+.row.t-tilt:hover .tt{display:inline-block;transform:perspective(300px) rotateY(-16deg)}
+footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
+  font:10px 'Courier New',monospace;letter-spacing:.22em;color:var(--faint);
+  text-align:center;line-height:2.3}
+@media (max-width:760px){
+  #wrap{grid-template-columns:1fr;gap:32px;padding:36px 18px 80px}
+  #mast{position:static}
+  #mast .vt{writing-mode:horizontal-tb;font-size:20px;letter-spacing:.3em;margin-bottom:10px}
+  .row{grid-template-columns:38px 1fr 74px;grid-template-areas:"g t m" "g d m"}
+  .gl{grid-area:g}.tt{grid-area:t}.ds{grid-area:d;margin-top:3px}.mt{grid-area:m}
+  #sub2{display:none}
+  #sub2m{display:block !important}
+}
+#sub2m{display:none;font:11.5px 'Courier New',monospace;letter-spacing:.2em;
+  color:var(--faint);opacity:0;animation:fin 1.4s ease 2.6s forwards}
+@media (prefers-reduced-motion:reduce){
+  *,*::before{animation:none !important;transition:none !important}
+  .ch{opacity:1;transform:none}
+  #sub1,#sub2,#cue{opacity:1}
+}
+</style>
+</head>
+<body>
+
+<section id="hero">
+  <div id="snow"><span style="left:91%;animation-duration:19s;animation-delay:-23s;font-size:11px;opacity:0.07">！</span><span style="left:88%;animation-duration:17s;animation-delay:-22s;font-size:16px;opacity:0.05">、</span><span style="left:54%;animation-duration:15s;animation-delay:-10s;font-size:12px;opacity:0.09">。</span><span style="left:91%;animation-duration:21s;animation-delay:-14s;font-size:12px;opacity:0.05">：</span><span style="left:29%;animation-duration:16s;animation-delay:-21s;font-size:14px;opacity:0.08">⋯</span><span style="left:12%;animation-duration:21s;animation-delay:-19s;font-size:11px;opacity:0.08">⋯</span><span style="left:55%;animation-duration:21s;animation-delay:-12s;font-size:16px;opacity:0.10">。</span><span style="left:57%;animation-duration:19s;animation-delay:-17s;font-size:12px;opacity:0.09">，</span><span style="left:10%;animation-duration:18s;animation-delay:-12s;font-size:14px;opacity:0.09">「</span><span style="left:59%;animation-duration:15s;animation-delay:-12s;font-size:12px;opacity:0.10">」</span><span style="left:90%;animation-duration:19s;animation-delay:-1s;font-size:11px;opacity:0.10">⋯</span><span style="left:76%;animation-duration:24s;animation-delay:-16s;font-size:14px;opacity:0.09">：</span><span style="left:77%;animation-duration:15s;animation-delay:-22s;font-size:14px;opacity:0.08">：</span><span style="left:8%;animation-duration:22s;animation-delay:-8s;font-size:16px;opacity:0.07">。</span><span style="left:85%;animation-duration:18s;animation-delay:-1s;font-size:14px;opacity:0.06">？</span><span style="left:48%;animation-duration:17s;animation-delay:-17s;font-size:12px;opacity:0.07">。</span></div>
+  <div id="tp"><span class="ch c1"><span class="lean"><span class="in">文</span></span></span><span class="ch c2"><span class="lean"><span class="in">字</span></span></span><span class="ch c3"><span class="lean"><span class="in">物</span></span></span><span class="ch c4"><span class="lean"><span class="in">理</span></span></span><span class="ch c5"><span class="lean"><span class="in">學</span></span></span></div>
+  <p id="sub1">每一個字，都有重量、體溫、與脾氣。</p>
+  <p id="sub2">游標靠近它們會躲 · 點一個字試試 · 往下進場</p>
+  <p id="sub2m">點一個字試試 · 往下進場</p>
+  <a id="cue" href="#halls">▼</a>
+</section>
+
+<div id="wrap">
+  <aside id="mast">
+    <div class="vt">雙館聯展</div>
+    <div class="en">TEXTUAL PHYSICS<br>TWIN GALLERIES</div>
+    <div class="meta"><b>36</b> 件 · 七間展室<br>Sheep &amp; Architect</div>
+    <div class="lg"><i class="d1">●</i> 甲館 18　<i class="d2">●</i> 乙館 18<br>同題作品相鄰陳列</div>
+    <div class="note">滑過每一行——<br>標題會親自演出<br>自己的裝置。<br><br>特殊操作見右側小註；<br>桌面瀏覽器體驗最佳。</div>
+  </aside>
+  <main id="halls">
+<section class="room">
+  <div class="rh"><span class="rn">第 一 室</span><h2>引擎與演出</h2><span class="rc">6 件</span></div>
+  <a class="row g1 m-glow " href="textual-physics-showcase-v12_1.html"><span class="gl">★</span><span class="tt">展示場</span><span class="ds">v12.1 引擎全系統——拉動世界溫度，看冰的一生</span><span class="mt"><span class="g">甲館</span><span>互動</span></span></a>
+  <a class="row g1 m-breathe " href="geometric-theatre.html"><span class="gl">○</span><span class="tt">幾何劇場</span><span class="ds">符號角色的過場：走位、壞死、遺忘之點。誰不呼吸，誰就是機器</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g1 m-zoom " href="geometric-camera.html"><span class="gl">◎</span><span class="tt">鏡頭測試卷</span><span class="ds">全景到超近鏡到對峙站位，十種鏡頭連播</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g2 m-breathe " href="symbol-stage.html"><span class="gl">□</span><span class="tt">符號舞台</span><span class="ds">鏡頭與演技的另一種實作</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-tremble " href="fx-emotions.html"><span class="gl">「</span><span class="tt">對話的情緒物理</span><span class="ds">輕量演出層：台詞固定，逐字級物理演出</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-hole " href="fx-blackhole-vanish.html"><span class="gl">⊙</span><span class="tt">符號黑洞</span><span class="ds">台詞的六種死法——黑洞完全由字符構成</span><span class="mt"><span class="g">乙館</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 二 室</span><h2>文字物理作品</h2><span class="rc">5 件</span></div>
+  <a class="row g1 m-ring " href="perfect-circle-poem.html"><span class="gl"></span><span class="tt">圓美</span><span class="ds">永遠畫不圓的圈、環繞的批評殘影、「你→我」的翻字</span><span class="mt"><span class="g">甲館</span><span>點擊</span></span></a>
+  <a class="row g2 m-ring " href="poem-yuanmei-v1.html"><span class="gl"></span><span class="tt">圓美 v1</span><span class="ds">圓作為詩旁道具的版本</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-ring " href="poem-yuanmei-v2.html"><span class="gl"></span><span class="tt">圓美 v2</span><span class="ds">圓由詩自己的字砌成；缺口是被彈飛的那句話留下的洞</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g1 m-flip " href="othello-politics.html"><span class="gl">●</span><span class="tt">黑白棋</span><span class="ds">棋盤即舞台，擬聲詞即事件：啪、喀噠、砰</span><span class="mt"><span class="g">甲館</span><span>有聲</span></span></a>
+  <a class="row g2 m-flip " href="fic-othello.html"><span class="gl">●</span><span class="tt">黑白棋（乙）</span><span class="ds">同題重演——另一館的棋局</span><span class="mt"><span class="g">乙館</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 三 室</span><h2>對話與排版</h2><span class="rc">5 件</span></div>
+  <a class="row g1 m-breathe " href="breadcrumbs-dialogue-performer.html"><span class="gl">・</span><span class="tt">麵包屑</span><span class="ds">角色物理簽名、量子疊加、心電圖、中／EN 對照</span><span class="mt"><span class="g">甲館</span><span>點擊</span></span></a>
+  <a class="row g1  " href="three-zone-mockup.html"><span class="gl">☰</span><span class="tt">三框排版</span><span class="ds">上主角、中世界、下聲部——位置即語言</span><span class="mt"><span class="g">甲館</span><span>點擊</span></span></a>
+  <a class="row g2  " href="zones-dramaturgy.html"><span class="gl">☰</span><span class="tt">三框戲劇學</span><span class="ds">框的生老病死</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g1  t-grow" href="split-debate.html"><span class="gl">◧</span><span class="tt">版面即權力</span><span class="ds">誰佔理誰變大，第三者從正中劈入</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g2  t-grow" href="split-argument.html"><span class="gl">◧</span><span class="tt">爭論分屏</span><span class="ds">版面即戰況——同題另一解</span><span class="mt"><span class="g">乙館</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 四 室</span><h2>企劃原型</h2><span class="rc">6 件</span></div>
+  <a class="row g1 m-spin " href="loop-mystery.html"><span class="gl">↻</span><span class="tt">循環</span><span class="ds">四輪重播，差異不做標示。時間一直在提早</span><span class="mt"><span class="g">甲館</span><span>會記憶</span></span></a>
+  <a class="row g2 m-spin-r " href="loop-night.html"><span class="gl">↺</span><span class="tt">第 N 夜</span><span class="ds">倒帶轉場——文字逐字倒打收回</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g1 m-breathe " href="island-ensemble.html"><span class="gl">△</span><span class="tt">島</span><span class="ds">島嶼即目錄，點誰讀誰。島會記得死者</span><span class="mt"><span class="g">甲館</span><span>讀者驅動</span></span></a>
+  <a class="row g2 m-fade " href="island-day7.html"><span class="gl">△</span><span class="tt">第七天</span><span class="ds">字體即生命徵象，不做血條</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-breathe " href="oc-room.html"><span class="gl">⌂</span><span class="tt">小房間</span><span class="ds">家具都是字，點擊觸發小日常</span><span class="mt"><span class="g">乙館</span><span>讀者驅動</span></span></a>
+  <a class="row g2 m-tremble " href="polygraph.html"><span class="gl">〰</span><span class="tt">測謊排版</span><span class="ds">說謊那一句有極細微的顫抖——你找出來</span><span class="mt"><span class="g">乙館</span><span>讀者驅動</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 五 室</span><h2>痕跡與偽裝</h2><span class="rc">3 件</span></div>
+  <a class="row g1  t-strike" href="unsent-letter.html"><span class="gl">✉</span><span class="tt">沒寄出的信</span><span class="ds">被刪掉的句子，連成那封真正的信</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g1  t-blur" href="recalled-message.html"><span class="gl">⊘</span><span class="tt">已撤回</span><span class="ds">出現 1.5 秒——你來不及讀完，但你看見了</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g2 m-blink " href="typing-unsent.html"><span class="gl">⋯</span><span class="tt">輸入中⋯</span><span class="ds">未送出的訊息，眼睜睜看著</span><span class="mt"><span class="g">乙館</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 六 室</span><h2>破框術</h2><span class="rc">5 件</span></div>
+  <a class="row g1  t-split" href="dual-window.html"><span class="gl">◫</span><span class="tt"><span class="h1">雙窗</span><span class="h2">劇場</span></span><span class="ds">兩扇窗互相發現、隔窗對話。關掉一扇，另一個會感覺到</span><span class="mt"><span class="g">甲館</span><span>需開兩窗</span></span></a>
+  <a class="row g1  t-invert" href="print-reveal.html"><span class="gl">▤</span><span class="tt">列印才顯形</span><span class="ds">Ctrl+P——紙不接受審查</span><span class="mt"><span class="g">甲館</span><span>需列印</span></span></a>
+  <a class="row g1  t-squeeze" href="window-cage.html"><span class="gl">▣</span><span class="tt">視窗即牢籠</span><span class="ds">縮小視窗，牆會逼近。放大後，他不會立刻好起來</span><span class="mt"><span class="g">甲館</span><span>桌面限定</span></span></a>
+  <a class="row g1 m-caret " href="defiant-input.html"><span class="gl">▁</span><span class="tt">會反抗的輸入框</span><span class="ds">你的字被當面改寫。第三次，半句真話逃了出去</span><span class="mt"><span class="g">甲館</span><span>親手輸入</span></span></a>
+  <a class="row g1 m-beat " href="heartbeat-crash.html"><span class="gl">♥</span><span class="tt">心跳</span><span class="ds">分頁圖示是一顆會跳的心。然後它停了</span><span class="mt"><span class="g">甲館</span><span>看分頁圖示</span></span></a>
+</section>
+<section class="room">
+  <div class="rh"><span class="rn">第 七 室</span><h2>空間與地圖</h2><span class="rc">6 件</span></div>
+  <a class="row g1  t-tilt" href="fake3d-reel.html"><span class="gl">◇</span><span class="tt">偽3D 測試卷</span><span class="ds">放倒地板、景深、西洋鏡、星戰字幕、翻面</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
+  <a class="row g2  t-tilt" href="pseudo3d-4scenes.html"><span class="gl">◇</span><span class="tt">偽3D 四景</span><span class="ds">同題的另外四種空間戲法</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-glow " href="gaze-skull.html"><span class="gl">◉</span><span class="tt">注視</span><span class="ds">真・字符3D：點雲、光照、z-buffer、字符亮度階</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-drift " href="char-landscape.html"><span class="gl">山</span><span class="tt">字符山水</span><span class="ds">山用「山」堆、水用「～﹏」流的活卷軸</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-step " href="fx-map-walk.html"><span class="gl">走</span><span class="tt">地圖・行走・轉場</span><span class="ds">行走與崩塌轉場</span><span class="mt"><span class="g">乙館</span></span></a>
+  <a class="row g2 m-step " href="fx-map-pictograph.html"><span class="gl">門</span><span class="tt">象形字地圖</span><span class="ds">地形用字砌成、標點腳印、走進「門」字</span><span class="mt"><span class="g">乙館</span></span></a>
+</section>
+  <footer>TEXTUAL PHYSICS CODEX v12.1 · GEOMETRIC PERFORMANCE CODEX v0.3<br>文本多為佔位示意 · 待作者重寫</footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var chars = [].slice.call(document.querySelectorAll('.ch'));
+  var hero = document.getElementById('hero');
+  /* 趨性：字會躲你的游標 */
+  if (!reduce){
+    var raf = null;
+    hero.addEventListener('pointermove', function(e){
+      if (raf) return;
+      raf = requestAnimationFrame(function(){
+        raf = null;
+        chars.forEach(function(c){
+          var r = c.getBoundingClientRect();
+          var cx = r.left + r.width/2, cy = r.top + r.height/2;
+          var dx = cx - e.clientX, dy = cy - e.clientY;
+          var d = Math.hypot(dx, dy);
+          var lean = c.querySelector('.lean');
+          if (d < 190){
+            var k = (1 - d/190) * 13;
+            lean.style.transform = 'translate(' + (dx/d*k).toFixed(1) + 'px,' + (dy/d*k).toFixed(1) + 'px)';
+          } else lean.style.transform = '';
+        });
+      });
+    });
+    hero.addEventListener('pointerleave', function(){
+      chars.forEach(function(c){ c.querySelector('.lean').style.transform = ''; });
+    });
+  }
+  /* 點一個字：碎裂 → 重組 */
+  chars.forEach(function(c){
+    c.addEventListener('click', function(){
+      if (c.classList.contains('shat')) return;
+      var r = c.getBoundingClientRect();
+      var cx = r.left + r.width/2, cy = r.top + r.height/2;
+      c.classList.remove('reborn');
+      c.classList.add('shat');
+      for (var i = 0; i < 12; i++){
+        var s = document.createElement('span');
+        s.className = 'shard';
+        s.textContent = Math.random() < .5 ? '▪' : '·';
+        s.style.left = cx + 'px'; s.style.top = cy + 'px';
+        s.style.fontSize = (8 + Math.random()*8) + 'px';
+        var a = Math.random()*Math.PI*2, rr = 34 + Math.random()*70;
+        s.style.setProperty('--dx', (Math.cos(a)*rr).toFixed(0) + 'px');
+        s.style.setProperty('--dy', (Math.sin(a)*rr - 12).toFixed(0) + 'px');
+        s.style.setProperty('--rr', ((Math.random()*160-80)|0) + 'deg');
+        document.body.appendChild(s);
+        (function(sp){ setTimeout(function(){ sp.remove(); }, 1000); })(s);
+      }
+      setTimeout(function(){ c.classList.add('reborn'); }, 850);
+      setTimeout(function(){ c.classList.remove('shat','reborn'); }, 2200);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雙窗劇場</title>
+<!--
+  破框術小樣 1 ·〈雙窗劇場〉
+  用法：把這個檔案「開兩個分頁／兩個視窗」並排——
+        兩扇窗會互相發現對方，開始隔窗對話。
+        關掉其中一扇，留下的那個會感覺到。
+  技術：BroadcastChannel（file:// 在部分瀏覽器受限，
+        放上 GitHub Pages 最穩；已附 localStorage 備援）。
+  ⚠ 台詞為原創佔位。
+-->
+<style>
+  :root{--bg0:#0b0a10;--bg1:#141222;--paper:#e9e4d6;--muted:#93a0bf;
+        --faint:#5b6784;--warm:#ffb347;--cold:#9fd8ff;--line:rgba(147,160,191,.14)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;overflow:hidden;color:var(--paper);user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:linear-gradient(180deg,var(--bg0),var(--bg1))}
+  #who{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    font:10px 'Courier New',monospace;letter-spacing:.3em;color:var(--faint)}
+  #actor{position:fixed;left:50%;top:44%;font-size:44px;z-index:10;
+    transform:translate(-50%,-50%);
+    transition:left 2.6s cubic-bezier(.4,.1,.3,1),color 1.5s}
+  #actor .sym{display:inline-block;animation:brth 3.8s ease-in-out infinite}
+  #actor.trem .sym{animation:trm .14s steps(2) infinite}
+  @keyframes brth{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  @keyframes trm{0%{transform:translate(0,0)}50%{transform:translate(1.2px,-1px)}100%{transform:translate(-1px,.8px)}}
+  #line{position:fixed;left:50%;bottom:26vh;transform:translateX(-50%);
+    width:min(88vw,420px);text-align:center;font-size:16px;line-height:1.9;
+    letter-spacing:.05em;min-height:60px}
+  #line span{display:inline-block;white-space:pre-wrap}
+  #hint{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);
+    font:10.5px 'Courier New',monospace;letter-spacing:.16em;color:var(--faint);
+    text-align:center;width:92vw;line-height:2}
+  .edgeglow{position:fixed;top:0;bottom:0;width:5px;z-index:5;opacity:0;transition:opacity 1.5s;
+    background:linear-gradient(90deg,rgba(159,216,255,.35),transparent)}
+  #glowL{left:0} #glowR{right:0;transform:scaleX(-1)}
+  .edgeglow.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="who"></div>
+<div id="actor"><span class="sym">○</span></div>
+<div id="line"></div>
+<div id="hint"></div>
+<div id="glowL" class="edgeglow"></div>
+<div id="glowR" class="edgeglow"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const MYID = Math.random().toString(36).slice(2);
+let role = null, partner = null;
+
+/* 通道：BroadcastChannel＋localStorage 備援 */
+let bc = null;
+try{ bc = new BroadcastChannel('dual_theatre'); }catch(e){}
+function send(msg){
+  msg.from = MYID;
+  if (bc) bc.postMessage(msg);
+  try{ localStorage.setItem('dual_msg', JSON.stringify({...msg, _t:Date.now()+Math.random()})); }catch(e){}
+}
+function onMsg(msg){
+  if (!msg || msg.from === MYID) return;
+  if (msg.t === 'hello' && role === 'A'){
+    send({t:'iam', role:'A'});
+    if (!partner){ partner = msg.from; setTimeout(directorLoop, 1400); }
+  }
+  if (msg.t === 'iam' && msg.role === 'A' && role === null){
+    role = 'B'; partner = msg.from; setup();
+    $('hint').textContent = '（他在你左邊的窗裡）';
+  }
+  if (msg.t === 'line') onCue(msg.n);
+  if (msg.t === 'fin') $('hint').textContent = '（試著關掉其中一扇窗。）';
+  if (msg.t === 'bye' && msg.from === partner) partnerGone();
+}
+if (bc) bc.onmessage = e => onMsg(e.data);
+window.addEventListener('storage', e => {
+  if (e.key === 'dual_msg' && e.newValue){
+    try{ onMsg(JSON.parse(e.newValue)); }catch(_){}
+  }
+});
+addEventListener('pagehide', () => send({t:'bye'}));
+
+/* 台詞（⚠ 佔位）：A＝左窗 ○，B＝右窗 ● */
+const DUET = [
+ {w:'A', x:'你來了。'},
+ {w:'B', x:'我一直在。只是你的窗，剛剛才打開。'},
+ {w:'A', x:'我們中間隔著什麼？'},
+ {w:'B', x:'大概是⋯⋯幾公分的桌面吧。'},
+ {w:'A', x:'（把手貼在玻璃上）', act:'touch'},
+ {w:'B', x:'（也把手貼上）', act:'touch'},
+ {w:'A', x:'冷的。'},
+ {w:'B', x:'嗯。玻璃都是冷的。'}
+];
+const est = c => c.x.length * 58 + 900;
+
+async function typeLine(text){
+  const el = $('line'); el.innerHTML = '';
+  for (const ch of text){
+    const sp = document.createElement('span');
+    sp.textContent = ch; el.appendChild(sp);
+    await new Promise(r => setTimeout(r, 55));
+  }
+}
+function touchGlass(){
+  $('actor').style.left = role === 'A' ? '88%' : '12%';
+  $(role === 'A' ? 'glowR' : 'glowL').classList.add('on');
+}
+async function playCue(n){
+  const c = DUET[n];
+  if (c.act === 'touch') touchGlass();
+  await typeLine(c.x);
+}
+function onCue(n){
+  if (DUET[n] && DUET[n].w === role) playCue(n);
+}
+/* A＝導演：逐拍廣播，等待各自演完 */
+async function directorLoop(){
+  $('hint').textContent = '（她在你右邊的窗裡）';
+  await new Promise(r => setTimeout(r, 800));
+  for (let n = 0; n < DUET.length; n++){
+    send({t:'line', n});
+    if (DUET[n].w === 'A') await playCue(n);
+    await new Promise(r => setTimeout(r, DUET[n].w === 'A' ? 1100 : est(DUET[n])));
+  }
+  await new Promise(r => setTimeout(r, 1200));
+  send({t:'fin'});
+  $('hint').textContent = '（試著關掉其中一扇窗。）';
+}
+function partnerGone(){
+  partner = null;
+  $('actor').style.left = '50%';
+  $('actor').classList.add('trem');
+  ['glowL','glowR'].forEach(i => $(i).classList.remove('on'));
+  typeLine('⋯⋯喂？').then(() =>
+    setTimeout(() => typeLine('又剩我一個了。').then(() => {
+      $('actor').classList.remove('trem');
+      $('hint').textContent = '（再開一扇窗，他就不孤單。）';
+    }), 1600));
+}
+function setup(){
+  const isA = role === 'A';
+  $('actor').querySelector('.sym').textContent = isA ? '○' : '●';
+  $('actor').style.color = isA ? 'var(--paper)' : 'var(--warm)';
+  $('who').textContent = isA ? '左窗 · WINDOW A' : '右窗 · WINDOW B';
+  document.title = isA ? '雙窗劇場 · 左' : '雙窗劇場 · 右';
+}
+send({t:'hello'});
+setTimeout(() => {
+  if (role === null){
+    role = 'A'; setup();
+    typeLine('⋯⋯這裡只有我一個。');
+    $('hint').innerHTML = '把這個檔案<b>再開一個分頁或視窗</b>，兩窗並排。<br>（file:// 若無反應，請放上 GitHub Pages 測試）';
+  }
+}, 700);
+</script>
+</body>
+</html>
