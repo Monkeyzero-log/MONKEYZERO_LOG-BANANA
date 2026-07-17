@@ -56,5 +56,4 @@
 
 <p align="center">
 繪圖　猴零士 MONKEYZERO　／　文字　猩其一 GORILLAONE<br>
-手工排版．未使用模板
 </p>
