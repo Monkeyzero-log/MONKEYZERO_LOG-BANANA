@@ -146,6 +146,13 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
 }
 #sub2m{display:none;font:11.5px 'Courier New',monospace;letter-spacing:.2em;
   color:var(--faint);opacity:0;animation:fin 1.4s ease 2.6s forwards}
+#rotate-hint{display:none}
+@media (max-width:760px) and (orientation:portrait){
+  #rotate-hint{display:block;position:fixed;top:0;left:0;right:0;z-index:90;
+    background:rgba(10,9,18,.92);border-bottom:1px solid var(--hair);
+    font:10.5px 'Courier New',monospace;letter-spacing:.16em;color:var(--muted);
+    text-align:center;padding:8px 10px}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before{animation:none !important;transition:none !important}
   .ch{opacity:1;transform:none}
@@ -154,13 +161,14 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
 </style>
 </head>
 <body>
+<div id="rotate-hint">本展以電腦效果為主 · 手機請使用橫屏模式</div>
 
 <section id="hero">
   <div id="snow"><span style="left:91%;animation-duration:19s;animation-delay:-23s;font-size:11px;opacity:0.07">！</span><span style="left:88%;animation-duration:17s;animation-delay:-22s;font-size:16px;opacity:0.05">、</span><span style="left:54%;animation-duration:15s;animation-delay:-10s;font-size:12px;opacity:0.09">。</span><span style="left:91%;animation-duration:21s;animation-delay:-14s;font-size:12px;opacity:0.05">：</span><span style="left:29%;animation-duration:16s;animation-delay:-21s;font-size:14px;opacity:0.08">⋯</span><span style="left:12%;animation-duration:21s;animation-delay:-19s;font-size:11px;opacity:0.08">⋯</span><span style="left:55%;animation-duration:21s;animation-delay:-12s;font-size:16px;opacity:0.10">。</span><span style="left:57%;animation-duration:19s;animation-delay:-17s;font-size:12px;opacity:0.09">，</span><span style="left:10%;animation-duration:18s;animation-delay:-12s;font-size:14px;opacity:0.09">「</span><span style="left:59%;animation-duration:15s;animation-delay:-12s;font-size:12px;opacity:0.10">」</span><span style="left:90%;animation-duration:19s;animation-delay:-1s;font-size:11px;opacity:0.10">⋯</span><span style="left:76%;animation-duration:24s;animation-delay:-16s;font-size:14px;opacity:0.09">：</span><span style="left:77%;animation-duration:15s;animation-delay:-22s;font-size:14px;opacity:0.08">：</span><span style="left:8%;animation-duration:22s;animation-delay:-8s;font-size:16px;opacity:0.07">。</span><span style="left:85%;animation-duration:18s;animation-delay:-1s;font-size:14px;opacity:0.06">？</span><span style="left:48%;animation-duration:17s;animation-delay:-17s;font-size:12px;opacity:0.07">。</span></div>
   <div id="tp"><span class="ch c1"><span class="lean"><span class="in">文</span></span></span><span class="ch c2"><span class="lean"><span class="in">字</span></span></span><span class="ch c3"><span class="lean"><span class="in">物</span></span></span><span class="ch c4"><span class="lean"><span class="in">理</span></span></span><span class="ch c5"><span class="lean"><span class="in">學</span></span></span></div>
   <p id="sub1">每一個字，都有重量、體溫、與脾氣。</p>
   <p id="sub2">游標靠近它們會躲 · 點一個字試試 · 往下進場</p>
-  <p id="sub2m">點一個字試試 · 往下進場</p>
+  <p id="sub2m">點一個字試試 · 往下進場<br>以電腦效果為主 · 建議橫屏觀看</p>
   <a id="cue" href="#halls">▼</a>
 </section>
 
@@ -168,14 +176,13 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
   <aside id="mast">
     <div class="vt">雙館聯展</div>
     <div class="en">TEXTUAL PHYSICS<br>TWIN GALLERIES</div>
-    <div class="meta"><b>36</b> 件 · 七間展室<br>Sheep &amp; Architect</div>
+    <div class="meta"><b>32</b> 件 · 七間展室<br>Sheep &amp; Architect</div>
     <div class="lg"><i class="d1">●</i> 甲館 18　<i class="d2">●</i> 乙館 18<br>同題作品相鄰陳列</div>
-    <div class="note">滑過每一行——<br>標題會親自演出<br>自己的裝置。<br><br>特殊操作見右側小註；<br>桌面瀏覽器體驗最佳。</div>
+    <div class="note">滑過每一行——<br>標題會親自演出<br>自己的裝置。<br><br>各件皆為未來<br>HTML 文字創作遊戲<br>的演示效果，<br>AI 輔助編程。<br><br>特殊操作見右側小註；<br>以電腦效果為主，<br>手機請用橫屏模式。</div>
   </aside>
   <main id="halls">
 <section class="room">
-  <div class="rh"><span class="rn">第 一 室</span><h2>引擎與演出</h2><span class="rc">6 件</span></div>
-  <a class="row g1 m-glow " href="textual-physics-showcase-v12_1.html"><span class="gl">★</span><span class="tt">展示場</span><span class="ds">v12.1 引擎全系統——拉動世界溫度，看冰的一生</span><span class="mt"><span class="g">甲館</span><span>互動</span></span></a>
+  <div class="rh"><span class="rn">第 一 室</span><h2>引擎與演出</h2><span class="rc">5 件</span></div>
   <a class="row g1 m-breathe " href="geometric-theatre.html"><span class="gl">○</span><span class="tt">幾何劇場</span><span class="ds">符號角色的過場：走位、壞死、遺忘之點。誰不呼吸，誰就是機器</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
   <a class="row g1 m-zoom " href="geometric-camera.html"><span class="gl">◎</span><span class="tt">鏡頭測試卷</span><span class="ds">全景到超近鏡到對峙站位，十種鏡頭連播</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
   <a class="row g2 m-breathe " href="symbol-stage.html"><span class="gl">□</span><span class="tt">符號舞台</span><span class="ds">鏡頭與演技的另一種實作</span><span class="mt"><span class="g">乙館</span></span></a>
@@ -183,12 +190,9 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
   <a class="row g2 m-hole " href="fx-blackhole-vanish.html"><span class="gl">⊙</span><span class="tt">符號黑洞</span><span class="ds">台詞的六種死法——黑洞完全由字符構成</span><span class="mt"><span class="g">乙館</span></span></a>
 </section>
 <section class="room">
-  <div class="rh"><span class="rn">第 二 室</span><h2>文字物理作品</h2><span class="rc">5 件</span></div>
-  <a class="row g1 m-ring " href="perfect-circle-poem.html"><span class="gl"></span><span class="tt">圓美</span><span class="ds">永遠畫不圓的圈、環繞的批評殘影、「你→我」的翻字</span><span class="mt"><span class="g">甲館</span><span>點擊</span></span></a>
-  <a class="row g2 m-ring " href="poem-yuanmei-v1.html"><span class="gl"></span><span class="tt">圓美 v1</span><span class="ds">圓作為詩旁道具的版本</span><span class="mt"><span class="g">乙館</span></span></a>
-  <a class="row g2 m-ring " href="poem-yuanmei-v2.html"><span class="gl"></span><span class="tt">圓美 v2</span><span class="ds">圓由詩自己的字砌成；缺口是被彈飛的那句話留下的洞</span><span class="mt"><span class="g">乙館</span></span></a>
+  <div class="rh"><span class="rn">第 二 室</span><h2>文字物理作品</h2><span class="rc">2 件</span></div>
+  <a class="row g2 m-ring " href="poem-yuanmei-v2.html"><span class="gl"></span><span class="tt">圓美</span><span class="ds">圓由詩自己的字砌成；缺口是被彈飛的那句話留下的洞</span><span class="mt"><span class="g">乙館</span></span></a>
   <a class="row g1 m-flip " href="othello-politics.html"><span class="gl">●</span><span class="tt">黑白棋</span><span class="ds">棋盤即舞台，擬聲詞即事件：啪、喀噠、砰</span><span class="mt"><span class="g">甲館</span><span>有聲</span></span></a>
-  <a class="row g2 m-flip " href="fic-othello.html"><span class="gl">●</span><span class="tt">黑白棋（乙）</span><span class="ds">同題重演——另一館的棋局</span><span class="mt"><span class="g">乙館</span></span></a>
 </section>
 <section class="room">
   <div class="rh"><span class="rn">第 三 室</span><h2>對話與排版</h2><span class="rc">5 件</span></div>
@@ -230,7 +234,7 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
   <a class="row g2 m-step " href="fx-map-walk.html"><span class="gl">走</span><span class="tt">地圖・行走・轉場</span><span class="ds">行走與崩塌轉場</span><span class="mt"><span class="g">乙館</span></span></a>
   <a class="row g2 m-step " href="fx-map-pictograph.html"><span class="gl">門</span><span class="tt">象形字地圖</span><span class="ds">地形用字砌成、標點腳印、走進「門」字</span><span class="mt"><span class="g">乙館</span></span></a>
 </section>
-  <footer>TEXTUAL PHYSICS CODEX v12.1 · GEOMETRIC PERFORMANCE CODEX v0.3<br>文本多為佔位示意 · 待作者重寫</footer>
+  <footer>TEXTUAL PHYSICS CODEX v12.1 · GEOMETRIC PERFORMANCE CODEX v0.3<br>文本多為佔位示意 · 待作者重寫<br>皆為 AI 輔助編程——本人只是隻拿畫筆和鍵盤的靈長類：繪圖猴與寫作猩，不是程式猿。</footer>
   </main>
 </div>
 
