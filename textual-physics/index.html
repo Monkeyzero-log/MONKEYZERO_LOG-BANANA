@@ -98,6 +98,9 @@ body{color:var(--paper);background:linear-gradient(175deg,var(--ink0),var(--ink1
 .row.m-tremble:hover .gl{animation:trA .13s steps(2) infinite}
 @keyframes trA{0%{transform:translate(0,0)}50%{transform:translate(1.2px,-1px)}100%{transform:translate(-1px,.8px)}}
 .row.m-glow:hover .gl{color:var(--g1);text-shadow:0 0 14px rgba(255,179,71,.7)}
+.row.m-drop .gl{display:inline-block}
+.row.m-drop:hover .gl{animation:mdropA .75s cubic-bezier(.34,1.56,.64,1)}
+@keyframes mdropA{0%{transform:translateY(-12px)}50%{transform:translateY(4px)}72%{transform:translateY(-4px)}86%{transform:translateY(2px)}100%{transform:translateY(0)}}
 .row.m-zoom:hover .gl{transform:scale(1.7)}
 .row.m-hole:hover .gl{animation:holeA 1.4s ease-in-out infinite}
 @keyframes holeA{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.1);opacity:.15}}
@@ -176,12 +179,16 @@ footer{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair);
   <aside id="mast">
     <div class="vt">雙館聯展</div>
     <div class="en">TEXTUAL PHYSICS<br>TWIN GALLERIES</div>
-    <div class="meta"><b>32</b> 件 · 七間展室<br>Sheep &amp; Architect</div>
+    <div class="meta"><b>34</b> 件 · 八間展室<br>Sheep &amp; Architect</div>
     <div class="lg"><i class="d1">●</i> 甲館 18　<i class="d2">●</i> 乙館 18<br>同題作品相鄰陳列</div>
     <div class="note">滑過每一行——<br>標題會親自演出<br>自己的裝置。<br><br>各件皆為未來<br>HTML 文字創作遊戲<br>的演示效果，<br>AI 輔助編程。<br><br>特殊操作見右側小註；<br>以電腦效果為主，<br>手機請用橫屏模式。</div>
   </aside>
   <main id="halls">
 <section class="room">
+  <div class="rh"><span class="rn">第 零 室</span><h2>基礎物理</h2><span class="rc">2 件</span></div>
+  <a class="row g1 m-drop " href="physics-playground.html"><span class="gl">字</span><span class="tt">物理遊樂場</span><span class="ds">一切的起點——拖起一個字拋出去：重量、反彈、摔碎成偏旁與筆畫</span><span class="mt"><span class="g">基礎</span><span>拖拋</span></span></a>
+  <a class="row g2 m-glow " href="fire-three-languages.html"><span class="gl">火</span><span class="tt">火的三種語言</span><span class="ds">同一把火，三種語言各自燃燒——添柴、澆水、看煙怎麼說話</span><span class="mt"><span class="g">基礎</span><span>點擊</span></span></a>
+
   <div class="rh"><span class="rn">第 一 室</span><h2>引擎與演出</h2><span class="rc">5 件</span></div>
   <a class="row g1 m-breathe " href="geometric-theatre.html"><span class="gl">○</span><span class="tt">幾何劇場</span><span class="ds">符號角色的過場：走位、壞死、遺忘之點。誰不呼吸，誰就是機器</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>
   <a class="row g1 m-zoom " href="geometric-camera.html"><span class="gl">◎</span><span class="tt">鏡頭測試卷</span><span class="ds">全景到超近鏡到對峙站位，十種鏡頭連播</span><span class="mt"><span class="g">甲館</span><span>自動</span></span></a>

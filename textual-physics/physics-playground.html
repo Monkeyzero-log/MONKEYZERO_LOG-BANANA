@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>物理遊樂場 v0.2</title>
+<!--
+  ══════════════════════════════════════════════
+  物理遊樂場 Mockup《拋擲・打破・水冠》v0.2
+  v0.2 變更（回應回饋）:
+  ・拋擲加入「重量系統」——語義質量影響一切:
+    出手速度 ÷ 質量^0.55（鐵就是扔不遠）、
+    每件物品有自己的重力係數/空氣阻力/反彈係數/自轉性格;
+    輕的東西（紙、feather）會「飄」——左右擺盪、緩降、落地躺平;
+    「雲」幾乎不落，飄一會兒化成三縷〜散掉。
+  ・拖曳時的拋物線預覽【照所選物品的物理】計算——
+    選羽毛是又長又飄的弧、選鐵是又短又狠的弧，還沒出手就看得到差別。
+  ・易碎品:蛋/玻璃/グラス 落地速度超過門檻 → 當場碎裂
+    （各依文字自己的碎法散片＋該語言的擬聲）;
+    輕輕拋、慢慢落 → 完好彈起。下手輕重決定它的命。
+    蛋碎後留下一攤壓扁的「黃」定格在地上。
+  ・重物著地:揚塵「丶」＋「咚——」;BALL 大反彈時彈出 boing。
+
+  命題不變:每種文字有自己的碎法（漢字→偏旁、字母→字母、
+  カナ→カナ、한글→자모）、連碎裂聲都各說各的。
+
+  三個場景:
+  一、拋擲——先在上方選物品，再按住拖曳放開（彈弓）。
+  二、打破——架上六件易碎品，點誰誰碎。「重新上架」復原。
+  三、水冠——點水面上方放一滴;越高冠越大;
+      冠 → 中央回彈柱 → 柱頂脫離再落 → 二次小冠（遞迴衰減）;
+      落水聲由 ポタン/plip/滴答/똑 輪流聽見。
+
+  系統開啟「減少動態」時:預覽點減少、自動滴水停用。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --faint:#5b6784; --warm:#ffb347; --cold:#9fd8ff; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper); user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:radial-gradient(110% 90% at 50% 0%, #10131d, #090a10 70%); }
+
+  #tabs{ position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:8px; }
+  #tabs button{ cursor:pointer; font:12px 'Noto Serif TC',serif;
+    letter-spacing:.2em; color:var(--faint); background:rgba(16,13,20,.7);
+    border:1px solid rgba(147,160,191,.2); border-radius:8px; padding:7px 16px; }
+  #tabs button.on{ color:var(--warm); border-color:rgba(255,179,71,.5); }
+  #note{ position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.16em; color:#3a4152;
+    z-index:30; white-space:nowrap; }
+
+  .scene{ position:fixed; inset:0; display:none; }
+  .scene.on{ display:block; }
+  #ground-line{ position:fixed; left:0; right:0; bottom:70px;
+    border-top:1px dashed #2c3345; pointer-events:none; }
+
+  .body{ position:fixed; will-change:transform,opacity; white-space:nowrap;
+    pointer-events:none; z-index:10; }
+  .pt{ position:fixed; will-change:transform,opacity; pointer-events:none;
+    z-index:12; }
+  .aimdot{ position:fixed; color:#5b6784; font-size:10px;
+    pointer-events:none; z-index:9; }
+
+  /* 物品盤 */
+  #tray{ position:absolute; top:56px; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px; flex-wrap:wrap; justify-content:center;
+    max-width:92vw; z-index:25; }
+  #tray .item{ cursor:pointer; text-align:center; padding:7px 10px 5px;
+    border:1px solid rgba(147,160,191,.2); border-radius:10px;
+    background:rgba(16,13,20,.6); transition:border-color .2s, transform .2s; }
+  #tray .item:hover{ transform:translateY(-2px); }
+  #tray .item.sel{ border-color:var(--warm);
+    box-shadow:0 0 12px rgba(255,179,71,.15); }
+  #tray .item .g{ display:block; font-size:19px; }
+  #tray .item .tag{ display:block; font:8.5px 'Courier New',monospace;
+    letter-spacing:.1em; color:var(--faint); margin-top:3px; }
+  #trayHint{ position:absolute; top:126px; left:50%; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.18em; color:#3a4152;
+    white-space:nowrap; }
+
+  /* 打破 */
+  #shelf{ position:absolute; left:50%; top:44%; transform:translateX(-50%);
+    display:flex; gap:8vw; }
+  .breakable{ cursor:pointer; font-size:34px; transition:transform .2s;
+    text-align:center; }
+  .breakable:hover{ transform:translateY(-5px) rotate(-4deg); }
+  .breakable .lab{ display:block; font:9px 'Courier New',monospace;
+    letter-spacing:.15em; color:var(--faint); margin-top:6px; }
+  #shelfLine{ position:absolute; left:50%; top:calc(44% + 56px);
+    transform:translateX(-50%); color:#4a4438; font-size:20px;
+    letter-spacing:-2px; white-space:nowrap; pointer-events:none; }
+  .ctl{ position:fixed; bottom:96px; left:50%; transform:translateX(-50%);
+    z-index:30; }
+  .ctl button{ cursor:pointer; font:13px 'Noto Serif TC',serif;
+    letter-spacing:.15em; color:var(--paper); background:rgba(20,18,26,.7);
+    border:1px solid rgba(147,160,191,.3); border-radius:10px; padding:8px 20px; }
+  .ctl button:hover{ border-color:var(--warm); }
+
+  /* 水冠 */
+  #waterPre{ position:fixed; left:0; bottom:40px; margin:0;
+    font-family:'Noto Sans Mono CJK TC','MingLiU',monospace;
+    font-size:16px; line-height:1; color:#5a88a8; pointer-events:none; }
+  #hint3{ position:fixed; top:60px; left:50%; transform:translateX(-50%);
+    font:11px 'Courier New',monospace; letter-spacing:.2em; color:#3a4a5a; }
+</style>
+</head>
+<body>
+<div id="tabs"></div>
+<div id="ground-line"></div>
+<div id="note">拋擲＝選物品後拖曳彈弓　打破＝點擊　水冠＝點水面上方（越高冠越大）</div>
+
+<div class="scene" id="sc-throw">
+  <div id="tray"></div>
+  <div id="trayHint">預覽弧線照重量計算——選羽毛和選鐵，是兩條完全不同的弧</div>
+</div>
+
+<div class="scene" id="sc-break">
+  <div id="shelf"></div>
+  <div id="shelfLine"></div>
+  <div class="ctl"><button id="bReset">重新上架</button></div>
+</div>
+
+<div class="scene" id="sc-water">
+  <div id="hint3">高度＝能量　點得越高、皇冠越大</div>
+  <pre id="waterPre"></pre>
+</div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const GROUND = () => innerHeight - 70;
+const G0 = 0.42;
+
+/* ══ 分頁 ══ */
+const tabs = $('tabs');
+let current = null;
+function defTab(id, label) {
+  const b = document.createElement('button');
+  b.textContent = label; b.dataset.id = id;
+  b.onclick = () => {
+    if (current) $(current).classList.remove('on');
+    [...tabs.children].forEach(x => x.classList.toggle('on', x === b));
+    current = id; $(id).classList.add('on');
+  };
+  tabs.appendChild(b);
+  return b;
+}
+const tThrow = defTab('sc-throw','拋擲');
+defTab('sc-break','打破');
+defTab('sc-water','水冠');
+
+/* ══ 剛體與粒子 ══ */
+const bodies = [], pts = [];
+function makeBody(text, x, y, o = {}) {
+  const s = document.createElement('span');
+  s.className = 'body'; s.textContent = text;
+  s.style.color = o.color ?? 'var(--paper)';
+  s.style.fontSize = (o.size ?? 22) + 'px';
+  document.body.appendChild(s);
+  const b = { el: s, x, y, vx: o.vx ?? 0, vy: o.vy ?? 0,
+    vr: o.vr ?? 0, rot: o.rot ?? 0, rest: o.rest ?? 0.55,
+    gf: o.gf ?? 1, drag: o.drag ?? 1, flutter: o.flutter ?? 0,
+    breakAt: o.breakAt ?? 0, shards: o.shards, splat: o.splat,
+    sfx: o.sfx, land: o.land, cloud: o.cloud, sizePx: o.size ?? 22,
+    color: o.color ?? 'var(--paper)',
+    ph: Math.random() * 6, settled: false,
+    born: performance.now(), scene: current };
+  bodies.push(b);
+  return b;
+}
+function spawnPt(ch, x, y, o = {}) {
+  const s = document.createElement('span');
+  s.className = 'pt'; s.textContent = ch;
+  s.style.color = o.color ?? '#8a93a8';
+  s.style.fontSize = (o.size ?? 12) + 'px';
+  document.body.appendChild(s);
+  pts.push({ el: s, x, y, vx: o.vx ?? 0, vy: o.vy ?? 0, g: o.g ?? 0,
+    life: o.life ?? 60, max: o.life ?? 60, vr: o.vr ?? 0, rot: 0,
+    onland: o.onland });
+}
+
+/* 碎裂（拋擲的易碎品落地用）*/
+function shatterBody(b) {
+  const idx = bodies.indexOf(b);
+  if (idx >= 0) bodies.splice(idx, 1);
+  b.el.remove();
+  (b.shards ?? ['丶','丶']).forEach((sh, i, arr) => {
+    const a = (i / arr.length) * Math.PI - Math.PI;
+    makeBody(sh, b.x, b.y - 6, {
+      vx: Math.cos(a) * (2 + Math.random() * 2.5) + b.vx * 0.3,
+      vy: Math.sin(a) * 1.5 - 2 - Math.random() * 2,
+      vr: (Math.random() - .5) * 26, color: b.color,
+      size: Math.max(12, b.sizePx * 0.6), rest: 0.35 });
+  });
+  for (let i = 0; i < 5; i++)
+    spawnPt('丶', b.x, b.y, { color: '#6a7078',
+      vx: (Math.random() - .5) * 3, vy: -1 - Math.random() * 2, g: .1,
+      life: 45, size: 9 });
+  if (b.splat) {                                   // 蛋黃:壓扁定格在地
+    const y = document.createElement('span');
+    y.className = 'body'; y.textContent = b.splat;
+    y.style.color = '#e8c95a'; y.style.fontSize = '20px';
+    y.style.transform = `translate(${b.x}px, ${GROUND() + 4}px) scaleY(0.45)`;
+    y.style.opacity = '0.9';
+    document.body.appendChild(y);
+    bodies.push({ el: y, x: b.x, y: GROUND() + 4, settled: true,
+      scene: b.scene, vx: 0, vy: 0, vr: 0, rot: 0 });
+  }
+  if (b.sfx) spawnPt(b.sfx, b.x - 18, b.y - 30,
+    { color: b.color, vy: -0.8, life: 55, size: 18 });
+}
+
+function tickBodies(now) {
+  const g = GROUND();
+  for (let i = bodies.length - 1; i >= 0; i--) {
+    const b = bodies[i];
+    if (b.scene !== current) { b.el.style.display = 'none'; continue; }
+    b.el.style.display = '';
+    if (!b.settled) {
+      b.vy += G0 * b.gf;
+      if (b.drag !== 1) { b.vx *= b.drag; b.vy *= b.drag; }
+      if (b.flutter && b.vy > 0) {                 // 飄:左右擺盪緩降
+        b.vx += Math.sin(now / 300 + b.ph) * 0.14 * b.flutter;
+        b.vy = Math.min(b.vy, 2.4 - b.flutter * 0.7);
+        b.rot = Math.sin(now / 300 + b.ph) * 34 * b.flutter;
+      }
+      b.x += b.vx; b.y += b.vy;
+      if (!b.flutter) b.rot += b.vr;
+
+      if (b.cloud) {                               // 雲:飄一會兒化開
+        if (now - b.born > 4500) {
+          for (let k = 0; k < 3; k++)
+            spawnPt('〜', b.x + (k - 1) * 14, b.y,
+              { color: 'rgba(216,228,236,.6)', vy: -0.4,
+                vx: (k - 1) * 0.4, life: 80, size: 13 });
+          b.el.remove(); bodies.splice(i, 1); continue;
+        }
+        if (b.y > g - 30) { b.y = g - 30; b.vy = -0.1; }
+      }
+
+      if (b.x < 10 || b.x > innerWidth - 30) {
+        b.vx = -b.vx * 0.6;
+        b.x = Math.max(10, Math.min(innerWidth - 30, b.x));
+        b.vr *= -0.7;
+      }
+      if (!b.cloud && b.y >= g) {
+        const impact = b.vy;
+        b.y = g;
+        if (b.breakAt && impact > b.breakAt) {     // 易碎:硬著陸＝碎
+          shatterBody(b); continue;
+        }
+        if (b.land === 'lie') {                    // 紙/羽:躺平
+          b.vy = 0; b.vx *= 0.5; b.settled = true; b.rot = 88;
+        } else if (Math.abs(impact) > 2.2) {
+          b.vy = -impact * b.rest; b.vx *= 0.82; b.vr *= -0.6;
+          if (b.land === 'thud' && impact > 5) {   // 重物揚塵
+            for (let k = 0; k < 4; k++)
+              spawnPt('丶', b.x + (k - 1.5) * 10, g,
+                { color: '#5a5448', vx: (k - 1.5) * 1.2, vy: -1.2, g: .12,
+                  life: 35, size: 9 });
+            spawnPt(b.sfx ?? '咚', b.x - 8, g - 34,
+              { color: '#a89880', vy: -0.7, life: 45, size: 16 });
+          }
+          if (b.land === 'boing' && impact > 4)
+            spawnPt('boing', b.x + 8, g - 26,
+              { color: 'var(--warm)', vy: -0.9, life: 35, size: 11 });
+        } else {
+          b.vy = 0; b.vx *= 0.85; b.vr *= 0.85;
+          if (Math.abs(b.vx) < 0.3 && Math.abs(b.vr) < 0.8) {
+            b.settled = true;
+            b.rot = Math.round(b.rot / 90) * 90 + (Math.random() - .5) * 14;
+          }
+        }
+      }
+    }
+    b.el.style.transform =
+      `translate(${b.x}px, ${b.y}px) rotate(${b.rot.toFixed(1)}deg)`;
+  }
+  const mine = bodies.filter(b => b.scene === 'sc-throw' && !b.keep);
+  if (mine.length > 14) {
+    const old = mine[0];
+    old.el.style.transition = 'opacity 1s'; old.el.style.opacity = '0';
+    setTimeout(() => old.el.remove(), 1000);
+    bodies.splice(bodies.indexOf(old), 1);
+  }
+}
+function tickPts() {
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
+    if (p.onland && p.y >= p.onland.y) { p.onland.fn(p); p.el.remove();
+      pts.splice(i, 1); continue; }
+    p.el.style.transform =
+      `translate(${p.x}px,${p.y}px) rotate(${p.rot}deg)`;
+    p.el.style.opacity = Math.min(1, p.life / (p.max * .4)).toFixed(2);
+    if (p.life <= 0) { p.el.remove(); pts.splice(i, 1); }
+  }
+}
+
+/* ══════════ 一、拋擲:重量系統 ══════════ */
+const ITEMS = [
+  { t:'石',      c:'#cdd3e0', size:24, tag:'重',      m:2.2, gf:1.0,  rest:.35, land:'thud',  sfx:'咚' },
+  { t:'鐵',      c:'#8a93a8', size:26, tag:'極重',    m:3.6, gf:1.12, rest:.12, land:'thud',  sfx:'咚——' },
+  { t:'BALL',    c:'#ffb347', size:22, tag:'彈',      m:1.0, gf:1.0,  rest:.86, land:'boing' },
+  { t:'蛋',      c:'#e8d9b8', size:22, tag:'易碎',    m:1.0, gf:1.0,  rest:.42,
+    breakAt:6.5, shards:['殼','殼','丶'], splat:'黃', sfx:'啪嚓！' },
+  { t:'玻璃',    c:'#9fd8ff', size:20, tag:'易碎',    m:1.4, gf:1.0,  rest:.30,
+    breakAt:5,   shards:['王','皮','王','离'], sfx:'哐啷！' },
+  { t:'グラス',  c:'#c9b8e0', size:20, tag:'易碎',    m:1.2, gf:1.0,  rest:.30,
+    breakAt:5.5, shards:[...'グラス'], sfx:'パリン！' },
+  { t:'紙',      c:'#e9e4d6', size:22, tag:'輕・飄',  m:0.35, gf:0.16, drag:.978,
+    flutter:1.0, rest:0, land:'lie' },
+  { t:'feather', c:'#d8dce8', size:15, tag:'輕・飄',  m:0.25, gf:0.10, drag:.972,
+    flutter:1.5, rest:0, land:'lie' },
+  { t:'雲',      c:'#d8e4ec', size:24, tag:'極輕・浮', m:0.2,  gf:0.03, drag:.992,
+    cloud:true },
+];
+let selItem = ITEMS[0];
+(function buildTray() {
+  const tray = $('tray');
+  ITEMS.forEach((it, i) => {
+    const d = document.createElement('div');
+    d.className = 'item' + (i === 0 ? ' sel' : '');
+    d.innerHTML = `<span class="g" style="color:${it.c}">${it.t}</span>` +
+                  `<span class="tag">${it.tag}</span>`;
+    d.addEventListener('pointerdown', e => e.stopPropagation());
+    d.onclick = () => {
+      selItem = it;
+      [...tray.children].forEach(x => x.classList.remove('sel'));
+      d.classList.add('sel');
+    };
+    tray.appendChild(d);
+  });
+})();
+
+let aim = null;
+const aimDots = [];
+function clearAim() { aimDots.forEach(d => d.remove()); aimDots.length = 0; }
+function launchV(dx, dy) {                          // 出手速度 ÷ 質量^0.55
+  const k = 0.13 / Math.pow(selItem.m, 0.55);
+  return { vx: dx * k, vy: dy * k };
+}
+addEventListener('pointerdown', e => {
+  if (current !== 'sc-throw' || e.target.closest('button') ||
+      e.target.closest('#tray')) return;
+  aim = { sx: e.clientX, sy: e.clientY };
+});
+addEventListener('pointermove', e => {
+  if (!aim || current !== 'sc-throw') return;
+  clearAim();
+  let { vx, vy } = launchV(aim.sx - e.clientX, aim.sy - e.clientY);
+  let px = aim.sx, py = aim.sy;
+  const gf = selItem.gf, drag = selItem.drag ?? 1;
+  const n = reduced ? 8 : 20;
+  for (let i = 0; i < n; i++) {                     // 預覽照該物品的物理
+    for (let s = 0; s < 3; s++) {
+      vy += G0 * gf; vx *= drag; vy *= drag;
+      if (selItem.flutter && vy > 0) vy = Math.min(vy, 2.4 - selItem.flutter * 0.7);
+      px += vx; py += vy;
+    }
+    if (py > GROUND()) break;
+    const d = document.createElement('span');
+    d.className = 'aimdot'; d.textContent = '・';
+    d.style.color = selItem.c;
+    d.style.transform = `translate(${px}px,${py}px)`;
+    d.style.opacity = (0.9 - i / n * 0.8).toFixed(2);
+    document.body.appendChild(d); aimDots.push(d);
+  }
+});
+addEventListener('pointerup', e => {
+  if (!aim || current !== 'sc-throw') { aim = null; return; }
+  clearAim();
+  const { vx, vy } = launchV(aim.sx - e.clientX, aim.sy - e.clientY);
+  if (Math.hypot(vx, vy) > 1.2) {
+    makeBody(selItem.t, aim.sx, aim.sy, {
+      vx, vy,
+      vr: selItem.flutter ? 0 : vx * 1.6 + (Math.random() - .5) * 6,
+      color: selItem.c, size: selItem.size,
+      gf: selItem.gf, drag: selItem.drag ?? 1, rest: selItem.rest,
+      flutter: selItem.flutter ?? 0, breakAt: selItem.breakAt ?? 0,
+      shards: selItem.shards, splat: selItem.splat, sfx: selItem.sfx,
+      land: selItem.land, cloud: selItem.cloud });
+  }
+  aim = null;
+});
+
+/* ══════════ 二、打破 ══════════ */
+const BREAKABLES = [
+  { t: '瓶',    shards: ['并','瓦'],           sfx: '哐啷！', c: '#a8c8b8', lab: '漢字→偏旁' },
+  { t: 'GLASS', shards: [...'GLASS'],          sfx: 'CRASH!', c: '#9fd8ff', lab: 'letters' },
+  { t: 'ガラス', shards: [...'ガラス'],         sfx: 'パリン！', c: '#c9b8e0', lab: 'カナ→カナ' },
+  { t: '유리',  shards: ['ㅇ','ㅠ','ㄹ','ㅣ'],  sfx: '쨍그랑!', c: '#e8c9a0', lab: '한글→자모' },
+  { t: '鏡',    shards: ['金','竟'],           sfx: '鏘——',   c: '#d8dce8', lab: '漢字→偏旁' },
+  { t: '皿',    shards: ['丨','丨','凵'],      sfx: '咣！',    c: '#e0a8a0', lab: '字→筆畫' },
+];
+function buildShelf() {
+  const shelf = $('shelf'); shelf.innerHTML = '';
+  BREAKABLES.forEach(o => {
+    const d = document.createElement('div');
+    d.className = 'breakable';
+    d.innerHTML = `<span style="color:${o.c}">${o.t}</span><span class="lab">${o.lab}</span>`;
+    d.onclick = () => breakIt(d, o);
+    shelf.appendChild(d);
+  });
+  $('shelfLine').textContent = '▔'.repeat(Math.min(40, Math.floor(innerWidth / 22)));
+  for (let i = bodies.length - 1; i >= 0; i--)
+    if (bodies[i].scene === 'sc-break') { bodies[i].el.remove(); bodies.splice(i, 1); }
+}
+buildShelf();
+$('bReset').onclick = buildShelf;
+function breakIt(el, o) {
+  const r = el.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + 18;
+  el.style.visibility = 'hidden';
+  spawnPt('✳', cx - 8, cy - 8, { color: '#ffffff', size: 26, life: 8 });
+  o.shards.forEach((sh, i) => {
+    const a = (i / o.shards.length) * Math.PI - Math.PI;
+    makeBody(sh, cx, cy, {
+      vx: Math.cos(a) * (2.5 + Math.random() * 3),
+      vy: Math.sin(a) * 2 - 3 - Math.random() * 2,
+      vr: (Math.random() - .5) * 28, color: o.c,
+      size: 16 + Math.random() * 6, rest: 0.4 });
+  });
+  for (let i = 0; i < 6; i++)
+    spawnPt('丶', cx, cy, { color: '#6a7078',
+      vx: (Math.random() - .5) * 3, vy: -1 - Math.random() * 2, g: .1,
+      life: 50, size: 9 });
+  spawnPt(o.sfx, cx - 20, cy - 34, { color: o.c, vy: -0.8, life: 55, size: 20 });
+}
+
+/* ══════════ 三、水冠 ══════════ */
+const WCELL = 16;
+let WW = 0, surfaceY = 0;
+const amp = [];
+function sizeWater() {
+  WW = Math.ceil(innerWidth / WCELL);
+  amp.length = WW; amp.fill(0);
+  surfaceY = innerHeight - 40 - 8;
+}
+sizeWater(); addEventListener('resize', sizeWater);
+
+const DRIP_SFX = ['ポタン', 'plip', '滴答', '똑'];
+let sfxIdx = 0;
+
+function drop(x, y) {
+  spawnPt('・', x, y, { color: '#bcd8ee', size: 13, g: G0, life: 999,
+    onland: { y: surfaceY, fn: p => splash(p.x, Math.min(11, p.vy)) } });
+}
+function splash(x, power) {
+  const col = Math.floor(x / WCELL);
+  for (let i = -3; i <= 3; i++)
+    if (amp[col + i] !== undefined)
+      amp[col + i] = Math.max(amp[col + i], power * (1 - Math.abs(i) * 0.25));
+
+  spawnPt(DRIP_SFX[sfxIdx++ % DRIP_SFX.length], x - 14, surfaceY - 26,
+    { color: '#8ab8d8', vy: -0.7, life: 50, size: 12 });
+
+  const n = Math.max(5, Math.floor(4 + power * 0.8));
+  const POOL = ['・','。','゜','º'];
+  for (let i = 0; i < n; i++) {
+    const off = (i / (n - 1) - 0.5) * 2;
+    spawnPt(POOL[i % POOL.length], x + off * 8, surfaceY - 4, {
+      color: '#bcd8ee', size: 10 + Math.random() * 3,
+      vx: off * (0.9 + power * 0.14),
+      vy: -(2.2 + power * 0.5) * (1 - Math.abs(off) * 0.25),
+      g: 0.3, life: 999,
+      onland: { y: surfaceY, fn: p => {
+        const c = Math.floor(p.x / WCELL);
+        if (amp[c] !== undefined) amp[c] = Math.max(amp[c], 1.6);
+      } } });
+  }
+  for (const dir of [-1, 1])
+    spawnPt('〜', x + dir * 10, surfaceY - 2,
+      { color: 'rgba(140,180,210,.7)', vx: dir * 2.2, life: 55, size: 13 });
+
+  if (power > 2.4) setTimeout(() => {
+    spawnPt('丨', x - 2, surfaceY - 6, { color: '#bcd8ee', size: 14,
+      vy: -(3.2 + power * 0.55), g: 0.34, life: 999,
+      onland: { y: surfaceY, fn: () => {} } });
+    setTimeout(() => {
+      const peakY = surfaceY - Math.pow(3.2 + power * 0.55, 2) / (2 * 0.34);
+      spawnPt('・', x, peakY, { color: '#bcd8ee', size: 11, g: G0, life: 999,
+        vy: 0,
+        onland: { y: surfaceY, fn: p => {
+          if (power * 0.45 > 1.2) splash(p.x, power * 0.45);
+        } } });
+    }, reduced ? 100 : 380);
+  }, reduced ? 60 : 150);
+}
+addEventListener('pointerdown', e => {
+  if (current !== 'sc-water' || e.target.closest('button')) return;
+  if (e.clientY < surfaceY - 30) drop(e.clientX, e.clientY);
+});
+setInterval(() => {
+  if (current === 'sc-water' && !reduced && Math.random() < 0.5)
+    drop(innerWidth * (0.2 + Math.random() * 0.6),
+         innerHeight * (0.12 + Math.random() * 0.3));
+}, 3200);
+
+function tickWater(now) {
+  let out = '';
+  const ph = reduced ? 0 : now / 520;
+  for (let r = 0; r < 3; r++) {
+    for (let x = 0; x < WW; x++) {
+      amp[x] *= 0.955;
+      const v = Math.sin(x * 0.6 + ph + r) + (r === 0 ? amp[x] * Math.sin(now / 60 + x) * 0.4 : 0);
+      out += r === 0
+        ? (amp[x] > 2 ? '≈' : v > 0.3 ? '～' : '﹏')
+        : (v > 0.6 ? '～' : '　');
+    }
+    out += '\n';
+  }
+  const pre = $('waterPre');
+  pre.textContent = out;
+  pre.style.fontSize = WCELL + 'px';
+}
+
+/* ══ 主循環 ══ */
+function loop(now) {
+  tickBodies(now);
+  tickPts();
+  if (current === 'sc-water') tickWater(now);
+  requestAnimationFrame(loop);
+}
+tThrow.click();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

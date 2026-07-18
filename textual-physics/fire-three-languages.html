@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>火的三種語言</title>
+<!--
+  ══════════════════════════════════════════════
+  元素演出 Mockup《火的三種語言》v0.1
+  命題:中文＝物質、カタカナ＝聲音、ASCII＝粒子。
+  ・中文自帶火力計量表:火→炎→焱→燚（一到四個火）;
+    熄滅路徑:燚→焱→炎→火→灬(餘燼)→灰。
+  ・樹的燃燒是偏旁遞減:森→林→木→炭——火每吞一棵樹，字掉一個木部。
+  ・日文擬聲是聲軌:メラメラ(烈燒)/パチパチ(劈啪)/シュウ…(澆水嘶聲)。
+  ・ASCII 是火星:* ' ・ 最輕最快。
+
+  三個場景（上方按鈕切換）:
+  一、營火——完整生命週期:
+      點火 → 火苗亂碼閃動、火星上竄、パチパチ爆芯;
+      火上方懸著一行字，被熱氣「扭曲」（逐字波動+微斜+忽濃忽淡）;
+      放著不管會自然衰弱（強度階梯往下爬）→ 灬 餘燼紅光呼吸 → 灰＋殘煙。
+      「添柴」推回強度、「澆水」:シュウ…白汽上騰、強度驟降。
+  二、燒樹——點火後火從根部往上爬:
+      樹冠的字邊燒邊掉偏旁（森→林→木），灰粒飄落、火星亂竄，
+      燒透的字定格成「炭」——最後剩一具焦黑的樹形骨架冒著煙。
+  三、燒信——一封中英日混寫的信，從左下角點火:
+      不規則火線推進:前緣的字焦黃 → 燒紅亂碼抖動 → 化灰消失;
+      火線在右上角前熄滅——倖存下來的那半句，自己會說話。
+
+  系統開啟「減少動態」時:亂碼放慢、扭曲與粒子大幅減少。
+  ══════════════════════════════════════════════
+-->
+<style>
+  :root{ --paper:#e9e4d6; --faint:#5b6784; --fire1:#ff6a3d; --fire2:#ffb347;
+         --fire3:#ffe08a; --char:#3a3230; --ash:#8a8478; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; overflow:hidden; color:var(--paper); user-select:none;
+    font-family:Georgia,'Noto Serif TC','PMingLiU',serif;
+    background:radial-gradient(110% 90% at 50% 100%, #1a120c, #0b0910 60%); }
+
+  #tabs{ position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:8px; }
+  #tabs button{ cursor:pointer; font:12px 'Noto Serif TC',serif;
+    letter-spacing:.2em; color:var(--faint); background:rgba(16,13,10,.7);
+    border:1px solid rgba(147,160,191,.2); border-radius:8px; padding:7px 16px; }
+  #tabs button.on{ color:var(--fire2); border-color:rgba(255,179,71,.5); }
+
+  .scene{ position:fixed; inset:0; display:none; }
+  .scene.on{ display:block; }
+  .ctl{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:10px; }
+  .ctl button{ cursor:pointer; font:14px 'Noto Serif TC',serif;
+    letter-spacing:.15em; color:var(--paper); background:rgba(30,22,14,.7);
+    border:1px solid rgba(255,179,71,.35); border-radius:10px; padding:9px 22px; }
+  .ctl button:hover{ background:rgba(255,179,71,.14); }
+  #note{ position:fixed; bottom:76px; left:50%; transform:translateX(-50%);
+    font:10px 'Courier New',monospace; letter-spacing:.2em; color:#4a4438;
+    z-index:30; white-space:nowrap; }
+
+  .pt{ position:fixed; pointer-events:none; z-index:12;
+    will-change:transform,opacity; }
+
+  /* ── 營火 ── */
+  #shimmer{ position:absolute; left:50%; top:24%; transform:translateX(-50%);
+    font-size:17px; letter-spacing:.12em; color:#b8aa90; white-space:nowrap; }
+  #shimmer span{ display:inline-block; will-change:transform,opacity,filter; }
+  #campfire{ position:absolute; left:50%; top:58%; transform:translate(-50%,-50%);
+    text-align:center; }
+  #coreGlyph{ display:block; font-size:64px; line-height:1;
+    transition:color .8s, text-shadow .8s, font-size .8s; }
+  .flame{ position:absolute; will-change:transform,opacity; font-size:20px; }
+  #logs{ display:block; margin-top:6px; font-size:22px; color:#6a5038;
+    letter-spacing:-2px; }
+  #glowC{ position:absolute; left:50%; top:58%; width:60vmin; height:60vmin;
+    transform:translate(-50%,-50%); pointer-events:none;
+    background:radial-gradient(circle, rgba(255,140,60,.14), transparent 62%);
+    transition:opacity 1.5s; }
+
+  /* ── 燒樹 ── */
+  #treeBox{ position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); }
+  #treeBox span{ position:absolute; font-size:26px; will-change:transform,color;
+    transform:translate(-50%,-50%); }
+
+  /* ── 燒信 ── */
+  #paper{ position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+    background:linear-gradient(160deg,#d8cdb4,#c8bda2);
+    border-radius:4px; padding:34px 40px;
+    box-shadow:0 16px 50px rgba(0,0,0,.55); }
+  #paper .pline{ font-size:19px; line-height:2.3; letter-spacing:.06em;
+    color:#2a2420; white-space:nowrap; }
+  #paper .pch{ display:inline-block; will-change:transform,color,opacity; }
+  #survivor{ position:absolute; left:50%; top:78%; transform:translateX(-50%);
+    font:12px 'Courier New',monospace; letter-spacing:.22em; color:#6a6254;
+    opacity:0; transition:opacity 2.5s; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div id="tabs"></div>
+<div id="note">中文＝物質　カタカナ＝聲音　ASCII＝粒子</div>
+
+<div class="scene" id="sc-camp">
+  <div id="glowC"></div>
+  <div id="shimmer"></div>
+  <div id="campfire">
+    <span id="coreGlyph">火</span>
+    <span id="logs">柴柴柴</span>
+  </div>
+  <div class="ctl">
+    <button id="bStoke">添柴</button>
+    <button id="bDouse">澆水</button>
+  </div>
+</div>
+
+<div class="scene" id="sc-tree">
+  <div id="treeBox"></div>
+  <div class="ctl"><button id="bTree">點火</button></div>
+</div>
+
+<div class="scene" id="sc-letter">
+  <div id="paper"></div>
+  <div id="survivor"></div>
+  <div class="ctl"><button id="bLetter">從左下角點火</button></div>
+</div>
+
+<script>
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const FIRE_COLORS = ['#ff6a3d','#ffb347','#ffe08a'];
+const FLAME_POOL = [...'火炎メラゆ)('];
+const fc = () => FIRE_COLORS[Math.floor(Math.random()*3)];
+
+/* ══ 分頁 ══ */
+const tabs = $('tabs');
+let current = null;
+function defTab(id, label) {
+  const b = document.createElement('button');
+  b.textContent = label; b.dataset.id = id;
+  b.onclick = () => {
+    if (current) $(current).classList.remove('on');
+    [...tabs.children].forEach(x => x.classList.toggle('on', x === b));
+    current = id; $(id).classList.add('on');
+  };
+  tabs.appendChild(b);
+  return b;
+}
+const t1 = defTab('sc-camp','營火'), t2 = defTab('sc-tree','燒樹'),
+      t3 = defTab('sc-letter','燒信');
+
+/* ══ 粒子 ══ */
+const pts = [];
+function spawn(ch, x, y, o = {}) {
+  const s = document.createElement('span');
+  s.className = 'pt'; s.textContent = ch;
+  s.style.color = o.color ?? '#8a93a8';
+  s.style.fontSize = (o.size ?? 12) + 'px';
+  document.body.appendChild(s);
+  pts.push({ el: s, x, y, vx: o.vx ?? 0, vy: o.vy ?? 0, g: o.g ?? 0,
+    life: o.life ?? 60, max: o.life ?? 60, flicker: o.flicker,
+    grow: o.grow ?? 0, rot: 0, vr: o.vr ?? 0, sc: 1 });
+}
+function tickPts() {
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    p.sc += p.grow; p.life--;
+    p.el.style.transform =
+      `translate(${p.x}px,${p.y}px) rotate(${p.rot}deg) scale(${p.sc.toFixed(2)})`;
+    p.el.style.opacity = p.flicker
+      ? (Math.random() * Math.min(1, p.life / (p.max * .4))).toFixed(2)
+      : Math.min(1, p.life / (p.max * .4)).toFixed(2);
+    if (p.life <= 0) { p.el.remove(); pts.splice(i, 1); }
+  }
+}
+
+/* 常用粒子配方 */
+function spark(x, y) { spawn(['*','\u2032','・'][Math.floor(Math.random()*3)], x, y,
+  { color: fc(), vy: -1.5 - Math.random()*2, vx: (Math.random()-.5)*1.6,
+    life: 45 + Math.random()*30, flicker: true, size: 10 + Math.random()*5 }); }
+function smoke(x, y) { spawn('煙', x, y,
+  { color: 'rgba(150,145,140,.5)', vy: -0.5, vx: (Math.random()-.5)*.5,
+    life: 130, grow: 0.006, size: 13 }); }
+function ashfall(x, y) { spawn(Math.random()<.5?'灰':'・', x, y,
+  { color: 'var(--ash)', vy: .4 + Math.random()*.5, vx: (Math.random()-.5)*1.2,
+    g: .01, vr: (Math.random()-.5)*6, life: 110, size: 11 }); }
+function pachi(x, y) { spawn(Math.random()<.5?'パチ':'パチッ', x, y,
+  { color: '#ffe08a', vx: (Math.random()-.5)*4, vy: -1-Math.random()*2, g: .06,
+    life: 40, size: 11 }); }
+function sizzle(x, y) { spawn('シュウ…', x, y,
+  { color: '#cdd3e0', vy: -0.9, vx: (Math.random()-.5)*.6, life: 90, size: 12 }); }
+function steam(x, y) { spawn('〜', x, y,
+  { color: 'rgba(233,228,214,.6)', vy: -1.4, vx: (Math.random()-.5)*1, 
+    life: 70, grow: .01, size: 14 }); }
+
+/* ══════════ 一、營火 ══════════ */
+const LADDER = ['灰','灬','火','炎','焱','燚'];   // 熄←→旺
+const camp = {
+  lvl: 2,                                          // 起手:火
+  flames: [], nextDecay: 0, nextGarble: 0,
+};
+(function initCamp() {
+  const box = $('campfire');
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement('span');
+    s.className = 'flame';
+    s.style.left = (18 + i * 14) + 'px';
+    box.insertBefore(s, $('logs'));
+    camp.flames.push({ el: s, ph: Math.random()*6, ox: (i-2.5)*15 });
+  }
+  const line = '空気はゆらゆら…空氣在熱裡彎曲 the air bends';
+  [...line].forEach(ch => {
+    const s = document.createElement('span');
+    s.textContent = ch;
+    $('shimmer').appendChild(s);
+  });
+})();
+$('bStoke').onclick = () => {
+  camp.lvl = Math.min(5, camp.lvl + 1);
+  const r = $('coreGlyph').getBoundingClientRect();
+  for (let i = 0; i < 6; i++) pachi(r.left + r.width/2, r.top + 10);
+  camp.nextDecay = performance.now() + 9000;
+};
+$('bDouse').onclick = () => {
+  const r = $('coreGlyph').getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  for (let i = 0; i < 3; i++) sizzle(cx + (i-1)*30, cy);
+  for (let i = 0; i < 8; i++) steam(cx + (Math.random()-.5)*60, cy);
+  camp.lvl = Math.max(0, camp.lvl - 2);
+};
+function tickCamp(now) {
+  if (now > camp.nextDecay) {                       // 自然衰弱
+    camp.nextDecay = now + 9000;
+    camp.lvl = Math.max(0, camp.lvl - 1);
+  }
+  const L = camp.lvl;
+  const core = $('coreGlyph');
+  core.textContent = LADDER[L];
+  const heat = L / 5;
+  core.style.fontSize = (34 + heat * 44) + 'px';
+  core.style.color = L === 0 ? 'var(--ash)'
+    : L === 1 ? '#b84a2a' : fc();
+  core.style.textShadow = L <= 1
+    ? (L === 1 ? `0 0 ${10 + Math.sin(now/500)*6}px rgba(200,80,40,.8)` : 'none')
+    : `0 0 ${14 + heat * 20}px rgba(255,140,60,.8)`;
+  $('glowC').style.opacity = (heat * 0.9 + (L===1?0.25:0)).toFixed(2);
+
+  /* 火舌亂碼 */
+  const burning = L >= 2;
+  if (burning && now > camp.nextGarble) {
+    camp.nextGarble = now + (reduced ? 300 : 90);
+    camp.flames.forEach(f => {
+      f.el.textContent = Math.random() < 0.85
+        ? FLAME_POOL[Math.floor(Math.random()*FLAME_POOL.length)] : '　';
+      f.el.style.color = fc();
+    });
+  }
+  camp.flames.forEach((f, i) => {
+    const on = burning && i < 2 + L;
+    f.el.style.opacity = on ? '1' : '0';
+    if (on) f.el.style.transform =
+      `translate(${Math.sin(now/160+f.ph)*4}px, ${-14 - heat*22 - Math.abs(Math.sin(now/220+f.ph))*10}px) scale(${(.7+heat*.7).toFixed(2)})`;
+  });
+
+  /* 粒子供給 */
+  const r = core.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height*0.3;
+  if (!reduced) {
+    if (burning && Math.random() < 0.10 + heat*0.25) spark(cx + (Math.random()-.5)*40, cy);
+    if (L >= 1 && Math.random() < 0.03 + heat*0.03) smoke(cx + (Math.random()-.5)*20, cy - 10);
+    if (L >= 4 && Math.random() < 0.02) pachi(cx, cy);
+    if (L === 0 && Math.random() < 0.008) smoke(cx, cy + 20);
+  }
+
+  /* 熱扭曲:火上那行字 */
+  [...$('shimmer').children].forEach((s, i) => {
+    if (burning && !reduced) {
+      const w = Math.sin(now/130 + i*0.7) * heat;
+      s.style.transform =
+        `translateY(${(w*3).toFixed(1)}px) skewX(${(w*6).toFixed(1)}deg)`;
+      s.style.opacity = (0.55 + 0.45*Math.abs(Math.sin(now/300 + i))).toFixed(2);
+      s.style.filter = `blur(${(Math.abs(w)*0.6).toFixed(2)}px)`;
+    } else { s.style.transform=''; s.style.opacity='0.8'; s.style.filter=''; }
+  });
+}
+
+/* ══════════ 二、燒樹（森→林→木→炭）══════════ */
+const TREE_ROWS = ['　　森　　','　森林森　','林森木森林','　木林木　','　　幹　　','　　幹　　'];
+const DEGRADE = { '森':'林', '林':'木', '木':'炭', '幹':'炭' };
+let treeChars = [], treeBurning = false;
+function buildTree() {
+  const box = $('treeBox'); box.innerHTML = '';
+  treeChars = []; treeBurning = false;
+  $('bTree').textContent = '點火';
+  TREE_ROWS.forEach((row, r) => {
+    [...row].forEach((ch, c) => {
+      if (ch === '　') return;
+      const s = document.createElement('span');
+      s.textContent = ch;
+      s.style.left = (c * 34) + 'px';
+      s.style.top  = (r * 36) + 'px';
+      s.style.color = ch === '幹' ? '#7a5a3a' : '#5a7a4a';
+      box.appendChild(s);
+      treeChars.push({ el: s, ch, r, c, state: 'idle', nextTick: 0 });
+    });
+  });
+}
+buildTree();
+$('bTree').onclick = () => {
+  if (treeBurning) { buildTree(); return; }
+  treeBurning = true;
+  $('bTree').textContent = '重生';
+  const maxR = TREE_ROWS.length - 1;
+  treeChars.forEach(t => {
+    const delay = (maxR - t.r) * 700 + Math.random() * 600;   // 火往上爬
+    setTimeout(() => { if (treeBurning) { t.state = 'burn'; t.nextTick = 0; } },
+      reduced ? delay * 0.4 : delay);
+  });
+};
+function tickTree(now) {
+  treeChars.forEach(t => {
+    const rect = () => t.el.getBoundingClientRect();
+    if (t.state === 'burn') {
+      if (now > t.nextTick) {
+        t.nextTick = now + (reduced ? 400 : 110);
+        t.el.style.color = fc();
+        t.el.style.transform = `translate(-50%,-50%) translate(${(Math.random()-.5)*3}px,${(Math.random()-.5)*3}px)`;
+      }
+      if (!t.deadline) t.deadline = now + 1600 + Math.random()*1400;
+      if (!reduced && Math.random() < 0.06) { const q = rect(); spark(q.left+8, q.top); }
+      if (now > t.deadline) {
+        t.deadline = null;
+        const next = DEGRADE[t.ch];
+        const q = rect();
+        ashfall(q.left + 8, q.top + 8);
+        if (next === '炭' || !next) {                     // 燒透:定格成炭
+          t.ch = '炭'; t.el.textContent = '炭';
+          t.el.style.color = 'var(--char)';
+          t.el.style.transform = 'translate(-50%,-50%)';
+          t.state = 'done';
+          if (!reduced) smoke(q.left + 8, q.top);
+        } else {                                          // 掉一個木部
+          t.ch = next; t.el.textContent = next;
+        }
+      }
+    } else if (t.state === 'done' && !reduced && Math.random() < 0.004) {
+      const q = rect(); smoke(q.left + 8, q.top);
+    }
+  });
+}
+
+/* ══════════ 三、燒信 ══════════ */
+const LETTER = ['火はぜんぶ覚えている。','The warmth was real.','謝謝你，也對不起。','——雨の夜に'];
+let letterChars = [], letterT = -1;
+function buildLetter() {
+  const p = $('paper'); p.innerHTML = '';
+  letterChars = []; letterT = -1;
+  $('survivor').style.opacity = '0';
+  $('bLetter').textContent = '從左下角點火';
+  LETTER.forEach(line => {
+    const d = document.createElement('div');
+    d.className = 'pline';
+    [...line].forEach(ch => {
+      const s = document.createElement('span');
+      s.className = 'pch'; s.textContent = ch;
+      d.appendChild(s);
+      letterChars.push({ el: s, ch });
+    });
+    p.appendChild(d);
+  });
+  requestAnimationFrame(() => {
+    const pr = p.getBoundingClientRect();
+    letterChars.forEach(t => {
+      const r = t.el.getBoundingClientRect();
+      const dx = (r.left + r.width/2) - pr.left;
+      const dy = pr.bottom - (r.top + r.height/2);
+      t.dist = Math.hypot(dx, dy) + Math.sin(dx*0.07)*22 + Math.sin(dy*0.11)*16;
+      t.maxD = Math.hypot(pr.width, pr.height);
+      t.px = r.left + r.width/2; t.py = r.top;
+      t.state = 'ok';
+    });
+  });
+}
+buildLetter();
+$('bLetter').onclick = () => {
+  if (letterT >= 0) { buildLetter(); return; }
+  letterT = 0;
+  $('bLetter').textContent = '再寫一封';
+};
+function tickLetter(now) {
+  if (letterT < 0) return;
+  letterT += reduced ? 3.2 : 1.6;
+  const cap = (letterChars[0]?.maxD ?? 600) * 0.74;   // 火線在右上角前熄滅
+  const front = Math.min(letterT, cap);
+  let allSettled = letterT > cap + 60;
+  letterChars.forEach(t => {
+    if (t.dist === undefined) return;
+    const d = t.dist - front;
+    if (t.state === 'gone') return;
+    if (d > 46) return;                                // 還沒燒到
+    if (d > 12) {                                      // 焦黃
+      t.el.style.color = '#7a4a2a';
+    } else if (d > -26) {                              // 火線上:燒紅亂碼抖動
+      if (!t.nextG || now > t.nextG) {
+        t.nextG = now + 100;
+        t.el.textContent = Math.random() < 0.35
+          ? FLAME_POOL[Math.floor(Math.random()*FLAME_POOL.length)] : t.ch;
+        t.el.style.color = fc();
+        t.el.style.transform =
+          `translate(${(Math.random()-.5)*2.5}px,${(Math.random()-.5)*2.5}px)`;
+      }
+      if (!reduced && Math.random() < 0.05) spark(t.px, t.py);
+      if (!reduced && Math.random() < 0.02) smoke(t.px, t.py);
+    } else {                                           // 燒穿:化灰
+      t.state = 'gone';
+      t.el.style.visibility = 'hidden';
+      ashfall(t.px, t.py + 6);
+    }
+  });
+  if (allSettled && !$('survivor').style.opacity.startsWith('1')) {
+    $('survivor').textContent = '火只留下它想留下的。';
+    $('survivor').style.opacity = '1';
+  }
+}
+
+/* ══ 主循環 ══ */
+function loop(now) {
+  if (current === 'sc-camp')   tickCamp(now);
+  if (current === 'sc-tree')   tickTree(now);
+  if (current === 'sc-letter') tickLetter(now);
+  tickPts();
+  requestAnimationFrame(loop);
+}
+t1.click();
+camp.nextDecay = performance.now() + 9000;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
