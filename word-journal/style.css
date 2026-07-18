@@ -208,6 +208,6 @@ a:focus-visible{ outline:2px solid var(--green); outline-offset:4px; }
 
 /* ---------------- 進場 ---------------- */
 @media (prefers-reduced-motion: no-preference){
-  .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
-  .reveal.in{ opacity:1; transform:none; }
+  html.js .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
+  html.js .reveal.in{ opacity:1; transform:none; }
 }

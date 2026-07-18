@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第＿輯 · 課程名稱 — 習作輯</title>
+<title>課＿ · 課程名稱 — 習作輯</title>
 
 <!--
   ================================================================
   新課程模板
-  ----------------------------------------------------------------
   1. 複製本檔並改名，例如 figure-2026-10.html（檔名用英文和連字號）
-  2. 修改：<title>、輯數、課程名稱、說明、V.P. 位置（0–100 任選）
-  3. 把下方的佔位 figure 換成你的作業：
+  2. 修改：<title>、課次、課程名稱、說明、V.P. 位置（0–100 任選）
+  3. 「課程記錄」放作業圖版；把佔位 img 換成：
        <img src="courses/課程資料夾/homework/2026-10-05_檔名.jpg" alt="說明">
-  4. 到 index.html 的目次加一列連到這個檔案
-  5. 對應的筆記與圖檔記得在 courses/ 底下開新資料夾
+  4. 「課後感」每堂課後加一則 review
+  5. 到 courses.html 的課程列表加一列連到這個檔案
+  6. 對應的筆記與圖檔在 courses/ 底下開新資料夾
   ================================================================
 -->
 
@@ -26,14 +26,16 @@
 <body class="subpage">
 <main class="page">
 
-  <nav class="crumbs"><a href="index.html">← 目次</a></nav>
+  <nav class="crumbs"><a href="courses.html">← 課程列表</a></nav>
 
   <div class="chapter-head reveal">
-    <p class="sec-label">第＿輯</p>
+    <p class="sec-label">課＿</p>
     <h2>課程名稱</h2>
     <p class="chapter-desc">授課者或課程性質．起始年月</p>
     <div class="hl" style="--vp:30%"><span class="tag">V.P. 30</span></div>
   </div>
+
+  <p class="part-tag reveal">課程記錄</p>
 
   <!-- 每張作業複製一個 figure；圖說四行依序是：編號日期／標題／媒材／一句檢討 -->
   <figure class="plate reveal">
@@ -50,8 +52,17 @@
     </figcaption>
   </figure>
 
+  <!-- ============ 課後感 ============ -->
+  <div class="part reveal">
+    <p class="part-tag">課後感</p>
+    <div class="review">
+      <p class="review-date">____.__.__ · 第一堂之後</p>
+      <p class="review-body">（趁熱寫三五行：這堂課最大的收穫，和下一堂想改進的一件事。每堂課後加一則。）</p>
+    </div>
+  </div>
+
   <div class="pager">
-    <a href="index.html">← 目次</a>
+    <a href="courses.html">← 課程列表</a>
     <a href="index.html">回到封面 →</a>
   </div>
 

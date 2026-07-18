@@ -1,3 +1,5 @@
+/* 標記 JS 已載入；樣式僅在此時才隱藏進場元素（防呆） */
+document.documentElement.classList.add('js');
 /* 捲動進場，所有頁面共用 */
 (function () {
   var els = document.querySelectorAll('.reveal');
