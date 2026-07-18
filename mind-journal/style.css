@@ -127,6 +127,33 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   text-align:right;
 }
 
+/* ---------------- 長考（猩其一專屬：長篇思辨） ---------------- */
+.essay{ margin-top:88px; }
+.essay-no{
+  font-family:var(--mono); font-size:11px;
+  letter-spacing:.22em; color:var(--gray);
+}
+.essay h3{
+  font-size:22px; font-weight:600; letter-spacing:.16em;
+  margin:8px 0 22px;
+}
+.essay-body p{
+  font-size:16px; line-height:2.2;
+  text-align:justify; text-justify:inter-ideograph;
+  text-indent:2em;
+  margin-bottom:.4em;
+}
+.brk{
+  text-align:center; text-indent:0;
+  color:var(--gray); letter-spacing:1.2em;
+  margin:2.2em 0;
+}
+.essay-sign{
+  text-align:right; text-indent:0;
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em;
+  color:var(--amber); margin-top:2.4em;
+}
+
 /* ---------------- 生活與雜記條目 ---------------- */
 .entry{ margin-top:56px; }
 .entry-date{
