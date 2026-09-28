@@ -13,7 +13,7 @@
 | 輯 | 內容 | 位置 | 起始 |
 |------|------|------|------|
 | 第一輯 | 透視繪畫（Krenz 透視課） | [`courses/krenz-perspective`](courses/krenz-perspective) | 2026.08 |
-| 第二輯 | 八月團練（Krenz 團練課） | [`courses/krenz-training-2026-08`](courses/krenz-training-2026-08) | 2026.08 |
+| 第二輯 | KK速寫團練第2期（Krenz 速寫團練，已完成） | [`courses/krenz-training-2026-08`](courses/krenz-training-2026-08) | 2026.08 |
 | 第三輯 | 自主研究 | [`studies`](studies) | 不定期 |
 | 別冊 | 完成作品 | [`works`](works) | — |
 
