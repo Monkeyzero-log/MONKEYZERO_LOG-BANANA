@@ -226,3 +226,15 @@ figcaption{ padding-top:18px; }
 .sketch .plate-title{ font-size:14px; }
 .mount:hover img{ opacity:.88; }
 @media (max-width:560px){ .sketch-grid{ grid-template-columns:1fr 1fr; gap:28px 16px; } }
+
+/* ---------------- 課程心得（長文） ---------------- */
+.essay-title{ font-size:22px; font-weight:600; letter-spacing:.12em; margin-top:40px; }
+.essay-lead{ margin-top:18px; font-size:15px; line-height:2.05; color:var(--gray); }
+.essay .review{ margin-top:48px; }
+.review-body p + p{ margin-top:14px; }
+ul.review-body{ list-style:none; }
+ul.review-body li{ position:relative; padding-left:1.2em; }
+ul.review-body li::before{ content:"—"; position:absolute; left:0; color:var(--blue); }
+.essay-end{ font-weight:600; color:var(--ink); }
+.part-tag.gap{ margin-top:120px; }
+.sketch-grid + .pager{ margin-top:0; }
