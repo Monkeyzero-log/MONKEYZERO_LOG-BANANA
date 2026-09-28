@@ -208,3 +208,33 @@ figcaption{ padding-top:18px; }
   html.js .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
   html.js .reveal.in{ opacity:1; transform:none; }
 }
+
+/* ---------------- 速寫一覽（多張小圖，點開看原圖） ---------------- */
+.plate-grid .mount, .sketch .mount{ display:block; }
+.part-tag + .sketch-grid{ margin-top:56px; }
+.sketch-grid{
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:36px 26px; margin:0 0 110px;
+}
+.sketch .mount{ aspect-ratio:3/4; }
+.sketch .mount img{ width:100%; height:100%; object-fit:contain; }
+.sketch .corner.tl, .sketch .corner.tr{ border-top-width:11px; }
+.sketch .corner.bl, .sketch .corner.br{ border-bottom-width:11px; }
+.sketch .corner.tl, .sketch .corner.bl{ border-right-width:11px; }
+.sketch .corner.tr, .sketch .corner.br{ border-left-width:11px; }
+.sketch figcaption{ padding-top:10px; }
+.sketch .plate-title{ font-size:14px; }
+.mount:hover img{ opacity:.88; }
+@media (max-width:560px){ .sketch-grid{ grid-template-columns:1fr 1fr; gap:28px 16px; } }
+
+/* ---------------- 課程心得（長文） ---------------- */
+.essay-title{ font-size:22px; font-weight:600; letter-spacing:.12em; margin-top:40px; }
+.essay-lead{ margin-top:18px; font-size:15px; line-height:2.05; color:var(--gray); }
+.essay .review{ margin-top:48px; }
+.review-body p + p{ margin-top:14px; }
+ul.review-body{ list-style:none; }
+ul.review-body li{ position:relative; padding-left:1.2em; }
+ul.review-body li::before{ content:"—"; position:absolute; left:0; color:var(--blue); }
+.essay-end{ font-weight:600; color:var(--ink); }
+.part-tag.gap{ margin-top:120px; }
+.sketch-grid + .pager{ margin-top:0; }
