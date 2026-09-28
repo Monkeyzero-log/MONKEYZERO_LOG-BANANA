@@ -238,3 +238,11 @@ ul.review-body li::before{ content:"—"; position:absolute; left:0; color:var(-
 .essay-end{ font-weight:600; color:var(--ink); }
 .part-tag.gap{ margin-top:120px; }
 .sketch-grid + .pager{ margin-top:0; }
+
+/* 目次長標題：窄螢幕允許換行，避免撐出橫向捲動 */
+@media (max-width:560px){
+  .toc-row{ flex-wrap:wrap; }
+  .toc-name{ flex:1; white-space:normal; }
+  .toc-lead{ display:none; }
+  .toc-meta{ flex-basis:100%; padding-left:60px; margin-top:2px; }
+}
