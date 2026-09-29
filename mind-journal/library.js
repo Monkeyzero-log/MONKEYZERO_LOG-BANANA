@@ -46,27 +46,60 @@
         chipBox.appendChild(b);
       });
 
-    function book(p) {
-      return '<a class="book" href="pieces/' + esc(p.id) + '.html" data-id="' + esc(p.id) + '">' +
-        '<span class="book-series">' + esc(seriesLabel(p) || shelfOf(p.shelf).name) + '</span>' +
-        '<span class="book-title">' + esc(p.title) + '</span>' +
-        '<span class="book-summary">' + esc(p.summary) + '</span>' +
-        '<span class="book-tags">' + p.tags.map(function (t) { return '#' + esc(t); }).join(' ') + '</span>' +
-        '<span class="book-meta">' + fmtDate(p.date) + (p.words ? ' · ' + fmtWords(p.words) : '') + '</span>' +
-      '</a>';
+    /* 書脊的顏色與高度由 id 決定（每次重整都一樣）；厚度看字數 */
+    var COLORS = ['#7A1F24','#23395B','#2F4A36','#8A5A1F','#4A2B4F','#5A3A2A','#1F4A4A'];
+    function hash(str) { var h = 0; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
+    function spine(p) {
+      var h = hash(p.id);
+      var w = p.words ? Math.max(34, Math.min(66, 30 + Math.round(p.words / 250))) : 40;
+      var style = '--c:' + COLORS[h % COLORS.length] + ';--h:' + (190 + h % 44) + 'px;--w:' + w + 'px';
+      return '<button type="button" class="spine" data-id="' + esc(p.id) + '" style="' + style + '" aria-pressed="false" title="' + esc(p.title) + '">' +
+        '<span class="spine-title">' + esc(p.title) + '</span>' +
+        '<span class="spine-no">' + (p.series ? cnNum(p.no) : '◆') + '</span>' +
+      '</button>';
     }
+    /* 架上擺設：香蕉書擋、小盆栽、一疊稿紙，輪流出現 */
+    var PROPS = [
+      '<svg viewBox="0 0 46 60" aria-hidden="true"><path d="M8 58 L8 26 L20 26 L20 58 Z" fill="#6B4A2E"/><path d="M14 30 C 4 18, 10 4, 30 2 C 26 8, 22 16, 24 30 Z" fill="#E3C04A"/><path d="M30 2 l3 -1 l-1 3 z" fill="#5A4A20"/><path d="M14 30 C 10 22, 14 10, 28 4" stroke="#B8962E" stroke-width="1.2" fill="none"/></svg>',
+      '<svg viewBox="0 0 46 60" aria-hidden="true"><path d="M12 40 h22 l-3 18 h-16 z" fill="#8A5A3A"/><rect x="10" y="37" width="26" height="5" rx="1" fill="#A06B45"/><path d="M23 37 C 22 26, 14 22, 8 20 C 16 18, 22 24, 23 30 C 24 20, 30 12, 38 12 C 32 18, 26 26, 24 37 Z" fill="#4E7A4A"/></svg>',
+      '<svg viewBox="0 0 46 60" aria-hidden="true"><rect x="4" y="50" width="38" height="8" fill="#D8CFBC"/><rect x="6" y="44" width="36" height="6" fill="#C8BEA8" transform="rotate(-3 24 47)"/><rect x="5" y="38" width="35" height="6" fill="#E3DAC6" transform="rotate(2 22 41)"/></svg>'
+    ];
 
-    lib.innerHTML = SHELVES.map(function (s) {
+    lib.innerHTML = SHELVES.map(function (s, si) {
       var books = byDate.filter(function (p) { return p.shelf === s.id; });
       if (!books.length) return '';
       return '<section class="shelf" id="shelf-' + esc(s.id) + '">' +
-        '<header class="shelf-head"><h3>' + esc(s.name) + '</h3>' +
-        '<span class="shelf-count"></span>' +
-        '<p class="shelf-desc">' + esc(s.desc) + '</p></header>' +
-        '<div class="shelf-row">' + books.map(book).join('') + '</div>' +
-        '<div class="shelf-board" aria-hidden="true"></div>' +
+        '<div class="case"><div class="bay">' +
+          '<div class="spines">' + books.map(spine).join('') + '<span class="prop">' + PROPS[si % PROPS.length] + '</span></div>' +
+          '<article class="card" aria-live="polite"></article>' +
+        '</div>' +
+        '<div class="board"><span class="plate">' + esc(s.name) + '<span class="n"></span></span></div></div>' +
+        '<p class="shelf-desc">' + esc(s.desc) + '</p>' +
       '</section>';
     }).join('');
+
+    function postById(id) { return POSTS.filter(function (x) { return x.id === id; })[0]; }
+    function showCard(sh, id) {
+      var p = postById(id), card = sh.querySelector('.card');
+      sh.querySelectorAll('.spine').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.id === id ? 'true' : 'false'); });
+      card.innerHTML =
+        '<p class="card-series">' + esc(seriesLabel(p) || shelfOf(p.shelf).name) + '</p>' +
+        '<h3 class="card-title">' + esc(p.title) + '</h3>' +
+        '<p class="card-summary">' + esc(p.summary) + '</p>' +
+        '<div class="card-foot"><div>' +
+          '<p class="card-tags">' + p.tags.map(function (t) { return '#' + esc(t); }).join('　') + '</p>' +
+          '<p class="card-meta">' + fmtDate(p.date) + (p.words ? ' · ' + fmtWords(p.words) : '') + '</p>' +
+        '</div><a class="card-open" href="pieces/' + esc(p.id) + '.html">翻開 →</a></div>';
+      card.classList.remove('flip'); void card.offsetWidth; card.classList.add('flip');
+      sh.dataset.active = id;
+    }
+    lib.addEventListener('click', function (e) {
+      var b = e.target.closest('.spine'); if (b) showCard(b.closest('.shelf'), b.dataset.id);
+    });
+    lib.addEventListener('mouseover', function (e) {
+      var b = e.target.closest('.spine');
+      if (b && matchMedia('(hover:hover)').matches && b.closest('.shelf').dataset.active !== b.dataset.id) showCard(b.closest('.shelf'), b.dataset.id);
+    });
 
     function matches(p) {
       if (state.tags.length && !state.tags.every(function (t) { return p.tags.indexOf(t) > -1; })) return false;
@@ -78,12 +111,15 @@
       var total = 0;
       lib.querySelectorAll('.shelf').forEach(function (sh) {
         var n = 0;
-        sh.querySelectorAll('.book').forEach(function (b) {
-          var p = POSTS.filter(function (x) { return x.id === b.dataset.id; })[0];
-          var ok = matches(p); b.hidden = !ok; if (ok) n++;
+        var first = null;
+        sh.querySelectorAll('.spine').forEach(function (b) {
+          var ok = matches(postById(b.dataset.id)); b.hidden = !ok;
+          if (ok) { n++; if (!first) first = b.dataset.id; }
         });
         sh.hidden = n === 0;
-        sh.querySelector('.shelf-count').textContent = n + ' 冊';
+        sh.querySelector('.plate .n').textContent = '· ' + n + ' 冊';
+        var act = sh.dataset.active && sh.querySelector('.spine[data-id="' + sh.dataset.active + '"]');
+        if (first && (!act || act.hidden)) showCard(sh, first);
         total += n;
       });
       empty.hidden = total > 0;

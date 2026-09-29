@@ -235,46 +235,117 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   letter-spacing:.2em; color:var(--amber);
 }
 
-.shelf{ margin-top:72px; }
-.shelf-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
-.shelf-head h3{ font-size:20px; font-weight:600; letter-spacing:.2em; }
-.shelf-count{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--amber); }
-.shelf-desc{ flex-basis:100%; font-size:13.5px; color:var(--gray); letter-spacing:.04em; }
+/* ---------------- 書櫃：木框、層板、名牌 ---------------- */
+.shelf{ margin-top:64px; }
+.case{
+  --wood:#6B4A2E; --wood-hi:#8A6240; --wood-lo:#3E2A1A;
+  position:relative;
+  padding:26px 26px 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(201,161,92,.10), transparent 70%),   /* 檯燈光 */
+    #1B1A1E;
+  border-left:14px solid var(--wood); border-right:14px solid var(--wood);
+  box-shadow:inset 0 14px 22px -12px rgba(0,0,0,.8), inset 10px 0 18px -12px rgba(0,0,0,.7), inset -10px 0 18px -12px rgba(0,0,0,.7);
+}
+.shelf:first-of-type .case{ border-top:14px solid var(--wood); }
+.bay{ display:flex; align-items:flex-end; gap:26px; min-height:250px; }
+.board{
+  position:relative; height:22px; margin:0 -40px;
+  background:linear-gradient(var(--wood-hi), var(--wood) 40%, var(--wood-lo));
+  border-radius:2px;
+  box-shadow:0 10px 16px -8px rgba(0,0,0,.7);
+}
+.plate{
+  position:absolute; left:50%; top:3px; transform:translateX(-50%);
+  padding:0 14px; white-space:nowrap;
+  background:linear-gradient(#D8B878, #A8844A);
+  color:#2A2014; border-radius:2px;
+  font-size:12px; font-weight:700; letter-spacing:.24em; line-height:16px;
+  box-shadow:0 1px 0 rgba(255,255,255,.3) inset, 0 1px 2px rgba(0,0,0,.5);
+}
+.plate::before, .plate::after{            /* 螺絲 */
+  content:""; position:absolute; top:6px; width:4px; height:4px; border-radius:50%;
+  background:#6E5530;
+}
+.plate::before{ left:5px; } .plate::after{ right:5px; }
+.plate .n{ font-family:var(--mono); font-weight:500; letter-spacing:.1em; margin-left:4px; }
+.shelf-desc{ margin-top:14px; font-size:13px; color:var(--gray); letter-spacing:.06em; text-align:center; }
 
-.shelf-row{
-  display:flex; gap:18px; align-items:flex-end;
-  overflow-x:auto; scroll-snap-type:x proximity;
-  padding:22px 2px 0; scrollbar-width:thin;
+/* ---------------- 書脊 ---------------- */
+.spines{ display:flex; align-items:flex-end; gap:3px; flex:0 1 auto; min-width:0; max-width:58%; overflow-x:auto; overflow-y:hidden; padding-top:20px; scrollbar-width:thin; }
+.spine{
+  --c:#7A1F24;
+  position:relative; flex:0 0 auto;
+  width:var(--w,42px); height:var(--h,210px);
+  padding:22px 0 30px;
+  display:flex; justify-content:center;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,0) 22%, rgba(255,255,255,.10) 50%, rgba(0,0,0,0) 78%, rgba(0,0,0,.4)),
+    var(--c);
+  border:none; border-radius:2px 2px 0 0; cursor:pointer;
+  color:#F1E8D6; font:inherit;
+  transition:transform .3s cubic-bezier(.3,1.4,.5,1), filter .2s;
 }
-.shelf-board{
-  height:10px; margin-top:-1px;
-  background:linear-gradient(var(--amber-faint), #3a332a);
-  border-radius:1px;
-  box-shadow:0 8px 14px -6px rgba(0,0,0,.6);
+.spine::before, .spine::after{            /* 燙金線 */
+  content:""; position:absolute; left:4px; right:4px; height:2px;
+  border-top:1px solid rgba(216,184,120,.8); border-bottom:1px solid rgba(216,184,120,.8);
 }
-.book{
-  flex:0 0 176px; min-height:248px; scroll-snap-align:start;
+.spine::before{ top:10px; } .spine::after{ bottom:20px; }
+.spine-title{
+  writing-mode:vertical-rl; text-orientation:upright;
+  font-size:14px; font-weight:500; letter-spacing:.08em; line-height:1.2;
+  max-height:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.spine-no{
+  position:absolute; bottom:4px; left:0; right:0; text-align:center;
+  font-size:10px; color:#D8B878;
+}
+.spine:hover{ filter:brightness(1.15); }
+.spine[aria-pressed="true"]{ transform:translateY(-16px); filter:brightness(1.2); box-shadow:0 0 0 1px rgba(216,184,120,.7), 0 6px 14px rgba(0,0,0,.5); }
+.spine:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+.spine[hidden]{ display:none; }
+
+/* 書擋與擺設 */
+.prop{ flex:0 0 auto; align-self:flex-end; width:46px; height:60px; margin-left:4px; }
+.prop svg{ display:block; width:100%; height:100%; }
+
+/* ---------------- 展示卡（斜立在架上） ---------------- */
+.card{
+  flex:1 1 0; min-width:0; max-width:620px;
+  align-self:stretch; margin-bottom:0;
   display:flex; flex-direction:column;
-  padding:16px 16px 14px 20px;
-  background:var(--paper-lift);
-  border:1px solid var(--line); border-bottom:none;
-  border-left:5px solid var(--amber-faint);   /* 書脊 */
-  transition:transform .25s ease, border-color .25s;
+  padding:20px 24px 18px;
+  background:#EDE6D6; color:#2A2622;
+  border-radius:2px;
+  transform:rotate(-1.2deg); transform-origin:bottom left;
+  box-shadow:0 1px 0 #fff inset, 4px 6px 14px rgba(0,0,0,.45);
 }
-.book:hover, .book:focus-visible{ transform:translateY(-8px); border-left-color:var(--amber); }
-.book[hidden]{ display:none; }
-.book-series{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--amber); }
-.book-title{ margin-top:8px; font-size:16px; font-weight:600; line-height:1.6; letter-spacing:.04em; }
-.book-summary{
-  margin-top:8px; font-size:12.5px; line-height:1.8; color:var(--gray);
-  display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+.card-series{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; color:#8A6A36; }
+.card-title{ margin-top:6px; font-size:19px; font-weight:700; line-height:1.55; letter-spacing:.06em; }
+.card-summary{ margin-top:10px; font-size:14px; line-height:1.95; color:#4A443C; }
+.card-foot{ margin-top:auto; padding-top:14px; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px 16px; }
+.card-tags{ font-size:12.5px; color:#6B6358; }
+.card-meta{ font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; color:#8A8276; margin-top:2px; }
+.card-open{
+  flex:0 0 auto; padding:5px 14px;
+  background:#2A2622; color:#EDE6D6; border-radius:2px;
+  font-size:13px; letter-spacing:.14em;
+  transition:background .2s;
 }
-.book-tags{ margin-top:auto; padding-top:12px; font-size:11.5px; color:var(--gray); line-height:1.7; }
-.book-meta{ margin-top:4px; font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--gray); }
+.card-open:hover{ background:#7A1F24; }
+@media (prefers-reduced-motion: no-preference){
+  .card.flip{ animation:flip .35s ease; }
+  @keyframes flip{ from{ opacity:.2; transform:rotate(-1.2deg) translateY(6px); } }
+}
+
 .lib-empty{ margin-top:48px; color:var(--gray); font-size:14px; }
 
-@media (max-width:560px){
-  .book{ flex-basis:152px; min-height:228px; }
+@media (max-width:640px){
+  .case{ padding:18px 14px 0; border-left-width:10px; border-right-width:10px; }
+  .bay{ flex-direction:column; align-items:stretch; gap:18px; min-height:0; }
+  .spines{ order:1; max-width:none; }
+  .card{ order:2; max-width:none; margin-left:0; transform:rotate(-.6deg); }
+  .board{ margin:0 -24px; }
 }
 
 /* ================================================================
