@@ -8,9 +8,14 @@
 | `posts.js` | **全館唯一要手動維護的清單**：書架分類、每篇的標題／標籤／日期／摘要、黑板上的猴子吐槽 |
 | `pieces/` | 每篇文章一頁；`_template-piece.html` 是模板 |
 | `library.js` | 排書架與文章頁資訊框的程式，平常不用動 |
+| `tools/md2piece.py` | 把 `drafts/` 裡的 Markdown 原稿轉成文章頁（自動產生目次、算字數） |
 | `drafts/` | 原稿暫放處（上傳後交給 Claude 轉成網頁） |
 
 ## 新增一篇
+
+**原稿是 Markdown 時**：`python3 mind-journal/tools/md2piece.py mind-journal/drafts/原稿.md 文章代號`，再到 `posts.js` 加一段書目即可。
+
+**手動時**：
 
 1. 複製 `pieces/_template-piece.html`，改名成文章代號（例：`thinking-07.html`）
 2. 把 `<body data-id="…">` 改成同一個代號，正文一段一個 `<p>`

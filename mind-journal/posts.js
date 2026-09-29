@@ -75,10 +75,10 @@ var POSTS = [
     summary:'（摘要待補）'
   },
   {
-    id:'craft-01', shelf:'craft', series:'', no:0,
-    title:'創作思考錄：加減乘除砍補擴縮',
-    tags:['創作','寫作技法'],
-    date:'2026-01-07', words:0,
-    summary:'（摘要待補）'
+    id:'creative-thinking', shelf:'craft', series:'', no:0,
+    title:'拆開黑盒子：我的創作筆記',
+    tags:['創作','寫作技法','角色塑造','劇情結構'],
+    date:'2026-09-29', words:20822,
+    summary:'把「一瞬間就得出答案」的創作直覺拆開來看：砍、補、擴、縮四個動作，劇情的 XYZ 座標，運算順序決定風格——一個畫畫的人拆解自己思路的紀錄。'
   }
 ];
