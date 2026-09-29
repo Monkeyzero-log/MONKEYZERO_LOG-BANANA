@@ -65,6 +65,11 @@
       '<svg viewBox="0 0 46 60" aria-hidden="true"><rect x="4" y="50" width="38" height="8" fill="#D8CFBC"/><rect x="6" y="44" width="36" height="6" fill="#C8BEA8" transform="rotate(-3 24 47)"/><rect x="5" y="38" width="35" height="6" fill="#E3DAC6" transform="rotate(2 22 41)"/></svg>'
     ];
 
+    /* 黑板上的香蕉泥（一坨，還冒煙） */
+    var PILE = '<svg class="pile" viewBox="0 0 90 60"><path d="M10 54 C 6 44, 22 40, 26 42 C 24 32, 38 28, 44 32 C 44 22, 58 20, 60 30 C 70 30, 74 40, 68 46 C 82 46, 84 56, 76 56 Z" fill="none" stroke="#E3C04A" stroke-width="2.2" stroke-linejoin="round"/>' +
+      '<path d="M30 48 q 8 -4 16 0 M44 40 q 6 -3 12 0" fill="none" stroke="#E3C04A" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<path d="M40 16 q -5 -5 0 -10 q 5 -5 0 -10 M54 16 q -5 -5 0 -10" fill="none" stroke="#E8E5DC" stroke-width="1.4" stroke-linecap="round" opacity=".7"/></svg>';
+
     lib.innerHTML = SHELVES.map(function (s, si) {
       var books = byDate.filter(function (p) { return p.shelf === s.id; });
       if (!books.length) return '';
@@ -72,6 +77,8 @@
         '<div class="case"><div class="bay">' +
           '<div class="spines">' + books.map(spine).join('') + '<span class="prop">' + PROPS[si % PROPS.length] + '</span></div>' +
           '<article class="card" aria-live="polite"></article>' +
+          (s.doodle ? '<p class="doodle" aria-hidden="true">' + esc(s.doodle).replace(/\n/g, '<br>') +
+            (s.pile ? PILE : '') + '<span class="doodle-sign">──猴零士 註</span></p>' : '') +
         '</div>' +
         '<div class="board"><span class="plate">' + esc(s.name) + '<span class="n"></span></span></div></div>' +
         '<p class="shelf-desc">' + esc(s.desc) + '</p>' +

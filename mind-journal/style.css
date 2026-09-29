@@ -340,12 +340,33 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
 
 .lib-empty{ margin-top:48px; color:var(--gray); font-size:14px; }
 
+/* ---------------- 黑板塗鴉（猴零士手寫吐槽） ---------------- */
+.doodle{
+  flex:0 0 190px; align-self:flex-start;
+  margin:6px 0 0 -6px;
+  font-family:"LXGW WenKai TC","Kaiti TC","DFKai-SB",cursive;
+  font-size:19px; line-height:1.55; letter-spacing:.04em;
+  color:rgba(232,229,220,.78);
+  text-shadow:0 0 1px rgba(232,229,220,.5), 0 0 6px rgba(232,229,220,.12);   /* 粉筆糊糊的邊 */
+  transform:rotate(-5deg);
+  pointer-events:none; user-select:none;
+}
+.shelf:nth-of-type(even) .doodle{ transform:rotate(3.5deg); }
+.doodle-sign{
+  display:block; margin-top:8px;
+  font-size:13px; color:rgba(227,192,74,.8);
+}
+.doodle .pile{ display:block; width:84px; margin:6px 0 0 18px; }
+@media (max-width:980px){ .doodle{ flex-basis:150px; font-size:16px; } }
+
 @media (max-width:640px){
   .case{ padding:18px 14px 0; border-left-width:10px; border-right-width:10px; }
   .bay{ flex-direction:column; align-items:stretch; gap:18px; min-height:0; }
   .spines{ order:1; max-width:none; }
   .card{ order:2; max-width:none; margin-left:0; transform:rotate(-.6deg); }
   .board{ margin:0 -24px; }
+  .doodle{ position:absolute; top:26px; right:18px; width:150px; margin:0; font-size:15px; text-align:right; }
+  .doodle .pile{ width:64px; margin:4px 0 0 auto; }
 }
 
 /* ================================================================
