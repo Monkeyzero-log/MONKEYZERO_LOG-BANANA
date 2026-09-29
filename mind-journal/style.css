@@ -1,5 +1,5 @@
 /* ================================================================
-   隨想錄 · 共用樣式
+   思考錄 · 共用樣式（原名隨想錄）
    書架上唯一的夜之書：深夜的暗紙、檯燈的琥珀黃。
    貫穿全書的是一條彎繞的思緒虛線——思緒不走直路，
    線上那顆琥珀點，是被抓住的念頭；角落標著凌晨時刻。
@@ -148,7 +148,7 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   color:var(--gray); letter-spacing:1.2em;
   margin:2.2em 0;
 }
-.essay-sign{
+.essay-sign, .essay-body .essay-sign{
   text-align:right; text-indent:0;
   font-family:var(--mono); font-size:11px; letter-spacing:.2em;
   color:var(--amber); margin-top:2.4em;
@@ -201,3 +201,194 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   html.js .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
   html.js .reveal.in{ opacity:1; transform:none; }
 }
+
+/* ================================================================
+   書架（首頁）：一層一個分類，書本橫排，太多時左右滑
+   ================================================================ */
+.library-wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+.finder{ padding:110px 0 10px; max-width:720px; }
+.finder h2{ font-size:26px; font-weight:600; letter-spacing:.3em; margin:6px 0 28px; }
+.finder-bar{ display:flex; gap:10px; }
+.finder-bar input{
+  flex:1; min-width:0;
+  background:var(--paper-lift); color:var(--ink);
+  border:1px solid var(--line); border-radius:2px;
+  padding:10px 14px; font:inherit; font-size:15px;
+}
+.finder-bar input::placeholder{ color:var(--gray); }
+.finder-bar input:focus{ outline:none; border-color:var(--amber); }
+.finder-bar button, .chip{
+  background:none; color:var(--gray); cursor:pointer;
+  border:1px solid var(--line); border-radius:2px;
+  font-family:var(--mono); letter-spacing:.1em;
+  transition:color .2s, border-color .2s, background .2s;
+}
+.finder-bar button{ padding:0 16px; font-size:12px; }
+.finder-bar button:hover, .chip:hover{ color:var(--ink); border-color:var(--amber-faint); }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.chip{ padding:3px 10px; font-size:12px; font-family:var(--serif); letter-spacing:.06em; }
+.chip span{ font-family:var(--mono); font-size:10px; color:var(--gray); margin-left:2px; }
+.chip[aria-pressed="true"]{ color:var(--paper); background:var(--amber); border-color:var(--amber); }
+.chip[aria-pressed="true"] span{ color:var(--paper); }
+.finder-count{
+  margin-top:18px; font-family:var(--mono); font-size:11px;
+  letter-spacing:.2em; color:var(--amber);
+}
+
+/* ---------------- 書櫃：木框、層板、名牌 ---------------- */
+.shelf{ margin-top:64px; }
+.case{
+  --wood:#6B4A2E; --wood-hi:#8A6240; --wood-lo:#3E2A1A;
+  position:relative;
+  padding:26px 26px 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(201,161,92,.10), transparent 70%),   /* 檯燈光 */
+    #1B1A1E;
+  border-left:14px solid var(--wood); border-right:14px solid var(--wood);
+  box-shadow:inset 0 14px 22px -12px rgba(0,0,0,.8), inset 10px 0 18px -12px rgba(0,0,0,.7), inset -10px 0 18px -12px rgba(0,0,0,.7);
+}
+.shelf:first-of-type .case{ border-top:14px solid var(--wood); }
+.bay{ display:flex; align-items:flex-end; gap:26px; min-height:250px; }
+.board{
+  position:relative; height:22px; margin:0 -40px;
+  background:linear-gradient(var(--wood-hi), var(--wood) 40%, var(--wood-lo));
+  border-radius:2px;
+  box-shadow:0 10px 16px -8px rgba(0,0,0,.7);
+}
+.plate{
+  position:absolute; left:50%; top:3px; transform:translateX(-50%);
+  padding:0 14px; white-space:nowrap;
+  background:linear-gradient(#D8B878, #A8844A);
+  color:#2A2014; border-radius:2px;
+  font-size:12px; font-weight:700; letter-spacing:.24em; line-height:16px;
+  box-shadow:0 1px 0 rgba(255,255,255,.3) inset, 0 1px 2px rgba(0,0,0,.5);
+}
+.plate::before, .plate::after{            /* 螺絲 */
+  content:""; position:absolute; top:6px; width:4px; height:4px; border-radius:50%;
+  background:#6E5530;
+}
+.plate::before{ left:5px; } .plate::after{ right:5px; }
+.plate .n{ font-family:var(--mono); font-weight:500; letter-spacing:.1em; margin-left:4px; }
+.shelf-desc{ margin-top:14px; font-size:13px; color:var(--gray); letter-spacing:.06em; text-align:center; }
+
+/* ---------------- 書脊 ---------------- */
+.spines{ display:flex; align-items:flex-end; gap:3px; flex:0 1 auto; min-width:0; max-width:58%; overflow-x:auto; overflow-y:hidden; padding-top:20px; scrollbar-width:thin; }
+.spine{
+  --c:#7A1F24;
+  position:relative; flex:0 0 auto;
+  width:var(--w,42px); height:var(--h,210px);
+  padding:22px 0 30px;
+  display:flex; justify-content:center;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,0) 22%, rgba(255,255,255,.10) 50%, rgba(0,0,0,0) 78%, rgba(0,0,0,.4)),
+    var(--c);
+  border:none; border-radius:2px 2px 0 0; cursor:pointer;
+  color:#F1E8D6; font:inherit;
+  transition:transform .3s cubic-bezier(.3,1.4,.5,1), filter .2s;
+}
+.spine::before, .spine::after{            /* 燙金線 */
+  content:""; position:absolute; left:4px; right:4px; height:2px;
+  border-top:1px solid rgba(216,184,120,.8); border-bottom:1px solid rgba(216,184,120,.8);
+}
+.spine::before{ top:10px; } .spine::after{ bottom:20px; }
+.spine-title{
+  writing-mode:vertical-rl; text-orientation:upright;
+  font-size:14px; font-weight:500; letter-spacing:.08em; line-height:1.2;
+  max-height:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.spine-no{
+  position:absolute; bottom:4px; left:0; right:0; text-align:center;
+  font-size:10px; color:#D8B878;
+}
+.spine:hover{ filter:brightness(1.15); }
+.spine[aria-pressed="true"]{ transform:translateY(-16px); filter:brightness(1.2); box-shadow:0 0 0 1px rgba(216,184,120,.7), 0 6px 14px rgba(0,0,0,.5); }
+.spine:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+.spine[hidden]{ display:none; }
+
+/* 書擋與擺設 */
+.prop{ flex:0 0 auto; align-self:flex-end; width:46px; height:60px; margin-left:4px; }
+.prop svg{ display:block; width:100%; height:100%; }
+
+/* ---------------- 展示卡（斜立在架上） ---------------- */
+.card{
+  flex:1 1 0; min-width:0; max-width:620px;
+  align-self:stretch; margin-bottom:0;
+  display:flex; flex-direction:column;
+  padding:20px 24px 18px;
+  background:#EDE6D6; color:#2A2622;
+  border-radius:2px;
+  transform:rotate(-1.2deg); transform-origin:bottom left;
+  box-shadow:0 1px 0 #fff inset, 4px 6px 14px rgba(0,0,0,.45);
+}
+.card-series{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; color:#8A6A36; }
+.card-title{ margin-top:6px; font-size:19px; font-weight:700; line-height:1.55; letter-spacing:.06em; }
+.card-summary{ margin-top:10px; font-size:14px; line-height:1.95; color:#4A443C; }
+.card-foot{ margin-top:auto; padding-top:14px; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px 16px; }
+.card-tags{ font-size:12.5px; color:#6B6358; }
+.card-meta{ font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; color:#8A8276; margin-top:2px; }
+.card-open{
+  flex:0 0 auto; padding:5px 14px;
+  background:#2A2622; color:#EDE6D6; border-radius:2px;
+  font-size:13px; letter-spacing:.14em;
+  transition:background .2s;
+}
+.card-open:hover{ background:#7A1F24; }
+@media (prefers-reduced-motion: no-preference){
+  .card.flip{ animation:flip .35s ease; }
+  @keyframes flip{ from{ opacity:.2; transform:rotate(-1.2deg) translateY(6px); } }
+}
+
+.lib-empty{ margin-top:48px; color:var(--gray); font-size:14px; }
+
+/* ---------------- 黑板塗鴉（猴零士手寫吐槽） ---------------- */
+.doodle{
+  flex:0 0 190px; align-self:flex-start;
+  margin:6px 0 0 -6px;
+  font-family:"LXGW WenKai TC","Kaiti TC","DFKai-SB",cursive;
+  font-size:19px; line-height:1.55; letter-spacing:.04em;
+  color:rgba(232,229,220,.78);
+  text-shadow:0 0 1px rgba(232,229,220,.5), 0 0 6px rgba(232,229,220,.12);   /* 粉筆糊糊的邊 */
+  transform:rotate(-5deg);
+  pointer-events:none; user-select:none;
+}
+.shelf:nth-of-type(even) .doodle{ transform:rotate(3.5deg); }
+.doodle-sign{
+  display:block; margin-top:8px;
+  font-size:13px; color:rgba(227,192,74,.8);
+}
+.doodle .pile{ display:block; width:84px; margin:6px 0 0 18px; }
+@media (max-width:980px){ .doodle{ flex-basis:150px; font-size:16px; } }
+
+@media (max-width:640px){
+  .case{ padding:18px 14px 0; border-left-width:10px; border-right-width:10px; }
+  .bay{ flex-direction:column; align-items:stretch; gap:18px; min-height:0; }
+  .spines{ order:1; max-width:none; }
+  .card{ order:2; max-width:none; margin-left:0; transform:rotate(-.6deg); }
+  .board{ margin:0 -24px; }
+  .doodle{ position:absolute; top:26px; right:18px; width:150px; margin:0; font-size:15px; text-align:right; }
+  .doodle .pile{ width:64px; margin:4px 0 0 auto; }
+}
+
+/* ================================================================
+   文章頁：頂部資訊框（仿 AO3）
+   ================================================================ */
+.work-head{ padding:64px 0 10px; }
+.work-series{ font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--amber); }
+.work-title{ font-size:clamp(24px,4.4vw,34px); font-weight:600; letter-spacing:.12em; line-height:1.5; margin:8px 0 26px; }
+.work-meta{
+  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
+  padding:16px 18px; margin-bottom:40px;
+  background:var(--paper-lift); border:1px solid var(--line);
+  font-size:14px;
+}
+.work-meta dt{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--gray); padding-top:3px; }
+.work-meta a{ color:var(--amber); }
+.work-meta a:hover{ color:var(--ink); }
+.work-meta .tag{ margin-right:8px; }
+.work-pager{
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  margin:120px 0 90px; font-size:13px;
+}
+.work-pager a{ color:var(--amber); transition:color .25s; }
+.work-pager a:hover{ color:var(--ink); }
+.work-pager a:last-child{ text-align:right; }

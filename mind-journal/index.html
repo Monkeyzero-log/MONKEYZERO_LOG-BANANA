@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>隨想錄</title>
+<title>思考錄</title>
 
 <!--
   ================================================================
-  隨想錄 · 首頁（書架上唯一的夜之書）
-  哲學、生活、觀察、怪念頭——不歸前四本管的，全收這裡。
-  斷想加 fragment、生活與雜記加 entry。
+  思考錄 · 首頁（書架）
+  這一頁的書架、搜尋、標籤全部由 posts.js 自動產生，不用改這個檔。
+  新增一篇：見 posts.js 最上面的說明。
   ================================================================
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="cover">
-  <h1 class="cover-title">隨想錄</h1>
+  <h1 class="cover-title">思考錄</h1>
   <div class="thread"><svg viewBox="0 0 700 24" preserveAspectRatio="none" aria-hidden="true">
       <path d="M0,12 C 80,4 140,20 220,12 S 380,3 460,15 S 620,19 700,7" fill="none" stroke="currentColor" stroke-dasharray="4 5" stroke-width="1.2"/>
       <circle class="node" cx="290" cy="12" r="3.5"/>
@@ -32,28 +32,23 @@
   </p>
 </header>
 
-<main class="page">
+<div class="library-wrap">
+  <div class="finder reveal" id="finder">
+    <p class="sec-label">LIBRARY</p>
+    <h2>書架</h2>
+    <div class="finder-bar">
+      <input id="lib-search" type="search" placeholder="搜尋標題、摘要、標籤……" aria-label="搜尋文章">
+      <button id="lib-reset" type="button">清除</button>
+    </div>
+    <div class="chips" id="lib-tags" aria-label="標籤篩選"></div>
+    <p class="finder-count" id="lib-count"></p>
+  </div>
 
-  <nav class="toc reveal" aria-label="目次">
-    <p class="sec-label">CONTENTS</p>
-    <h2>目次</h2>
-    <a class="toc-row" href="fragments.html">
-      <span class="toc-no">斷　想</span><span class="toc-name">其一其二</span>
-      <span class="toc-lead"></span><span class="toc-meta">短句與念頭</span>
-    </a>
-    <a class="toc-row" href="thinking.html">
-      <span class="toc-no">思　辨</span><span class="toc-name">長考</span>
-      <span class="toc-lead"></span><span class="toc-meta">猩其一 主筆</span>
-    </a>
-    <a class="toc-row" href="life.html">
-      <span class="toc-no">生　活</span><span class="toc-name">日常記事</span>
-      <span class="toc-lead"></span><span class="toc-meta">不定期</span>
-    </a>
-    <a class="toc-row" href="misc.html">
-      <span class="toc-no">雜　記</span><span class="toc-name">無所不記</span>
-      <span class="toc-lead"></span><span class="toc-meta">什麼都有</span>
-    </a>
-  </nav>
+  <div id="library"></div>
+  <p class="lib-empty" id="lib-empty" hidden>這層書架上找不到——換個關鍵字，或按「清除」。</p>
+</div>
+
+<main class="page">
 
   <footer class="colophon reveal">
     <p class="fin">終</p>
@@ -68,6 +63,8 @@
 
 </main>
 
+<script src="posts.js"></script>
+<script src="library.js"></script>
 <script src="script.js" defer></script>
 </body>
 </html>
