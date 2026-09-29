@@ -452,3 +452,42 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   transition:opacity .2s, border-color .2s;
 }
 .to-top:hover{ opacity:1; border-color:var(--amber); }
+
+/* ---------------- 錄影機（文章頁自動捲動） ---------------- */
+.vcr{
+  position:fixed; left:50%; bottom:16px; z-index:6; transform:translateX(-50%);
+  display:flex; align-items:center; gap:4px;
+  padding:6px 8px;
+  background:linear-gradient(#2E2D32, #1A191D);
+  border:1px solid #45434B; border-radius:6px;
+  box-shadow:0 6px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.vcr-btn{
+  min-width:40px; height:32px; padding:0 8px;
+  background:linear-gradient(#3A3940, #2A292E); color:var(--ink);
+  border:1px solid #4E4C55; border-radius:3px; cursor:pointer;
+  font-size:12px; letter-spacing:-.1em; line-height:1;
+  box-shadow:0 2px 0 #111;
+  transition:transform .08s, box-shadow .08s, color .2s;
+}
+.vcr-btn:hover{ color:var(--amber); }
+.vcr-btn:active{ transform:translateY(2px); box-shadow:0 0 0 #111; }
+.vcr-play{ min-width:48px; font-size:13px; letter-spacing:0; }
+.vcr.on .vcr-play{ color:var(--amber); }
+.vcr-screen{
+  display:flex; align-items:baseline; gap:8px;
+  margin-left:4px; padding:5px 10px;
+  background:#0E0F0C; border:1px solid #2A2A26; border-radius:3px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+  color:#E3A94A; text-shadow:0 0 6px rgba(227,169,74,.55);   /* 琥珀色螢光字 */
+}
+.vcr-state{ min-width:3.6em; }
+.vcr.on .vcr-state::before{ content:"●"; color:#E0503A; text-shadow:0 0 6px rgba(224,80,58,.7); margin-right:4px; animation:blink 1s steps(2) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+.vcr-counter{ opacity:.8; }
+@media (max-width:420px){
+  .vcr{ bottom:10px; gap:3px; padding:5px 6px; }
+  .vcr-btn{ min-width:34px; }
+  .vcr-counter{ display:none; }
+}
+.subpage .work-pager{ margin-bottom:130px; }   /* 留位置給錄影機 */
