@@ -1,5 +1,5 @@
 /* ================================================================
-   隨想錄 · 共用樣式
+   思考錄 · 共用樣式（原名隨想錄）
    書架上唯一的夜之書：深夜的暗紙、檯燈的琥珀黃。
    貫穿全書的是一條彎繞的思緒虛線——思緒不走直路，
    線上那顆琥珀點，是被抓住的念頭；角落標著凌晨時刻。
@@ -148,7 +148,7 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   color:var(--gray); letter-spacing:1.2em;
   margin:2.2em 0;
 }
-.essay-sign{
+.essay-sign, .essay-body .essay-sign{
   text-align:right; text-indent:0;
   font-family:var(--mono); font-size:11px; letter-spacing:.2em;
   color:var(--amber); margin-top:2.4em;
@@ -201,3 +201,102 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   html.js .reveal{ opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; }
   html.js .reveal.in{ opacity:1; transform:none; }
 }
+
+/* ================================================================
+   書架（首頁）：一層一個分類，書本橫排，太多時左右滑
+   ================================================================ */
+.library-wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+.finder{ padding:110px 0 10px; max-width:720px; }
+.finder h2{ font-size:26px; font-weight:600; letter-spacing:.3em; margin:6px 0 28px; }
+.finder-bar{ display:flex; gap:10px; }
+.finder-bar input{
+  flex:1; min-width:0;
+  background:var(--paper-lift); color:var(--ink);
+  border:1px solid var(--line); border-radius:2px;
+  padding:10px 14px; font:inherit; font-size:15px;
+}
+.finder-bar input::placeholder{ color:var(--gray); }
+.finder-bar input:focus{ outline:none; border-color:var(--amber); }
+.finder-bar button, .chip{
+  background:none; color:var(--gray); cursor:pointer;
+  border:1px solid var(--line); border-radius:2px;
+  font-family:var(--mono); letter-spacing:.1em;
+  transition:color .2s, border-color .2s, background .2s;
+}
+.finder-bar button{ padding:0 16px; font-size:12px; }
+.finder-bar button:hover, .chip:hover{ color:var(--ink); border-color:var(--amber-faint); }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.chip{ padding:3px 10px; font-size:12px; font-family:var(--serif); letter-spacing:.06em; }
+.chip span{ font-family:var(--mono); font-size:10px; color:var(--gray); margin-left:2px; }
+.chip[aria-pressed="true"]{ color:var(--paper); background:var(--amber); border-color:var(--amber); }
+.chip[aria-pressed="true"] span{ color:var(--paper); }
+.finder-count{
+  margin-top:18px; font-family:var(--mono); font-size:11px;
+  letter-spacing:.2em; color:var(--amber);
+}
+
+.shelf{ margin-top:72px; }
+.shelf-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
+.shelf-head h3{ font-size:20px; font-weight:600; letter-spacing:.2em; }
+.shelf-count{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--amber); }
+.shelf-desc{ flex-basis:100%; font-size:13.5px; color:var(--gray); letter-spacing:.04em; }
+
+.shelf-row{
+  display:flex; gap:18px; align-items:flex-end;
+  overflow-x:auto; scroll-snap-type:x proximity;
+  padding:22px 2px 0; scrollbar-width:thin;
+}
+.shelf-board{
+  height:10px; margin-top:-1px;
+  background:linear-gradient(var(--amber-faint), #3a332a);
+  border-radius:1px;
+  box-shadow:0 8px 14px -6px rgba(0,0,0,.6);
+}
+.book{
+  flex:0 0 176px; min-height:248px; scroll-snap-align:start;
+  display:flex; flex-direction:column;
+  padding:16px 16px 14px 20px;
+  background:var(--paper-lift);
+  border:1px solid var(--line); border-bottom:none;
+  border-left:5px solid var(--amber-faint);   /* 書脊 */
+  transition:transform .25s ease, border-color .25s;
+}
+.book:hover, .book:focus-visible{ transform:translateY(-8px); border-left-color:var(--amber); }
+.book[hidden]{ display:none; }
+.book-series{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--amber); }
+.book-title{ margin-top:8px; font-size:16px; font-weight:600; line-height:1.6; letter-spacing:.04em; }
+.book-summary{
+  margin-top:8px; font-size:12.5px; line-height:1.8; color:var(--gray);
+  display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+}
+.book-tags{ margin-top:auto; padding-top:12px; font-size:11.5px; color:var(--gray); line-height:1.7; }
+.book-meta{ margin-top:4px; font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--gray); }
+.lib-empty{ margin-top:48px; color:var(--gray); font-size:14px; }
+
+@media (max-width:560px){
+  .book{ flex-basis:152px; min-height:228px; }
+}
+
+/* ================================================================
+   文章頁：頂部資訊框（仿 AO3）
+   ================================================================ */
+.work-head{ padding:64px 0 10px; }
+.work-series{ font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--amber); }
+.work-title{ font-size:clamp(24px,4.4vw,34px); font-weight:600; letter-spacing:.12em; line-height:1.5; margin:8px 0 26px; }
+.work-meta{
+  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
+  padding:16px 18px; margin-bottom:40px;
+  background:var(--paper-lift); border:1px solid var(--line);
+  font-size:14px;
+}
+.work-meta dt{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--gray); padding-top:3px; }
+.work-meta a{ color:var(--amber); }
+.work-meta a:hover{ color:var(--ink); }
+.work-meta .tag{ margin-right:8px; }
+.work-pager{
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  margin:120px 0 90px; font-size:13px;
+}
+.work-pager a{ color:var(--amber); transition:color .25s; }
+.work-pager a:hover{ color:var(--ink); }
+.work-pager a:last-child{ text-align:right; }
