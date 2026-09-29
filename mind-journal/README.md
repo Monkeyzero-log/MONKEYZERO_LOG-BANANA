@@ -14,6 +14,7 @@
 ## 新增一篇
 
 **原稿是 Markdown 時**：`python3 mind-journal/tools/md2piece.py mind-journal/drafts/原稿.md 文章代號`，再到 `posts.js` 加一段書目即可。
+原稿是「一行一句、段落間不空行」時加 `--lines`：每行各自成段，`【…】` 變大標題，`⬛` 變小標題，`EXAMPLE.1放置處` 換成 `drafts/EXAMPLE1.jpg`。
 
 **手動時**：
 
