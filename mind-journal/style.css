@@ -491,3 +491,12 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   .vcr-counter{ display:none; }
 }
 .subpage .work-pager{ margin-bottom:130px; }   /* 留位置給錄影機 */
+
+/* 長文插圖 */
+.md-fig{ margin:1.8em 0 2em; text-indent:0; }
+.md-fig a{ display:block; background:#F4F1EA; padding:8px; border-radius:2px; box-shadow:0 4px 14px rgba(0,0,0,.45); }
+.md-fig img{ display:block; width:100%; height:auto; }
+.md-fig figcaption{
+  margin-top:10px; text-align:center;
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--gray);
+}
