@@ -186,3 +186,78 @@
   var c = document.querySelector('.chip[data-tag="' + t.replace(/"/g, '') + '"]');
   if (c) { c.click(); document.getElementById('finder').scrollIntoView(); }
 })();
+
+/* ---------------- 文章頁：錄影機式自動捲動 ----------------
+   ▶/❚❚ 播放暫停，◀◀ ▶▶ 調速；讀者自己滑動時自動暫停，到底自動停 */
+(function () {
+  if (!document.body.getAttribute('data-id')) return;
+  var SPEEDS = [0.5, 1, 1.5, 2, 3, 4, 6];
+  var BASE = 45;                                  /* ×1 時每秒捲 45px */
+  var level = 1, playing = false, last = 0, carry = 0;
+
+  var vcr = document.createElement('div');
+  vcr.className = 'vcr';
+  vcr.setAttribute('role', 'group');
+  vcr.setAttribute('aria-label', '自動捲動');
+  vcr.innerHTML =
+    '<button type="button" class="vcr-btn" data-act="slow" aria-label="放慢">◀\uFE0E◀\uFE0E</button>' +
+    '<button type="button" class="vcr-btn vcr-play" data-act="play" aria-label="播放">▶\uFE0E</button>' +
+    '<button type="button" class="vcr-btn" data-act="fast" aria-label="加快">▶\uFE0E▶\uFE0E</button>' +
+    '<span class="vcr-screen" aria-live="polite"><span class="vcr-state">STOP</span><span class="vcr-speed">×1</span><span class="vcr-counter">0000</span></span>';
+  document.body.appendChild(vcr);
+  var playBtn = vcr.querySelector('.vcr-play');
+  var stateEl = vcr.querySelector('.vcr-state');
+  var speedEl = vcr.querySelector('.vcr-speed');
+  var counterEl = vcr.querySelector('.vcr-counter');
+
+  function maxY() { return document.documentElement.scrollHeight - window.innerHeight; }
+  function paint() {
+    playBtn.textContent = playing ? '❚❚' : '▶\uFE0E';   /* \uFE0E：iPhone 上別變成彩色 emoji */
+    playBtn.setAttribute('aria-label', playing ? '暫停' : '播放');
+    stateEl.textContent = playing ? 'PLAY' : (window.scrollY > 0 ? 'PAUSE' : 'STOP');
+    speedEl.textContent = '×' + SPEEDS[level];
+    vcr.classList.toggle('on', playing);
+  }
+  function counter() {
+    var m = maxY(), pct = m > 0 ? Math.round(window.scrollY / m * 1000) : 0;
+    counterEl.textContent = ('000' + Math.min(pct, 1000)).slice(-4);   /* 讀到千分之幾，像錄影機的帶計數 */
+  }
+  function tick(t) {
+    if (!playing) return;
+    if (last) {
+      carry += BASE * SPEEDS[level] * Math.min(t - last, 100) / 1000;
+      var step = Math.floor(carry);
+      if (step >= 1) {
+        carry -= step;
+        window.scrollTo({ top: window.scrollY + step, behavior: 'instant' });   /* 避開全頁的 smooth 設定 */
+      }
+      if (window.scrollY >= maxY() - 1) { stop(); return; }
+    }
+    last = t;
+    requestAnimationFrame(tick);
+  }
+  function play() {
+    if (window.scrollY >= maxY() - 1) window.scrollTo({ top: 0, behavior: 'instant' });   /* 已在文末就從頭播 */
+    playing = true; last = 0; carry = 0; paint();
+    requestAnimationFrame(tick);
+  }
+  function stop() { playing = false; paint(); }
+
+  vcr.addEventListener('click', function (e) {
+    var b = e.target.closest('.vcr-btn'); if (!b) return;
+    var act = b.dataset.act;
+    if (act === 'play') { playing ? stop() : play(); }
+    if (act === 'slow') { level = Math.max(0, level - 1); paint(); }
+    if (act === 'fast') { level = Math.min(SPEEDS.length - 1, level + 1); paint(); }
+  });
+  /* 讀者自己動手滑，就讓位 */
+  ['wheel', 'touchstart', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, function (e) {
+      if (!playing || (e.target.closest && e.target.closest('.vcr'))) return;
+      if (ev === 'keydown' && ['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].indexOf(e.key) < 0) return;
+      stop();
+    }, { passive: true });
+  });
+  window.addEventListener('scroll', function () { counter(); if (!playing) paint(); }, { passive: true });
+  paint(); counter();
+})();
