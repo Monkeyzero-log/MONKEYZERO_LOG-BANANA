@@ -307,6 +307,66 @@
     text-align:justify;
   }
 
+
+  /* ============ 互相侵略：猴子塗鴉（藍原子筆）／猩猩校對（朱筆） ============ */
+  .hit{position:relative;white-space:nowrap}
+  .scrawl{position:absolute;pointer-events:none;z-index:3}
+  .scrawl path{fill:none;stroke:var(--ballpoint);stroke-width:2.4;stroke-linecap:round;
+    stroke-dasharray:600;stroke-dashoffset:0;vector-effect:non-scaling-stroke}
+  .scrawl.ring{left:-10px;right:-12px;top:-9px;bottom:-9px;width:calc(100% + 22px);height:calc(100% + 18px)}
+  .scrawl.under{left:-2px;right:-4px;bottom:-9px;width:calc(100% + 6px);height:12px}
+  .scrawl.note{
+    font-family:'LXGW WenKai TC','Kaiti TC',cursive;font-weight:700;
+    font-size:14.5px;line-height:1.2;color:var(--ballpoint);
+    white-space:nowrap;text-shadow:0 0 4px var(--paper-formal),0 0 4px var(--paper-formal);
+  }
+  .g-bio{position:relative}
+  /* 旁註寫在稿紙兩側的空白邊上（電腦版） */
+  .margin-l,.margin-r{top:.2em;line-height:1.35;font-size:14px}
+  .margin-l{right:calc(100% + 16px);text-align:right;transform:rotate(-6deg)}
+  .margin-r{left:calc(100% + 16px);top:-.2em;transform:rotate(4deg)}
+  .arw{font-style:normal}
+  .note--caret{left:50%;top:-1.5em;transform:translateX(-50%) rotate(-4deg);letter-spacing:.05em;text-indent:0}
+  .note--caret b{display:block;text-align:center;font-size:12px;line-height:.6;margin-bottom:-2px;transform:translateY(1.25em)}
+
+  .proof{position:absolute;pointer-events:none;z-index:3}
+  .proof-strike{left:-2px;right:-2px;top:50%;height:5px;transform:translateY(-50%) rotate(-2deg);
+    border-top:1.2px solid var(--seal);border-bottom:1.2px solid var(--seal)}
+  .proof-circle{left:-4px;right:-5px;top:-3px;bottom:-3px;border:1.2px solid var(--seal);border-radius:50%}
+  .proof-note{
+    font-family:'Noto Serif TC',serif;font-weight:600;
+    font-size:11.5px;letter-spacing:.08em;color:var(--seal);white-space:nowrap;
+    left:100%;top:-1.2em;margin-left:6px;
+    padding:0 4px;border-left:1.2px solid var(--seal);
+  }
+  .proof-note--side{left:100%;top:50%;transform:translateY(-50%);margin-left:12px}
+  .proof-del .proof-note::before{content:"";position:absolute;left:-10px;top:100%;width:10px;border-top:1.2px solid var(--seal);transform:rotate(-35deg);transform-origin:right}
+
+  /* 有滑鼠的裝置：平常藏起來，看那一頁時，對方的「罪證」才一筆一筆浮現 */
+  @media (hover:hover) and (min-width:861px){
+    .scrawl,.proof{opacity:0;transition:opacity .25s ease}
+    .scrawl path{stroke-dashoffset:600;transition:stroke-dashoffset .9s ease .1s}
+    .gorilla:hover .scrawl,.monkey:hover .proof{opacity:1}
+    .gorilla:hover .scrawl path{stroke-dashoffset:0}
+    .gorilla:hover .note{transition-delay:.45s}
+  }
+
+  /* ============ 猩猩那半邊的質感：稿紙格、版心雙線、裝飾、頁碼、印泥 ============ */
+  .gorilla{
+    background:
+      linear-gradient(90deg,transparent 14px,rgba(176,46,28,.22) 14px 15px,transparent 15px 18px,rgba(176,46,28,.22) 18px 19px,transparent 19px),
+      linear-gradient(270deg,transparent 14px,rgba(176,46,28,.22) 14px 15px,transparent 15px 18px,rgba(176,46,28,.22) 18px 19px,transparent 19px),
+      repeating-linear-gradient(90deg,transparent 0 23px,rgba(27,27,30,.028) 23px 24px),
+      repeating-linear-gradient(180deg,transparent 0 23px,rgba(27,27,30,.028) 23px 24px),
+      var(--paper-formal);
+    background-attachment:local;
+  }
+  .g-orn{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;color:var(--seal);font-size:11px;opacity:.75}
+  .g-orn span{width:46px;border-top:1px solid var(--hairline)}
+  .g-folio{text-align:center;margin-top:34px;font-family:'EB Garamond',serif;font-size:13px;letter-spacing:.4em;color:var(--ink-soft)}
+  .seal{filter:url(#ink);transition:transform .18s ease,box-shadow .18s ease}
+  .g-sign:hover .seal{transform:rotate(1.6deg) scale(.9);box-shadow:inset 0 0 0 2px rgba(245,244,239,.55),inset 0 0 20px rgba(80,10,0,.65)}
+
   /* ============ 越界的塗鴉箭頭（簽名元素） ============ */
   .cross-note{
     position:absolute;
@@ -358,6 +418,9 @@
     footer{position:static;transform:none;border-radius:0;pointer-events:auto;padding:16px;opacity:1}
     .monkey{border-right:0;border-bottom:3px solid var(--ink);padding-bottom:130px}
     .cross-note--wide{display:none}
+    .margin-l,.margin-r{position:static;display:inline;transform:none;font-size:13px;margin:0 3px;text-shadow:none}
+    .margin-l br,.margin-r br,.arw{display:none}
+    .margin-l{text-align:left}
     .cross-note--stack{
       display:block;position:absolute;
       top:auto;left:32px;bottom:20px;transform:none;
@@ -483,7 +546,7 @@
 
     <p class="m-bio">
       已從「泥巴樹枝派」進化，<br>
-      學會敲打數位板畫圖了！嗚嘎！<br>
+      學會敲打數位板畫圖了！<span class="hit proof-del">嗚嘎！<span class="proof proof-strike" aria-hidden="true"></span><span class="proof proof-note" aria-hidden="true">擬聲詞，刪。</span></span><br>
       比起畫師，更像是興趣使然的畫圖猴。
       <svg class="banana b-one" viewBox="0 0 48 48" aria-hidden="true">
         <path d="M34,6 C16,10 6,26 10,40 C10.7,42.6 13.6,43 15,40.6 C19,29 25,18 37,11 C39.6,9.4 37,5.4 34,6 Z"
@@ -504,7 +567,7 @@
     <nav class="m-links" aria-label="猴零士的連結">
       <a class="sticker tilt-l" href="art-journal/">
         <span class="site">習作輯</span>
-        <span class="note">上課和練習全記在這本!!</span>
+        <span class="note">上課和練習全記在這本<span class="hit">!!<span class="proof proof-circle" aria-hidden="true"></span><span class="proof proof-note proof-note--side" aria-hidden="true">驚嘆號限用一個。</span></span></span>
         <span class="go" aria-hidden="true">GO→</span>
       </a>
       <a class="sticker tilt-r" href="lang-journal/">
@@ -515,11 +578,6 @@
       <a class="sticker tilt-l" href="https://www.pixiv.net/users/92345485" target="_blank" rel="noopener">
         <span class="site">pixiv</span>
         <span class="note">圖都堆在這!!</span>
-        <span class="go" aria-hidden="true">GO→</span>
-      </a>
-      <a class="sticker tilt-r" href="https://github.com/Monkeyzero-log" target="_blank" rel="noopener">
-        <span class="site">github</span>
-        <span class="note">亂七八糟的倉庫（進來要小心）</span>
         <span class="go" aria-hidden="true">GO→</span>
       </a>
     </nav>
@@ -576,7 +634,8 @@
     <header class="g-head">
       <p class="g-latin">Gorilla One &middot; Letters &amp; Fiction</p>
       <h1 class="g-name">猩其一</h1>
-      <p class="g-sub">文 字 創 作 者</p>
+      <p class="g-sub"><span class="hit">文 字 創 作 者<span class="scrawl note note--caret" aria-hidden="true"><b>∧</b>大概?</span></span></p>
+      <p class="g-orn" aria-hidden="true"><span></span>❖<span></span></p>
     </header>
 
     <!-- 幾何猩猩紋章：西裝＋眼鏡＋厚實肩膀 -->
@@ -650,16 +709,14 @@
     <section class="g-section">
       <p class="g-label"><b>壹</b> 簡介</p>
       <p class="g-bio">
-        猩其一，文字創作者。立志正正經經地寫搞笑文，惟每每下筆，
-        總不自覺趨於嚴肅，屢經檢討，迄未改善。
+        猩其一，大概、可能、或許是文字創作者，左邊的猴子扔掉畫筆、拿起鍵盤後
+        <span class="hit">披上的正經猩猩皮<svg class="scrawl ring" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><path d="M12,22 C10,8 70,3 120,5 C170,7 196,12 192,24 C188,36 120,38 70,36 C30,34 6,30 14,17 C18,11 30,8 40,7"/></svg></span><span class="scrawl note margin-l" aria-hidden="true">皮底下<br>是我啦!!<i class="arw"> →</i></span>，
+        每當意圖正正經經地寫搞笑文，惟每每下筆，總不自覺趨於嚴肅，屢經檢討，迄未改善。
       </p>
       <p class="g-bio">
-        非以作家自居，唯興趣使然耳。作品悉數存檔於
-        Archive&nbsp;of&nbsp;Our&nbsp;Own。
-      </p>
-      <p class="g-bio">
-        又，部分限制級（NSFW）之作，皆係隔壁那隻色猴腦中所構思，
-        與本猩無關；純屬受同居之靈長生物所迫，代為執筆而已。
+        部分限制級（NSFW）之作，皆為隔壁那隻色猴腦中所構思，
+        <span class="hit">與本猩猩無關<svg class="scrawl under" viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4,8 C50,14 100,4 150,10 C170,12 185,8 196,6 M10,16 C60,18 120,12 190,15"/></svg></span><span class="scrawl note margin-r" aria-hidden="true"><i class="arw">← </i>騙人!!<br>明明寫得很開心</span>；
+        純屬受同一大腦同居之靈長生物所迫，代為執筆而已。
       </p>
     </section>
 
@@ -669,11 +726,6 @@
         <a class="g-row" href="word-journal/">
           <span class="zh">文集</span>
           <span class="en">Word Journal</span>
-          <span class="arrow" aria-hidden="true">&#8599;</span>
-        </a>
-        <a class="g-row" href="textual-physics/">
-          <span class="zh">文字物理學</span>
-          <span class="en">Textual Physics</span>
           <span class="arrow" aria-hidden="true">&#8599;</span>
         </a>
         <a class="g-row" href="lang-journal/">
@@ -691,17 +743,13 @@
           <span class="en">Archive of Our Own</span>
           <span class="arrow" aria-hidden="true">&#8599;</span>
         </a>
-        <a class="g-row" href="https://github.com/Monkeyzero-log" target="_blank" rel="noopener">
-          <span class="zh">原始碼庫</span>
-          <span class="en">GitHub</span>
-          <span class="arrow" aria-hidden="true">&#8599;</span>
-        </a>
       </nav>
     </section>
 
     <div class="g-sign">
       <span class="name">猩其一　謹識</span>
       <span class="seal" aria-label="印章：猩壹">猩<br>壹</span>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="ink"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter></svg>
     </div>
 
     <section class="g-section">
@@ -711,6 +759,7 @@
         均係猴零士擅自所為，與本猩無涉，特此聲明。
       </p>
     </section>
+    <p class="g-folio" aria-hidden="true">— 壹 —</p>
   </section>
 
   <!-- 越界塗鴉箭頭（桌面版） -->
