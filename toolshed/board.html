@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>硬核繪畫白板 — 工具間</title>
+<!--
+  ================================================================
+  專案說明書：硬核繪畫白板（暫名）
+  藍色虛線框 class="draft" 是待補的地方，寫好後整個框換成 <p>…</p> 即可。
+  功能清單：一項一個 <li>；換版本就是換一個 <section class="drawer">。
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="manual">
+
+  <nav class="crumbs"><a href="index.html">← 工具間</a></nav>
+
+  <!-- ============ 封面 ============ -->
+  <header class="cover">
+    <span class="cover-doodle" aria-hidden="true">AI 幫忙敲的!!</span>
+    <p class="cover-kind">PROJECT 01 · 使用說明書</p>
+    <h1>硬核繪畫白板<small>（暫名）</small></h1>
+    <p class="cover-lead">
+      繪畫專用的白板＋Eagle 式的靈感收集。<br>
+      但它不是拿來囤圖的——是拿來把圖<b>看懂、拆開、練回自己手上</b>的繪畫庫。
+    </p>
+    <p class="cover-meta">
+      <span>形式 <b>桌面程式</b></span>
+      <span>開發 <b>猴零士 × AI</b></span>
+      <span>進度 <b>準備中（F00 資料格式規劃）</b></span>
+    </p>
+  </header>
+
+  <!-- ============ 01 這是什麼 ============ -->
+  <section class="sec">
+    <div class="sec-head"><span class="sec-no">01</span><h2>為什麼要做</h2></div>
+    <p>
+      以往的靈感庫，收的是「好看的圖」；收完之後，圖還是別人的。
+      這個工具想收的是「看懂一張圖的過程」：顏色怎麼配、明暗怎麼分、構圖怎麼切、
+      一個物件從各個角度長什麼樣子——然後把這些拆下來的東西，變成自己能反覆練習的零件。
+    </p>
+    <div class="draft">
+      猴子待補：當初是什麼時候、因為什麼卡住才想做這個？用 Eagle／PureRef 時最不夠用的是哪一步？
+    </div>
+  </section>
+
+  <!-- ============ 02 對照 ============ -->
+  <section class="sec">
+    <div class="sec-head"><span class="sec-no">02</span><h2>跟一般靈感庫哪裡不一樣</h2></div>
+    <div class="versus">
+      <div class="vs-col vs-col--old">
+        <h3>一般靈感庫</h3>
+        <ul>
+          <li>收圖、貼標籤</li>
+          <li>白板上排排看</li>
+          <li>需要時翻出來參考</li>
+        </ul>
+      </div>
+      <p class="vs-mid" aria-hidden="true">vs</p>
+      <div class="vs-col vs-col--new">
+        <h3>硬核繪畫白板</h3>
+        <ul>
+          <li>直接在圖上取色、轉灰階、疊構圖線</li>
+          <li>把圖切成「零件」，按角度排進角度表</li>
+          <li>用零件拼姿勢草稿，扭過頭會提醒</li>
+          <li>默寫、計時速寫、估色小考，練完留紀錄</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 零件清單 ============ -->
+  <section class="sec">
+    <div class="sec-head"><span class="sec-no">03</span><h2>零件清單（功能總覽）</h2></div>
+    <p>依編號順序開發，一次一項。看圖工具最便宜、最常用，所以先做；接著是零件系統，再來是練習與紀錄工具。</p>
+
+    <section class="drawer">
+      <div class="drawer-head"><span class="ver">準備</span><h3>地基</h3><span class="why">先把資料的樣子想清楚，不做任何功能</span></div>
+      <ul class="parts">
+        <li><span class="part-no">F00</span><span class="part-name">資料格式規劃</span><span class="part-desc">一次規劃好所有未來欄位與舊資料轉換</span></li>
+      </ul>
+    </section>
+
+    <section class="drawer">
+      <div class="drawer-head"><span class="ver">第二版</span><h3>看圖工具</h3><span class="why">最便宜、最常用，先做</span></div>
+      <ul class="parts">
+        <li><span class="part-no">F01</span><span class="part-name">滴管與 HSB 數值</span><span class="part-desc">從圖上取色，顯示 HSB 和灰階明度，可存成色票卡</span></li>
+        <li><span class="part-no">F02</span><span class="part-name">檢查模式</span><span class="part-desc">單張或整板一鍵切換灰階、色調分離、臨界值、模糊、翻轉</span></li>
+        <li><span class="part-no">F03</span><span class="part-name">主色與面積比例</span><span class="part-desc">抽出主要顏色和各自佔的比例，畫成長條和方格圖</span></li>
+        <li><span class="part-no">F04</span><span class="part-name">構圖格線</span><span class="part-desc">在圖上疊三分法、對角線、黃金比例等輔助線</span></li>
+        <li><span class="part-no">F05</span><span class="part-name">AB 對照</span><span class="part-desc">兩張圖並排同步、疊圖、分割線比較，可存成對照卡</span></li>
+        <li><span class="part-no">F06</span><span class="part-name">分析圖層</span><span class="part-desc">在圖上畫趨勢線、透視線、圈和箭頭，可一鍵開關</span></li>
+        <li><span class="part-no">F07</span><span class="part-name">文字筆記卡</span><span class="part-desc">在白板上寫 Markdown 筆記</span></li>
+        <li><span class="part-no">F08</span><span class="part-name">從瀏覽器拖曳</span><span class="part-desc">從瀏覽器直接把圖拖進白板</span></li>
+      </ul>
+    </section>
+
+    <section class="drawer">
+      <div class="drawer-head"><span class="ver">第三版</span><h3>零件系統</h3><span class="why">把圖拆成零件，按角度收好，再拼回去</span></div>
+      <ul class="parts">
+        <li><span class="part-no">F09</span><span class="part-name">切片</span><span class="part-desc">從圖上框出一塊，變成獨立卡片，不複製檔案</span></li>
+        <li><span class="part-no">F10</span><span class="part-name">零件庫</span><span class="part-desc">以物件為單位，收藏自己畫的三視圖、各角度、每一輪</span></li>
+        <li><span class="part-no">F11</span><span class="part-name">角度表</span><span class="part-desc">用格子顯示零件，看出空格，提示相鄰格</span></li>
+        <li><span class="part-no">F12</span><span class="part-name">格子自動切</span><span class="part-desc">把整張角度練習圖對齊格框，自動切成零件並填好角度</span></li>
+        <li><span class="part-no">F13</span><span class="part-name">節點圖層</span><span class="part-desc">同一格疊盒子層、結構層、細節層，可分別開關</span></li>
+        <li><span class="part-no">F14</span><span class="part-name">拼貼板</span><span class="part-desc">挑頭、胸腔、骨盆、腳的零件組成姿勢草稿，扭過頭會提醒</span></li>
+      </ul>
+    </section>
+
+    <section class="drawer">
+      <div class="drawer-head"><span class="ver">第四版</span><h3>練習與紀錄</h3><span class="why">邊畫邊用，練完留下痕跡</span></div>
+      <ul class="parts">
+        <li><span class="part-no">F15</span><span class="part-name">置頂半透明與滑鼠穿透</span><span class="part-desc">視窗置頂、半透明，點擊可穿過去到 CSP</span></li>
+        <li><span class="part-no">F16</span><span class="part-name">默寫模式</span><span class="part-desc">看幾秒後遮住，畫完再揭曉並對照</span></li>
+        <li><span class="part-no">F17</span><span class="part-name">計時速寫</span><span class="part-desc">從指定範圍隨機抽圖，定時自動換下一張</span></li>
+        <li><span class="part-no">F18</span><span class="part-name">估色小考</span><span class="part-desc">在圖上取一點，猜 HSB 數值，記錄誤差</span></li>
+        <li><span class="part-no">F19</span><span class="part-name">卡片箭頭</span><span class="part-desc">卡片之間拉箭頭，整理成學習地圖</span></li>
+        <li><span class="part-no">F20</span><span class="part-name">檢查清單卡</span><span class="part-desc">從模板產生可勾選的清單，跟著圖存</span></li>
+        <li><span class="part-no">F21</span><span class="part-name">學習時間軸</span><span class="part-desc">自己的圖依日期排列，附問題與下一步</span></li>
+      </ul>
+    </section>
+
+    <section class="drawer drawer--hold">
+      <div class="drawer-head"><span class="ver">暫緩</span><h3>之後再說</h3><span class="why">只記錄構想</span></div>
+      <ul class="parts">
+        <li><span class="part-no">F22</span><span class="part-name">加工場</span><span class="part-desc">一輪角度練習的工作區</span></li>
+      </ul>
+    </section>
+  </section>
+
+  <!-- ============ 04 怎麼做的 ============ -->
+  <section class="sec">
+    <div class="sec-head"><span class="sec-no">04</span><h2>怎麼做的</h2></div>
+    <p>不會寫程式的猴子，負責想清楚「要什麼」和「哪裡不對」；程式由 AI 一起寫。照零件清單的編號，一次只做一項，做完能用才開下一項。</p>
+    <div class="draft">
+      猴子待補：用了哪些 AI 工具、做成什麼樣的程式（例如 Electron／網頁版）、之後會不會開放下載？
+    </div>
+  </section>
+
+  <p class="foot-note">做好一項就回來更新說明書!!</p>
+
+  <nav class="pager"><a href="index.html">← 工具間</a><a href="../">作者頁 →</a></nav>
+
+</main>
+</body>
+</html>
