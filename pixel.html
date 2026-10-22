@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="猴零士（繪圖）× 猩其一（寫作）的像素版作者頁。兩隻靈長類，一顆大腦，同居中。">
+<title>猴零士 × 猩其一 — PIXEL EDITION</title>
+<!--
+  ================================================================
+  像素版作者頁
+  - 角色與圖示：pixel/sprites.js（一格一格的字元，可直接改）
+  - 樣式：pixel/pixel.css　互動與彩蛋：pixel/game.js
+  - 對話台詞在 game.js 最上面的 SCRIPTS，改字最方便
+  ================================================================
+-->
+<link rel="preload" href="pixel/fonts/Cubic_11.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="pixel/pixel.css">
+</head>
+<body>
+
+<!-- ============ HUD ============ -->
+<header class="hud" aria-label="計分列">
+  <div class="hud-side p1"><span class="p">1P</span><span class="name">猴零士</span><span class="hearts" data-hearts></span></div>
+  <div class="hud-mid">
+    <span class="hud-item" title="香蕉"><canvas data-sprite="banana" aria-hidden="true"></canvas>×<span id="banana-count">00</span></span>
+    <span class="hud-item hi">HI-SCORE 002026</span>
+    <button id="trophy-btn" type="button" aria-label="成就"><span aria-hidden="true">★</span><span id="ach-count">0/6</span></button>
+  </div>
+  <div class="hud-side p2"><span class="hearts" data-hearts></span><span class="name">猩其一</span><span class="p">2P</span></div>
+</header>
+
+<main id="screen">
+
+<!-- ============ 1 標題畫面 ============ -->
+<section class="title" id="top">
+  <div class="cloud" style="top:12%;animation-duration:46s;animation-delay:-8s"><canvas data-sprite="cloud" aria-hidden="true"></canvas></div>
+  <div class="cloud" style="top:30%;width:110px;animation-duration:64s;animation-delay:-40s"><canvas data-sprite="cloud" aria-hidden="true"></canvas></div>
+  <div class="cloud" style="top:6%;width:80px;animation-duration:80s;animation-delay:-20s"><canvas data-sprite="cloud" aria-hidden="true"></canvas></div>
+
+  <p class="title-kicker">MONKEYZERO LOG · BANANA</p>
+  <h1>猴零士<span class="x">×</span>猩其一</h1>
+  <p class="title-en outline">MONKEY ZERO × GORILLA ONE</p>
+  <p class="title-tag">兩隻靈長類，一顆大腦，同居中。</p>
+  <button class="btn press" id="press-start" type="button"><span class="tri blink" aria-hidden="true"></span>PRESS START</button>
+
+  <div class="ground" aria-hidden="true"></div>
+  <div class="stage-chars">
+    <button class="char bob" id="t-monkey-btn" type="button" aria-label="戳猴零士（會掉香蕉）">
+      <canvas id="t-monkey" data-sprite="monkey_awake"></canvas>
+      <span class="bubble" id="m-bubble" hidden></span>
+      <span class="hint">戳我掉香蕉</span>
+    </button>
+    <button class="char" id="t-gorilla-btn" type="button" aria-label="戳猩其一（叫醒他）">
+      <canvas id="t-gorilla" data-sprite="gorilla_sleep"></canvas>
+      <canvas class="desk" data-sprite="desk" aria-hidden="true"></canvas>
+      <span class="zzz" id="zzz" aria-hidden="true"><i>z</i><i>z</i><i>Z</i></span>
+      <span class="bubble" id="g-bubble" hidden></span>
+      <span class="hint">他在睡覺</span>
+    </button>
+  </div>
+</section>
+
+<!-- ============ 2 選擇角色 ============ -->
+<section class="sec select" id="select">
+  <div class="sec-title">
+    <p class="en">SELECT YOUR PRIMATE</p>
+    <h2>選擇你的靈長類</h2>
+    <p>兩隻共用一顆大腦，選哪隻其實都一樣。</p>
+  </div>
+
+  <div class="versus" id="versus">
+    <div class="card-wrap shadow" data-who="m">
+      <article class="win card p1">
+        <div class="card-top">
+          <canvas data-sprite="monkey_awake" role="img" aria-label="猴零士的像素圖"></canvas>
+          <div>
+            <p class="tag">1P · 畫圖的!!</p>
+            <h3>猴零士</h3>
+            <p class="en">MONKEY ZERO</p>
+            <p class="job">職業：畫圖猴　LV.26</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>畫技</span><span class="bar" data-v="6" style="--c:var(--lime)"></span></div>
+          <div class="stat"><span>專注力</span><span class="bar" data-v="2" style="--c:var(--orange)"></span><span class="note">香蕉一出現就歸零</span></div>
+          <div class="stat"><span>正經度</span><span class="bar" data-v="1" style="--c:var(--blue)"></span></div>
+          <div class="stat"><span>搞怪度</span><span class="bar" data-v="10" style="--c:var(--pink)"></span></div>
+        </div>
+        <p class="moves"><b>必殺技</b>　泥巴樹枝・數位板進化<br><b>弱點</b>　　星期一、香蕉、截稿日</p>
+        <button class="btn pick" type="button" data-pick="m"><span class="tri" aria-hidden="true"></span>選這隻</button>
+      </article>
+    </div>
+
+    <button class="vs outline" id="vs" type="button" aria-label="VS">VS</button>
+
+    <div class="card-wrap shadow" data-who="g">
+      <article class="win card p2">
+        <div class="card-top">
+          <canvas data-sprite="gorilla_sleep" role="img" aria-label="猩其一的像素圖"></canvas>
+          <div>
+            <p class="tag">2P · 大概是寫字的</p>
+            <h3>猩其一</h3>
+            <p class="en">GORILLA ONE</p>
+            <p class="job">職業：文字猩　LV.26</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>文筆</span><span class="bar" data-v="8" style="--c:var(--lime)"></span></div>
+          <div class="stat"><span>正經度</span><span class="bar" data-v="10" style="--c:var(--blue)"></span></div>
+          <div class="stat"><span>搞笑度</span><span class="bar" data-v="1" style="--c:var(--orange)"></span><span class="note">明明是想寫搞笑文的</span></div>
+          <div class="stat"><span>限制級</span><span class="bar glitch" data-v="10"></span><span class="note">？？？（由 1P 代為構思）</span></div>
+        </div>
+        <p class="moves"><b>必殺技</b>　闔目構思（＝睡著）<br><b>弱點</b>　　被說在睡覺、驚嘆號</p>
+        <button class="btn pick" type="button" data-pick="g"><span class="tri" aria-hidden="true"></span>選這隻</button>
+      </article>
+    </div>
+  </div>
+
+  <div class="dialog-wrap shadow">
+    <div class="win dialog" id="dialog" role="button" tabindex="0" aria-live="polite" aria-label="對話框，點一下看下一句">
+      <div class="face"><canvas id="d-face" data-sprite="banana" aria-hidden="true"></canvas></div>
+      <div>
+        <p class="who sys" id="d-who">SYSTEM</p>
+        <p class="line" id="d-line">請選擇一隻靈長類。</p>
+      </div>
+      <span class="next blink" id="d-next" hidden><span class="tri down" aria-hidden="true"></span></span>
+    </div>
+  </div>
+  <div class="dialog-tools" style="max-width:1060px;margin:12px auto 0">
+    <button type="button" id="d-skip">SKIP ≫</button>
+  </div>
+</section>
+
+<!-- ============ 3 選關 ============ -->
+<section class="sec stages" id="stages">
+  <div class="sec-title">
+    <p class="en">STAGE SELECT</p>
+    <h2>選擇關卡</h2>
+    <p>每一關都是一本冊子。沒有魔王，只有截稿日。</p>
+  </div>
+
+  <div class="worlds">
+    <div class="world w1">
+      <h3>WORLD 1 · 猴零士</h3>
+      <div class="path">
+        <a class="stage" href="art-journal/">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="badge clear">KK速寫 CLEAR!</span>
+          <span class="stage-head"><canvas data-sprite="i_sketch" aria-hidden="true"></canvas><span><span class="no">STAGE 1-1</span><br><span class="name">習作輯</span></span></span>
+          <p class="desc">上課和練習全記在這本!!</p>
+        </a>
+        <a class="stage" href="toolshed/">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="badge new">NEW!</span>
+          <span class="stage-head"><canvas data-sprite="i_tool" aria-hidden="true"></canvas><span><span class="no">STAGE 1-2</span><br><span class="name">工具間</span></span></span>
+          <p class="desc">跟 AI 一起敲的畫圖工具!!</p>
+        </a>
+        <a class="stage" href="https://www.pixiv.net/users/92345485" target="_blank" rel="noopener">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="badge ext">BONUS 外連</span>
+          <span class="stage-head"><canvas data-sprite="i_pixiv" aria-hidden="true"></canvas><span><span class="no">BONUS STAGE</span><br><span class="name">pixiv</span></span></span>
+          <p class="desc">圖都堆在這!!</p>
+        </a>
+      </div>
+    </div>
+
+    <div class="world coop">
+      <h3>CO-OP · 兩人同玩</h3>
+      <div class="path">
+        <a class="stage" href="lang-journal/">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="badge">2P PLAY</span>
+          <span class="stage-head"><canvas data-sprite="i_lang" aria-hidden="true"></canvas><span><span class="no">STAGE ★</span><br><span class="name">學語誌</span></span></span>
+          <p class="desc">兩隻一起從零開始學語言。誰先放棄誰請香蕉。</p>
+        </a>
+      </div>
+    </div>
+
+    <div class="world w2">
+      <h3>WORLD 2 · 猩其一</h3>
+      <div class="path">
+        <a class="stage" href="word-journal/">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="stage-head"><canvas data-sprite="i_scroll" aria-hidden="true"></canvas><span><span class="no">STAGE 2-1</span><br><span class="name">文集</span></span></span>
+          <p class="desc">原創、同人與文字研究。想寫搞笑，寫成嚴肅。</p>
+        </a>
+        <a class="stage" href="mind-journal/">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="stage-head"><canvas data-sprite="i_shelf" aria-hidden="true"></canvas><span><span class="no">STAGE 2-2</span><br><span class="name">思考錄</span></span></span>
+          <p class="desc">一整座木頭書櫃的思考文章。（猴：馬桶上想的）</p>
+        </a>
+        <a class="stage" href="https://archiveofourown.org/users/GorillaOne" target="_blank" rel="noopener">
+          <span class="cursor" aria-hidden="true"><span class="tri"></span></span>
+          <span class="badge ext">BONUS 外連</span>
+          <span class="stage-head"><canvas data-sprite="i_ao3" aria-hidden="true"></canvas><span><span class="no">BONUS STAGE</span><br><span class="name">作品存檔 AO3</span></span></span>
+          <p class="desc">作品都存在這。含隔壁那隻色猴構思之作。</p>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 工作人員名單 ============ -->
+<section class="sec credits" id="credits">
+  <div class="sec-title">
+    <p class="en">STAFF ROLL</p>
+    <h2>工作人員</h2>
+  </div>
+  <dl class="roll">
+    <div><dt>企劃</dt><dd class="dots">……</dd><dd>同一顆大腦</dd></div>
+    <div><dt>畫面・塗鴉</dt><dd class="dots">……</dd><dd>猴零士</dd></div>
+    <div><dt>文字・訂正</dt><dd class="dots">……</dd><dd>猩其一</dd></div>
+    <div><dt>錯字</dt><dd class="dots">……</dd><dd>猴零士</dd><p class="aside">猩其一：已逐一圈出，迄未改善。</p></div>
+    <div><dt>一格一格點像素</dt><dd class="dots">……</dd><dd>猴零士</dd><p class="aside">猩其一：是 AI 點的。</p></div>
+    <div><dt>香蕉贊助</dt><dd class="dots">……</dd><dd>你（如果有的話）</dd></div>
+  </dl>
+  <div class="decl win shadow">
+    <p>※ 本頁所有香蕉、星星、越界的箭頭、以及「LV.26」等能力值，均係猴零士擅自所為，與本猩無涉，特此聲明。</p>
+    <div class="sign"><span>猩其一　謹識</span><span class="seal" aria-label="印章：猩壹">猩<br>壹</span></div>
+  </div>
+</section>
+
+<!-- ============ 5 CONTINUE? ============ -->
+<section class="sec cont" id="continue" aria-live="polite">
+  <div id="cont-ask">
+    <p class="q">CONTINUE?</p>
+    <p class="count" id="cont-count">9</p>
+    <div class="row">
+      <a class="btn" href="#top" id="cont-yes">YES・回到標題</a>
+      <button class="btn" type="button" id="cont-no">NO</button>
+    </div>
+  </div>
+  <div id="cont-over" hidden>
+    <p class="over">GAME OVER</p>
+    <p class="monday">holy shit, it's monday.</p>
+    <div class="row"><button class="btn" type="button" id="cont-insert"><canvas data-sprite="banana" style="width:22px" aria-hidden="true"></canvas>投入一根香蕉</button></div>
+  </div>
+  <p class="back">想看紙本模式？<a href="index.html">回到原本的作者頁</a></p>
+  <p class="copy">© 2026 MONKEY ZERO × GORILLA ONE</p>
+</section>
+
+</main>
+
+<!-- 成就清單 -->
+<dialog class="ach" id="ach-dialog" aria-label="成就">
+  <h2>成就 ACHIEVEMENTS</h2>
+  <ul id="ach-list"></ul>
+  <button class="btn close" type="button" id="ach-close">關閉</button>
+</dialog>
+
+<!-- 成就跳出通知 -->
+<div class="win toast" id="toast" role="status" aria-live="polite"><p class="t">ACHIEVEMENT UNLOCKED</p><p id="toast-text"></p></div>
+
+<script src="pixel/sprites.js"></script>
+<script src="pixel/game.js"></script>
+</body>
+</html>
