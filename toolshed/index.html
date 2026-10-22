@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具間</title>
+<!--
+  ================================================================
+  工具間 · 首頁（洞洞板）
+  猴零士用 AI 一起敲出來的個人程式，一個專案一張工具牌。
+  新增一個專案：
+  1. 複製一張 <a class="tag"> 貼在空鉤子前面，改名稱、說明、狀態、連結
+     （--tilt 是吊牌歪的角度，正負 1～3deg 輪流用比較自然）
+  2. 專案頁複製 board.html 改名再改內容
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="shed">
+
+  <nav class="crumbs"><a href="../">← 作者頁</a></nav>
+
+  <header class="shed-sign">
+    <h1>工具間</h1>
+    <p class="en">MONKEY'S TOOLSHED</p>
+    <span class="tape" aria-hidden="true"></span>
+  </header>
+
+  <p class="shed-note">
+    畫圖畫到一半發現「要是有這種工具就好了」，<br>
+    就自己跟 <b>AI</b> 一起敲出來。<br>
+    掛在這面牆上的，都是猴子親手（叫 AI）做的工具。
+  </p>
+
+  <div class="pegs">
+    <a class="tag" href="board.html" style="--tilt:-2.2deg">
+      <p class="tag-kind">PROJECT 01 · 桌面程式</p>
+      <h2 class="tag-name">硬核繪畫白板</h2>
+      <p class="tag-desc">白板＋Eagle 式收集，但不只收圖：取色、檢查、構圖線、拆成零件、拿來練習——為了「看懂」一張圖而做的繪畫庫。</p>
+      <div class="tag-foot">
+        <span class="status">準備中</span>
+        <span class="tag-go">看說明書 →</span>
+      </div>
+    </a>
+
+    <div class="tag tag--empty" style="--tilt:1.6deg" aria-hidden="true">
+      下一個工具<br>掛這裡（還沒想到）
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
