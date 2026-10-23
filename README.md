@@ -21,6 +21,7 @@
 | 作者頁 | 兩隻的自我介紹（會動，桌面瀏覽體驗最佳） | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/) |
 | 作者頁・像素版 | 復古遊戲風的作者頁：選角、對話、選關，附香蕉彩蛋 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/pixel.html) |
 | 習作輯 | 繪畫課程、練習與研究的記錄冊 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/art-journal/) |
+| 作畫紀錄 | 畫畫練習的美術館：上課筆記、日常練習、自主研究、完成作品四個展廳 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/drawing-log/) |
 | 文集 | 原創、同人與文字研究 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/word-journal/) |
 | 文字物理學 | 文字遊戲編程實驗．雙館聯展 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/textual-physics/) |
 | 學語誌 | 由零開始學一種語言的記錄 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/lang-journal/) |
@@ -34,6 +35,7 @@ MONKEYZERO_LOG-BANANA/
 ├── index.html          # 作者頁
 ├── pixel.html          # 作者頁・像素版（素材在 pixel/）
 ├── art-journal/        # 習作輯：課程記錄、作業、自主研究、作品
+├── drawing-log/        # 作畫紀錄：美術館式的畫畫練習展館
 ├── word-journal/       # 文集：原創、同人、文字研究
 ├── textual-physics/    # 文字物理學：文字遊戲實驗
 ├── lang-journal/       # 學語誌：學語言的日誌、實驗與研究
