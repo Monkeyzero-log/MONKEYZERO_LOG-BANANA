@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作畫紀錄 — 猴零士的畫畫練習</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<!--
+  ================================================================
+  作畫紀錄 · 大廳
+  樓層平面圖、展廳目錄、現正展出都由 data.js 自動產生，不用改這個檔。
+  ================================================================
+-->
+<body data-page="lobby">
+<main class="wrap">
+  <header class="topbar">
+    <a class="logo" href="./">作畫紀錄</a>
+    <nav aria-label="展廳">
+      <a href="gallery.html?g=class">上課筆記</a><a href="gallery.html?g=daily">日常練習</a><a href="gallery.html?g=study">自主研究</a><a href="gallery.html?g=works">完成作品</a>
+    </nav>
+  </header>
+
+  <section class="facade">
+    <p class="kicker en">Monkey Zero · Museum of Practice</p>
+    <h1>作畫紀錄</h1>
+    <p class="sub">猴零士的畫畫練習——上課、速寫、研究與作品，依展廳陳列。</p>
+    <dl class="info">
+      <div><dt>開館時間</dt><dd>猴子有空的時候</dd></div>
+      <div><dt>休館日</dt><dd>星期一</dd></div>
+      <div><dt>門票</dt><dd>一根香蕉</dd></div>
+    </dl>
+  </section>
+
+  <section class="block" aria-labelledby="h-plan">
+    <div class="block-head"><h2 id="h-plan">樓層導覽</h2><span class="en">Floor Guide</span></div>
+    <div class="plan-wrap">
+      <div>
+        <svg class="plan" id="plan" viewBox="0 0 600 400" role="group" aria-label="樓層平面圖，點房間進入展廳"></svg>
+        <p class="plan-note">點房間就能走進展廳</p>
+      </div>
+      <nav class="directory" id="directory" aria-label="展廳目錄"></nav>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="h-now">
+    <div class="block-head"><h2 id="h-now">現正展出</h2><span class="en">Now Showing</span></div>
+    <div class="posters" id="now"></div>
+  </section>
+
+</main>
+<footer class="floor">
+  <p class="floor-note">策展　猩其一　／　作品　猴零士　·　<a href="../">回作者頁</a>　·　<a href="../art-journal/">舊館：習作輯</a></p>
+</footer>
+<script src="data.js"></script>
+<script src="museum.js"></script>
+</body>
+</html>

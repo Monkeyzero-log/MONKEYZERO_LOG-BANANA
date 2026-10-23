@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>展廳 — 作畫紀錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<!-- 展廳頁：網址的 ?g= 決定是哪一間（class／daily／study／works），內容由 data.js 產生 -->
+<body data-page="gallery">
+<main class="wrap">
+  <header class="topbar">
+    <a class="logo" href="./">作畫紀錄</a>
+    <nav aria-label="展廳">
+      <a href="gallery.html?g=class">上課筆記</a><a href="gallery.html?g=daily">日常練習</a><a href="gallery.html?g=study">自主研究</a><a href="gallery.html?g=works">完成作品</a>
+    </nav>
+  </header>
+  <p class="crumbs"><a href="./">大廳</a><span>/</span><span id="crumb-room"></span></p>
+  <header class="room-head" id="room-head"></header>
+  <div id="room-body"></div>
+</main>
+<footer class="floor">
+  <p class="floor-note">策展　猩其一　／　作品　猴零士　·　<a href="../">回作者頁</a>　·　<a href="../art-journal/">舊館：習作輯</a></p>
+</footer>
+<script src="data.js"></script>
+<script src="museum.js"></script>
+</body>
+</html>
