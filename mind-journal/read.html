@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思考錄 — 季刊版</title>
+<!--
+  思考錄 · 季刊版閱讀頁：網址 ?id= 決定是哪一篇。
+  內文直接讀 pieces/文章代號.html 的正文，所以不用為季刊版另做文章頁。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=LXGW+WenKai+TC:wght@700&family=Noto+Serif+TC:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="magazine.css">
+</head>
+<body data-page="read">
+<script>document.body.setAttribute('data-id', new URLSearchParams(location.search).get('id') || '');</script>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="rbar">
+    <a class="logo" href="magazine.html">思考錄</a>
+    <nav><a href="magazine.html#contents">目錄</a><a id="classic" href="index.html">書櫃版 ⇄</a><a href="../">作者頁</a></nav>
+  </header>
+  <header class="rhead" id="rhead"></header>
+  <div class="rlayout">
+    <nav class="rtoc" id="rtoc" aria-label="本文目次"></nav>
+    <article class="rbody-wrap">
+      <details class="rtoc-mobile" id="rtoc-m" hidden></details>
+      <div class="rbody" id="rbody"><p class="loading">正在翻到這一頁⋯⋯</p></div>
+    </article>
+  </div>
+  <nav class="rnext" id="rnext" aria-label="上一篇與下一篇"></nav>
+  <div style="height:120px"></div>
+</div>
+<a class="to-top" href="#" aria-label="回到頂端">↑</a>
+<script src="posts.js"></script>
+<script src="magazine.js"></script>
+<script src="library.js"></script>
+</body>
+</html>

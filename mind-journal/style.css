@@ -500,3 +500,8 @@ a:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; }
   margin-top:10px; text-align:center;
   font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--gray);
 }
+
+/* 切換到季刊版的小連結 */
+.switch{ margin:-18px 0 22px; font-size:13px; }
+.switch a{ color:var(--amber); border-bottom:1px solid var(--amber-faint); }
+.switch a:hover{ color:var(--ink); }

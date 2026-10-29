@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思考錄 — 季刊版</title>
+<meta name="description" content="猩其一主編的思考錄季刊：心智、演化、社會與創作的長篇思考。">
+<!--
+  ================================================================
+  思考錄 · 季刊版首頁（另一版外觀，原本的書櫃版是 index.html）
+  封面故事、要目、目錄都由 posts.js 自動產生；
+  這個檔只需要改「編輯室報告」的文字。刊號與定價在 magazine.js 最上面。
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=LXGW+WenKai+TC:wght@700&family=Noto+Serif+TC:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="magazine.css">
+</head>
+<body data-page="home">
+<div class="wrap">
+
+  <div class="strip">
+    <span><a href="../">← 作者頁</a>　·　MONKEYZERO LOG</span>
+    <span>主編　猩其一</span>
+    <span><a href="index.html">切換：書櫃版 ⇄</a></span>
+  </div>
+
+  <header class="masthead">
+    <h1>思考錄</h1>
+    <p class="sub caps">The Thinking Records · A Quarterly</p>
+    <p class="tagline">一份闔目構思的季刊</p>
+    <p class="margin-note hand" aria-hidden="true">（其實是<br>馬桶上想的）</p>
+  </header>
+  <hr class="double">
+  <p class="issue-line" id="issue-line"></p>
+
+  <section class="cover" aria-label="封面故事">
+    <div class="cover-story" id="cover-story"></div>
+    <aside class="highlights" id="highlights"></aside>
+  </section>
+
+  <section class="editor" aria-labelledby="h-editor">
+    <h3 id="h-editor"><small>EDITOR'S NOTE</small>編輯室報告</h3>
+    <div class="body">
+      <p>本刊為思考錄之季刊版，與隔壁那座木頭書櫃收錄相同文章，惟排版較為端正，宜於正襟危坐時閱讀。書櫃版之粉筆塗鴉、香蕉書擋，本刊一概從略。</p>
+      <p>所收篇章，多為闔目構思之所得，涉及心智、演化、社會與創作。篇幅長短不一，長者逾兩萬言，讀者可善用頁面下方之自動捲動裝置，或分次閱畢。</p>
+      <p>標記「稿件審閱中」者，乃主編尚在修訂之篇目，定稿後即行刊出。凡有錯字、離題、或忽然出現的香蕉，請逕洽隔壁那隻猴子。</p>
+      <p class="sign">主編　猩其一　謹識<span class="seal" aria-label="印章：猩壹">猩<br>壹</span></p>
+      <span class="scribble hand" aria-hidden="true">↑ 錯字明明是他自己打的 ——猴</span>
+    </div>
+  </section>
+
+  <section class="contents" id="contents" aria-labelledby="h-contents">
+    <div class="contents-head">
+      <h2 id="h-contents"><small>CONTENTS</small>目錄</h2>
+      <div class="filters" id="filters" aria-label="依標籤篩選"></div>
+    </div>
+    <div id="columns"></div>
+  </section>
+
+  <footer class="colophon">
+    <div><h4>版權頁</h4>
+      <dl><dt>發行人</dt><dd>猩其一</dd><dt>主編</dt><dd>猩其一</dd><dt>美術</dt><dd>猴零士（未經許可）</dd><dt>校對</dt><dd>猩其一</dd><dt>錯字</dt><dd>猴零士</dd><dt>印刷</dt><dd>同一顆大腦</dd></dl>
+    </div>
+    <div><h4>其他版本</h4>
+      <p><a href="index.html">書櫃版（木頭書櫃＋粉筆塗鴉）</a></p>
+      <p style="margin-top:6px"><a href="../">回作者頁</a></p>
+    </div>
+    <div><h4>本刊聲明</h4>
+      <p>本刊文責由猩其一自負；惟頁邊藍色手寫字，均係隔壁那隻猴子擅自所為，與本刊無涉。</p>
+    </div>
+  </footer>
+
+</div>
+<script src="posts.js"></script>
+<script src="magazine.js"></script>
+</body>
+</html>

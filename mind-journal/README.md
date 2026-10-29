@@ -11,6 +11,16 @@
 | `tools/md2piece.py` | 把 `drafts/` 裡的 Markdown 原稿轉成文章頁（自動產生目次、算字數） |
 | `drafts/` | 原稿暫放處（上傳後交給 Claude 轉成網頁） |
 
+## 兩種外觀
+
+| 版本 | 首頁 | 文章頁 |
+|------|------|--------|
+| 書櫃版（猴子風：木頭書櫃、粉筆塗鴉） | `index.html` | `pieces/文章代號.html` |
+| 季刊版（猩猩風：文學雜誌排版） | `magazine.html` | `read.html?id=文章代號` |
+
+兩版共用 `posts.js` 與 `pieces/` 的內文，上架一次兩邊都有。季刊版的刊號、定價在 `magazine.js` 最上面，編輯室報告直接改 `magazine.html`。
+（季刊版的閱讀頁要放上網站才讀得到內文；在電腦上直接雙擊開檔時會提示改看書櫃版。）
+
 ## 新增一篇
 
 **原稿是 Markdown 時**：`python3 mind-journal/tools/md2piece.py mind-journal/drafts/原稿.md 文章代號`，再到 `posts.js` 加一段書目即可。
