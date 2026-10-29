@@ -10,8 +10,9 @@
   ================================================================
   密碼保管箱：給自己設 iOS「螢幕使用時間」密碼用
   - 要一字不錯打完一句長句，才會算出輸入步驟
-  - 步驟只告訴你「手機轉成什麼方向、按眼睛看到的哪個位置」，不顯示數字
-  - 步驟用那句長句加密存在下面的 VAULT，原始碼裡沒有數字
+  - 步驟只告訴你「手機怎麼轉、按眼睛看到的哪個位置」，不顯示數字
+  - 數字用那句長句加密存在下面的 VAULT，原始碼裡沒有數字
+  - 轉法每次開鎖都重新隨機產生，同一個數字每次的方向與位置都不同，背不起來
   - 想換密碼或換句子：請 Claude 重新產生 VAULT（舊密碼要先在 iPhone 上關掉）
   ================================================================
 -->
@@ -71,7 +72,10 @@
   .dots i{ width:28px; height:5px; border-radius:99px; background:var(--line); }
   .dots i.on{ background:var(--accent); }
   .turn{ margin-top:14px; font-size:21px; font-weight:700; line-height:1.5; }
-  .turn small{ display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:4px; }
+  .turn{ font-size:16px !important; font-weight:500 !important; color:var(--muted); }
+  .moves{ display:flex; flex-direction:column; gap:4px; margin-top:6px; }
+  .moves span{ font-size:21px; font-weight:700; color:var(--ink); }
+  .turn small{ display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:8px; }
   .press{ margin-top:16px; font-size:21px; font-weight:700; }
   .press b{ display:inline-block; padding:0 10px; color:#1A1A1A; background:var(--hi); border-radius:8px; }
   .figure{ display:flex; justify-content:center; margin-top:16px; }
@@ -109,7 +113,8 @@
       <li>iPhone 打開<b>設定 → 螢幕使用時間 → 使用螢幕使用時間密碼</b>（或在要輸入密碼的畫面停好）。</li>
       <li>輸入時<b>只看 1 到 9 那九顆鍵組成的正方形</b>，最下面那排的 0 不算。</li>
       <li>轉手機時<b>螢幕一直面向自己</b>，只像轉方向盤那樣在面前轉，不要翻面。</li>
-      <li>每一步都從<b>上一步的方向</b>接著轉；第 1 步開始前，手機先正常直立（充電孔朝下）。</li>
+      <li>每一步都從<b>上一步的方向</b>接著轉，照順序一下一下轉；第 1 步開始前，手機先正常直立（充電孔朝下）。</li>
+      <li><b>每次開鎖的轉法都不一樣</b>，不用背，也背不起來。</li>
     </ol>
     <button class="btn" type="button" id="start">我準備好了，開始第 1 步</button>
   </section>
@@ -131,7 +136,7 @@
   <!-- ============ 4. 完成 ============ -->
   <section class="panel" id="finish" hidden>
     <p class="done-big">四個位置都按完了。</p>
-    <p class="hint" style="margin-top:8px">如果 iPhone 要你「再輸入一次」確認密碼，先把手機轉回正常直立（充電孔朝下），再按下面的按鈕從第 1 步重來一次。</p>
+    <p class="hint" style="margin-top:8px">如果 iPhone 要你「再輸入一次」確認密碼，先把手機轉回正常直立（充電孔朝下），再按下面的按鈕。會換一套新的轉法，但按到的還是同一組密碼。</p>
     <button class="btn" type="button" id="again">再輸入一次（從第 1 步）</button>
     <button class="btn ghost" type="button" id="lock">鎖回去</button>
   </section>
@@ -141,11 +146,11 @@
 
 <script>
 /* ================================================================
-   保管內容：用下面那句話當鑰匙（PBKDF2 → AES-GCM）加密的四個步驟。
-   每一步只有「手機方向」與「眼睛看到的位置」，沒有數字。
+   保管內容：用下面那句話當鑰匙（PBKDF2 → AES-GCM）加密的四個數字。
+   解開後不顯示數字，而是當場隨機決定每一步的轉法，換算成「眼睛看到的位置」。
    ================================================================ */
 var SENTENCE = '我知道現在想打開的那個程式，不會讓我變得更快樂，它只會讓時間消失得比較不痛。如果我真的需要它，就請我一個字一個字把這句話打完，再誠實地決定要不要繼續。';
-var VAULT = { salt:'r7FsqHoUYJYtbbvTKbl/1w==', iv:'un0nAyNRSFnuvF4T', data:'lNX9mpTwLnirhojXddNGgIoQDmlm1Du/Gcp/vPxEqrMNm+XgUCINBjWUoENHgW+/qhPxENbJaBXae3BqMYF+pkVQeDyrsG+tOc3Tb/bvNI2KD+ruf5+3QUa2ZAXyHpGpzQ==', iter:250000 };
+var VAULT = { salt:'8rVWb8/x8GCwNhqiPl/0BA==', iv:'BCpq7CUmT3zEGqVS', data:'BsJdSWNj0B/qVqcyAvobhUk0wKeN8F0mOF7f46gIrULK/F8lkA==', iter:250000 };
 
 var POS = [['左上', '上中', '右上'], ['左中', '中間', '右中'], ['左下', '下中', '右下']];
 var PORT = ['充電孔朝下（正常直立）', '充電孔朝左（橫拿）', '充電孔朝上（倒立）', '充電孔朝右（橫拿）'];
@@ -153,7 +158,7 @@ var TURN = ['不用轉，維持現在的方向', '順時針轉 90 度', '轉 180
 var RELOCK_MIN = 10;
 
 var $ = function (s) { return document.querySelector(s); };
-var fails = 0, steps = null, cur = 0, relockAt = 0, relockTimer = null;
+var fails = 0, digits = null, steps = null, cur = 0, relockAt = 0, relockTimer = null;
 
 /* ---------------- 1. 抄句子 ---------------- */
 var chars = Array.from(SENTENCE);
@@ -208,12 +213,32 @@ function unlock(text) {
   }).then(function (key) {
     return crypto.subtle.decrypt({ name:'AES-GCM', iv:b64(VAULT.iv) }, key, b64(VAULT.data));
   }).then(function (buf) {
-    steps = JSON.parse(new TextDecoder().decode(buf));
+    digits = JSON.parse(new TextDecoder().decode(buf)).d;
+    steps = plan(digits);
     $('#gate').hidden = true; $('#prep').hidden = false;
     armRelock();
   }).catch(function () {
     box.disabled = false;
     fail('開鎖失敗。句子可能跟保管箱裡的不一樣，請檢查有沒有多打空白。');
+  });
+}
+
+/* ---------------- 隨機轉法 ---------------- */
+function rnd(n) { return crypto.getRandomValues(new Uint32Array(1))[0] % n; }
+/* 鍵位第 r 列第 c 行，手機順時針轉了 k 次 90 度後，眼睛看到的位置 */
+function eye(r, c, k) { return [[r, c], [c, 2 - r], [2 - r, 2 - c], [2 - c, r]][k]; }
+function plan(ds) {
+  var prev = 0;
+  return ds.map(function (d) {
+    var opts = [1, 2, 3].filter(function (k) { return k !== prev; });   /* 永遠不停在正常直立，也一定要換方向 */
+    var k = opts[rnd(opts.length)], need = (k - prev + 4) % 4, n = 1 + rnd(3), moves;
+    do {                                                               /* 一到三下，加起來剛好轉到目標方向 */
+      moves = [];
+      for (var j = 0; j < n; j++) moves.push(1 + rnd(3));
+    } while (moves.reduce(function (a, b) { return a + b; }, 0) % 4 !== need);
+    var e = eye(Math.floor((d - 1) / 3), (d - 1) % 3, k);
+    prev = k;
+    return { k:k, R:e[0], C:e[1], moves:moves };
   });
 }
 
@@ -235,11 +260,12 @@ function figure(k, R, C) {
 }
 function showStep(i) {
   cur = i;
-  var s = steps[i], prev = i === 0 ? 0 : steps[i - 1].k, d = (s.k - prev + 4) % 4;
+  var s = steps[i], NUM = ['①', '②', '③'];
   $('#step-no').textContent = '第 ' + (i + 1) + ' 步　／　共 ' + steps.length + ' 步';
   $('#dots').innerHTML = steps.map(function (_, j) { return '<i class="' + (j <= i ? 'on' : '') + '"></i>'; }).join('');
-  $('#turn').innerHTML = '把手機轉成：' + PORT[s.k] +
-    '<small>（從' + (i === 0 ? '正常直立' : '上一步的方向') + TURN[d] + '）</small>';
+  $('#turn').innerHTML = '從' + (i === 0 ? '正常直立（充電孔朝下）' : '上一步的方向') + '開始，依序：' +
+    '<span class="moves">' + s.moves.map(function (m, j) { return '<span>' + NUM[j] + ' ' + TURN[m] + '</span>'; }).join('') + '</span>' +
+    '<small>轉完應該是：' + PORT[s.k] + '</small>';
   $('#figure').innerHTML = figure(s.k, s.R, s.C);
   $('#press').innerHTML = '點擊你眼睛看到的 <b>' + POS[s.R][s.C] + '</b>';
   $('#back').disabled = i === 0; $('#back').style.opacity = i === 0 ? .4 : 1;
@@ -252,7 +278,7 @@ $('#next').addEventListener('click', function () {
   else { $('#step').hidden = true; $('#finish').hidden = false; armRelock(); }
 });
 $('#back').addEventListener('click', function () { if (cur > 0) showStep(cur - 1); });
-$('#again').addEventListener('click', function () { $('#finish').hidden = true; $('#step').hidden = false; showStep(0); });
+$('#again').addEventListener('click', function () { steps = plan(digits); $('#finish').hidden = true; $('#step').hidden = false; showStep(0); });
 $('#lock').addEventListener('click', lock);
 
 /* ---------------- 自動鎖回去 ---------------- */
@@ -267,7 +293,7 @@ function armRelock() {
   }, 1000);
 }
 function lock() {
-  steps = null; cur = 0; clearInterval(relockTimer);
+  digits = null; steps = null; cur = 0; clearInterval(relockTimer);
   ['#prep', '#step', '#finish', '#timer'].forEach(function (s) { $(s).hidden = true; });
   $('#gate').hidden = false; box.disabled = false; box.value = ''; lastLen = 0; paint(0);
   var m = $('#msg'); m.className = 'msg'; m.textContent = '已鎖回去。';
