@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
-<title>純記錄</title>
+<title>GORILLA ONE</title>
 <!--
   ================================================================
-  純記錄 · 總覽
-  全站的另一個版本：同一批內容，統一、樸素的版面，不含角色設定。
-  繪畫與思考兩區直接讀原版的資料清單，原版更新這裡就跟著更新。
-  寫作、語言、工具三頁是手寫的，說明見 README.md。
+  純記錄 · 作者頁（也是這一版的首頁）
+  只用 GORILLA ONE 一個名字，不放角色設定與玩笑。
+  「頁面」裡繪畫、思考兩格的數字會自動算；寫作、語言、工具三格是手寫的，有新內容時記得改。
+  「其他平台」要增減，複製或刪掉一整行 <li class="cat"> 即可。
   ================================================================
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
   <div class="wrap">
     <a class="brand" href="index.html">純記錄</a>
     <nav class="nav" aria-label="分類">
-      <a href="index.html" aria-current="page">總覽</a>
+      <a href="index.html" aria-current="page">作者</a>
       <a href="drawing.html">繪畫</a>
       <a href="essays.html">思考</a>
       <a href="writing.html">寫作</a>
@@ -35,13 +35,14 @@
 </header>
 
 <main class="wrap">
-  <header class="page-head">
-    <h1>純記錄</h1>
-    <p class="lead">繪畫、思考、寫作、語言學習與工具開發的記錄，自 2026 年起。</p>
+  <header class="author">
+    <h1>GORILLA ONE</h1>
+    <p class="author-role">寫作・繪畫</p>
+    <p class="author-bio">本站收錄繪畫練習、思考文章、寫作、語言學習與工具開發的記錄，自 2026 年起持續更新。</p>
   </header>
 
   <section class="block">
-    <h2 class="block-title">分類</h2>
+    <h2 class="block-title">頁面</h2>
     <ul class="cats" style="margin-top:14px">
       <li class="cat"><a href="drawing.html"><span class="cat-name">繪畫</span><span class="cat-desc">課程作業、日常練習、自主研究、完成作品</span><span class="cat-stat" data-stat="drawing">—</span></a></li>
       <li class="cat"><a href="essays.html"><span class="cat-name">思考</span><span class="cat-desc">關於心智、演化、社會與創作的長文</span><span class="cat-stat" data-stat="essays">—</span></a></li>
@@ -53,14 +54,21 @@
 
   <section class="block">
     <h2 class="block-title">最近記錄</h2>
-    <p class="block-desc">各分類的記錄，依日期由新到舊。</p>
     <ol class="rows" id="recent" style="margin-top:14px"></ol>
+  </section>
+
+  <section class="block">
+    <h2 class="block-title">其他平台</h2>
+    <ul class="cats" style="margin-top:14px">
+      <li class="cat"><a href="https://archiveofourown.org/users/GorillaOne" target="_blank" rel="noopener"><span class="cat-name">AO3</span><span class="cat-desc">文字作品</span><span class="cat-stat">archiveofourown.org ↗</span></a></li>
+      <li class="cat"><a href="https://www.pixiv.net/users/92345485" target="_blank" rel="noopener"><span class="cat-name">Pixiv</span><span class="cat-desc">繪畫作品</span><span class="cat-stat">pixiv.net ↗</span></a></li>
+    </ul>
   </section>
 </main>
 
 <footer class="site-foot">
   <div class="wrap">
-    <p>純記錄 · 2026 —</p>
+    <p>GORILLA ONE · 2026 —</p>
     <p id="compare">對照原版：<a href="../">作者頁</a></p>
   </div>
 </footer>

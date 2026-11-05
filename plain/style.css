@@ -78,6 +78,12 @@ main { padding-bottom: 72px; }
 .page-head h1 { font-size: 30px; letter-spacing: .02em; }
 .lead { color: var(--muted); margin-top: 10px; }
 
+/* ============ 作者頁 ============ */
+.author { padding: 64px 0 36px; border-bottom: 1px solid var(--line); }
+.author h1 { font-size: 40px; font-weight: 700; letter-spacing: .08em; }
+.author-role { color: var(--muted); font-size: 14px; letter-spacing: .2em; margin-top: 6px; }
+.author-bio { margin-top: 22px; }
+
 /* ============ 區塊 ============ */
 .block { margin-top: 44px; }
 .block-title {
@@ -266,6 +272,8 @@ a.row-title:hover, .row a:hover .row-title { color: var(--accent); }
 @media (max-width: 640px) {
   .page-head { padding-top: 28px; }
   .page-head h1 { font-size: 25px; }
+  .author { padding-top: 40px; }
+  .author h1 { font-size: 31px; }
   .row { grid-template-columns: 1fr auto; padding: 12px 0; }
   .row-date { grid-column: 1; grid-row: 1; }
   .row-meta { grid-column: 2; grid-row: 1; }
