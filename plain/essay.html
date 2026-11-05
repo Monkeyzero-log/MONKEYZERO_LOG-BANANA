@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>思考 · 純記錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="essay">
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">純記錄</a>
+    <nav class="nav" aria-label="分類">
+      <a href="index.html">作者</a>
+      <a href="drawing.html">繪畫</a>
+      <a href="essays.html" aria-current="page">思考</a>
+      <a href="writing.html">寫作</a>
+      <a href="language.html">語言</a>
+      <a href="tools.html">工具</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="crumbs"><a href="essays.html">思考</a><span>/</span><a id="crumb-shelf" href="essays.html"></a></nav>
+  <article>
+    <header class="page-head" id="head"><p class="loading">載入中…</p></header>
+    <details class="toc" id="toc" hidden></details>
+    <div class="prose article-body" id="body"></div>
+  </article>
+  <nav class="pager" id="pager" aria-label="上一篇與下一篇"></nav>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>GORILLA ONE · 2026 —</p>
+    <p id="compare">對照原版：<a href="../mind-journal/">思考錄</a></p>
+  </div>
+</footer>
+<script src="../mind-journal/posts.js"></script>
+<script src="plain.js"></script>
+</body>
+</html>
