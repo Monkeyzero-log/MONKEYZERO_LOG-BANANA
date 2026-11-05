@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>繪畫 · 純記錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="drawing-set">
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">純記錄</a>
+    <nav class="nav" aria-label="分類">
+      <a href="index.html">總覽</a>
+      <a href="drawing.html" aria-current="page">繪畫</a>
+      <a href="essays.html">思考</a>
+      <a href="writing.html">寫作</a>
+      <a href="language.html">語言</a>
+      <a href="tools.html">工具</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="crumbs"><a href="drawing.html">繪畫</a><span>/</span><a id="crumb-gallery" href="drawing.html"></a></nav>
+  <div id="set"><p class="loading">載入中…</p></div>
+</main>
+
+<dialog class="lb" id="lb" aria-label="放大檢視">
+  <div class="lb-stage">
+    <img alt="">
+    <button class="lb-prev" type="button" aria-label="上一張">‹</button>
+    <button class="lb-next" type="button" aria-label="下一張">›</button>
+  </div>
+  <div class="lb-bar"><span class="lb-cap"></span><a class="lb-orig" target="_blank" rel="noopener">開啟原圖</a></div>
+  <button class="lb-close" type="button" aria-label="關閉">×</button>
+</dialog>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>純記錄 · 2026 —</p>
+    <p id="compare">對照原版：<a href="../drawing-log/">作畫紀錄</a></p>
+  </div>
+</footer>
+<script src="../drawing-log/data.js"></script>
+<script src="plain.js"></script>
+</body>
+</html>

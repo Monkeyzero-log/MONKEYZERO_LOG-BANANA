@@ -27,6 +27,7 @@
 | 學語誌 | 由零開始學一種語言的記錄 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/lang-journal/) |
 | 思考錄 | 猩其一的思考文章，木頭書櫃陳列 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/mind-journal/) |
 | 工具間 | 猴零士跟 AI 一起開發的個人程式 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/toolshed/) |
+| 純記錄 | 全站的樸素版：同一批內容、統一版面，不含角色設定，方便和原版對照 | [進入](https://monkeyzero-log.github.io/MONKEYZERO_LOG-BANANA/plain/) |
 
 ## 倉庫結構
 
@@ -40,7 +41,8 @@ MONKEYZERO_LOG-BANANA/
 ├── textual-physics/    # 文字物理學：文字遊戲實驗
 ├── lang-journal/       # 學語誌：學語言的日誌、實驗與研究
 ├── mind-journal/       # 思考錄：思考文章書櫃
-└── toolshed/           # 工具間：用 AI 開發的個人程式
+├── toolshed/           # 工具間：用 AI 開發的個人程式
+└── plain/              # 純記錄：全站的樸素對照版
 ```
 
 ---

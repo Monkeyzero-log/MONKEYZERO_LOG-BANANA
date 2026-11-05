@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>工具 · 純記錄</title>
+<!--
+  工具頁是手寫的。新增一個專案：複製整段 <section class="block"> … </section> 貼在下面再改內容，
+  並到 index.html 把「工具」那一列的「1 項 · 準備中」改掉。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">純記錄</a>
+    <nav class="nav" aria-label="分類">
+      <a href="index.html">總覽</a>
+      <a href="drawing.html">繪畫</a>
+      <a href="essays.html">思考</a>
+      <a href="writing.html">寫作</a>
+      <a href="language.html">語言</a>
+      <a href="tools.html" aria-current="page">工具</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <header class="page-head">
+    <h1>工具</h1>
+    <p class="lead">以 AI 協作開發的個人程式。</p>
+  </header>
+
+  <section class="block">
+    <h2 class="block-title">硬核繪畫白板<span class="count">暫名</span></h2>
+    <dl class="facts">
+      <dt>形式</dt><dd>桌面程式</dd>
+      <dt>狀態</dt><dd>準備中（F00 資料格式規劃）</dd>
+      <dt>開發</dt><dd>與 AI 協作</dd>
+    </dl>
+    <p class="text" style="margin-top:20px">繪畫專用的白板，加上 Eagle 式的靈感收集。用途不是囤積圖片，而是把一張圖看懂、拆開，再轉為可以反覆練習的素材。</p>
+
+    <h3 class="sub">目的</h3>
+    <p class="text">一般的靈感庫收的是「好看的圖」，收完之後，圖仍然是別人的。這個工具要收的是看懂一張圖的過程：顏色怎麼配、明暗怎麼分、構圖怎麼切、一個物件從各個角度長什麼樣子，並把拆下來的東西整理成能反覆練習的零件。</p>
+
+    <h3 class="sub">與一般靈感庫的差異</h3>
+    <table class="table table--cmp">
+      <thead><tr><th>一般靈感庫</th><th>本工具</th></tr></thead>
+      <tbody>
+        <tr><td>收圖、貼標籤</td><td>直接在圖上取色、轉灰階、疊構圖線</td></tr>
+        <tr><td>在白板上排列</td><td>把圖切成零件，按角度排進角度表</td></tr>
+        <tr><td>需要時翻出來參考</td><td>用零件拼姿勢草稿，角度不合理時提醒</td></tr>
+        <tr><td>—</td><td>默寫、計時速寫、估色小考，練習結果留下紀錄</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">功能清單</h3>
+    <p class="text">依編號順序開發，一次一項，完成可用後再開始下一項。</p>
+    <table class="table">
+      <thead><tr><th>編號</th><th>功能</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr class="grp"><th colspan="3">準備・地基<span>先把資料的樣子想清楚，不做任何功能</span></th></tr>
+        <tr><td>F00</td><td>資料格式規劃</td><td>一次規劃好所有未來欄位與舊資料轉換</td></tr>
+        <tr class="grp"><th colspan="3">第二版・看圖工具<span>成本最低、使用最頻繁，優先開發</span></th></tr>
+        <tr><td>F01</td><td>滴管與 HSB 數值</td><td>從圖上取色，顯示 HSB 和灰階明度，可存成色票卡</td></tr>
+        <tr><td>F02</td><td>檢查模式</td><td>單張或整板一鍵切換灰階、色調分離、臨界值、模糊、翻轉</td></tr>
+        <tr><td>F03</td><td>主色與面積比例</td><td>抽出主要顏色和各自佔的比例，畫成長條和方格圖</td></tr>
+        <tr><td>F04</td><td>構圖格線</td><td>在圖上疊三分法、對角線、黃金比例等輔助線</td></tr>
+        <tr><td>F05</td><td>AB 對照</td><td>兩張圖並排同步、疊圖、分割線比較，可存成對照卡</td></tr>
+        <tr><td>F06</td><td>分析圖層</td><td>在圖上畫趨勢線、透視線、圈和箭頭，可一鍵開關</td></tr>
+        <tr><td>F07</td><td>文字筆記卡</td><td>在白板上寫 Markdown 筆記</td></tr>
+        <tr><td>F08</td><td>從瀏覽器拖曳</td><td>從瀏覽器直接把圖拖進白板</td></tr>
+        <tr class="grp"><th colspan="3">第三版・零件系統<span>把圖拆成零件，按角度收好，再拼回去</span></th></tr>
+        <tr><td>F09</td><td>切片</td><td>從圖上框出一塊，變成獨立卡片，不複製檔案</td></tr>
+        <tr><td>F10</td><td>零件庫</td><td>以物件為單位，收藏自己畫的三視圖、各角度、每一輪</td></tr>
+        <tr><td>F11</td><td>角度表</td><td>用格子顯示零件，看出空格，提示相鄰格</td></tr>
+        <tr><td>F12</td><td>格子自動切</td><td>把整張角度練習圖對齊格框，自動切成零件並填好角度</td></tr>
+        <tr><td>F13</td><td>節點圖層</td><td>同一格疊盒子層、結構層、細節層，可分別開關</td></tr>
+        <tr><td>F14</td><td>拼貼板</td><td>挑頭、胸腔、骨盆、腳的零件組成姿勢草稿，扭過頭會提醒</td></tr>
+        <tr class="grp"><th colspan="3">第四版・練習與紀錄<span>邊畫邊用，練完留下紀錄</span></th></tr>
+        <tr><td>F15</td><td>置頂半透明與滑鼠穿透</td><td>視窗置頂、半透明，點擊可穿過去到 CSP</td></tr>
+        <tr><td>F16</td><td>默寫模式</td><td>看幾秒後遮住，畫完再揭曉並對照</td></tr>
+        <tr><td>F17</td><td>計時速寫</td><td>從指定範圍隨機抽圖，定時自動換下一張</td></tr>
+        <tr><td>F18</td><td>估色小考</td><td>在圖上取一點，猜 HSB 數值，記錄誤差</td></tr>
+        <tr><td>F19</td><td>卡片箭頭</td><td>卡片之間拉箭頭，整理成學習地圖</td></tr>
+        <tr><td>F20</td><td>檢查清單卡</td><td>從模板產生可勾選的清單，跟著圖存</td></tr>
+        <tr><td>F21</td><td>學習時間軸</td><td>自己的圖依日期排列，附問題與下一步</td></tr>
+        <tr class="grp"><th colspan="3">暫緩・之後再說<span>只記錄構想</span></th></tr>
+        <tr><td>F22</td><td>加工場</td><td>一輪角度練習的工作區</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>純記錄 · 2026 —</p>
+    <p id="compare">對照原版：<a href="../toolshed/">工具間</a>・<a href="../toolshed/board.html">說明書</a></p>
+  </div>
+</footer>
+</body>
+</html>

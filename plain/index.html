@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>純記錄</title>
+<!--
+  ================================================================
+  純記錄 · 總覽
+  全站的另一個版本：同一批內容，統一、樸素的版面，不含角色設定。
+  繪畫與思考兩區直接讀原版的資料清單，原版更新這裡就跟著更新。
+  寫作、語言、工具三頁是手寫的，說明見 README.md。
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home">
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">純記錄</a>
+    <nav class="nav" aria-label="分類">
+      <a href="index.html" aria-current="page">總覽</a>
+      <a href="drawing.html">繪畫</a>
+      <a href="essays.html">思考</a>
+      <a href="writing.html">寫作</a>
+      <a href="language.html">語言</a>
+      <a href="tools.html">工具</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <header class="page-head">
+    <h1>純記錄</h1>
+    <p class="lead">繪畫、思考、寫作、語言學習與工具開發的記錄，自 2026 年起。</p>
+  </header>
+
+  <section class="block">
+    <h2 class="block-title">分類</h2>
+    <ul class="cats" style="margin-top:14px">
+      <li class="cat"><a href="drawing.html"><span class="cat-name">繪畫</span><span class="cat-desc">課程作業、日常練習、自主研究、完成作品</span><span class="cat-stat" data-stat="drawing">—</span></a></li>
+      <li class="cat"><a href="essays.html"><span class="cat-name">思考</span><span class="cat-desc">關於心智、演化、社會與創作的長文</span><span class="cat-stat" data-stat="essays">—</span></a></li>
+      <li class="cat"><a href="writing.html"><span class="cat-name">寫作</span><span class="cat-desc">原創、同人與文字研究</span><span class="cat-stat">尚無記錄</span></a></li>
+      <li class="cat"><a href="language.html"><span class="cat-name">語言</span><span class="cat-desc">由零開始學一門語言：日誌、方法實驗、研究</span><span class="cat-stat">尚無記錄</span></a></li>
+      <li class="cat"><a href="tools.html"><span class="cat-name">工具</span><span class="cat-desc">以 AI 協作開發的個人程式</span><span class="cat-stat">1 項 · 準備中</span></a></li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <h2 class="block-title">最近記錄</h2>
+    <p class="block-desc">各分類的記錄，依日期由新到舊。</p>
+    <ol class="rows" id="recent" style="margin-top:14px"></ol>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>純記錄 · 2026 —</p>
+    <p id="compare">對照原版：<a href="../">作者頁</a></p>
+  </div>
+</footer>
+<script src="../drawing-log/data.js"></script>
+<script src="../mind-journal/posts.js"></script>
+<script src="plain.js"></script>
+</body>
+</html>

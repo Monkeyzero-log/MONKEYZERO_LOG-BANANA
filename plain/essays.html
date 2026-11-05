@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>思考 · 純記錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="essays">
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">純記錄</a>
+    <nav class="nav" aria-label="分類">
+      <a href="index.html">總覽</a>
+      <a href="drawing.html">繪畫</a>
+      <a href="essays.html" aria-current="page">思考</a>
+      <a href="writing.html">寫作</a>
+      <a href="language.html">語言</a>
+      <a href="tools.html">工具</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <header class="page-head">
+    <h1>思考</h1>
+    <p class="lead">關於心智、演化、社會與創作的長文，依日期排列。</p>
+  </header>
+  <div class="filter" id="filter" role="group" aria-label="依分類篩選"></div>
+  <ol class="rows" id="list" style="margin-top:18px"><li class="loading">載入中…</li></ol>
+  <section class="block" id="drafts"></section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>純記錄 · 2026 —</p>
+    <p id="compare">對照原版：<a href="../mind-journal/">思考錄・書櫃版</a>・<a href="../mind-journal/magazine.html">思考錄・季刊版</a></p>
+  </div>
+</footer>
+<script src="../mind-journal/posts.js"></script>
+<script src="plain.js"></script>
+</body>
+</html>
